@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>LCO Instrument</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header>
+    <div class="brand">
+      <strong id="app-name">—</strong>
+      <span class="muted" id="app-version"></span>
+    </div>
+    <div class="conn">
+      <span id="conn-dot" class="dot"></span>
+      <span id="conn-state">connecting…</span>
+      <span class="muted" id="conn-url"></span>
+    </div>
+  </header>
+
+  <main>
+    <section id="topics-pane">
+      <h2>Topics</h2>
+      <div id="topics"></div>
+    </section>
+
+    <section id="commands-pane">
+      <h2>Commands</h2>
+      <div id="commands"></div>
+    </section>
+  </main>
+
+  <section id="log-pane">
+    <div class="log-head">
+      <h2>Log</h2>
+      <button id="log-clear">clear</button>
+    </div>
+    <ol id="log"></ol>
+  </section>
+
+  <script src="app.js"></script>
+</body>
+</html>
