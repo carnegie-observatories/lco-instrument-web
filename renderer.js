@@ -56,7 +56,7 @@ const createNode = (el) => {
   switch (el.kind) {
     case "box": {
       const div = document.createElement("div");
-      div.className = "wf-box";
+      div.className = `wf-box wf-${el.subkind || "box"}`;
       if (el.title) {
         const lg = document.createElement("div");
         lg.className = "wf-legend";
@@ -65,7 +65,18 @@ const createNode = (el) => {
       }
       return div;
     }
+    case "separator": {
+      const div = document.createElement("div");
+      div.className = "wf-separator";
+      return div;
+    }
     case "button": {
+      if (el.subkind === "check") {
+        const inp = document.createElement("input");
+        inp.type = "checkbox";
+        inp.className = "wf-checkbox";
+        return inp;
+      }
       const b = document.createElement("button");
       b.className = `wf-button wf-${el.subkind || "push"}`;
       b.textContent = el.title_default || "";
@@ -96,7 +107,6 @@ const createNode = (el) => {
         out.textContent = el.title_default || "";
         return out;
       }
-      // input / default
       const inp = document.createElement("input");
       inp.className = "wf-input";
       inp.type = "text";
@@ -107,6 +117,21 @@ const createNode = (el) => {
       const span = document.createElement("span");
       span.className = "wf-label";
       span.textContent = el.title_default || "";
+      return span;
+    }
+    case "indicator": {
+      const span = document.createElement("span");
+      span.className = `wf-indicator wf-${el.subkind || "indicator"}`;
+      return span;
+    }
+    case "progress": {
+      const span = document.createElement("span");
+      span.className = `wf-progress wf-${el.subkind || "spinner"}`;
+      return span;
+    }
+    case "imageview": {
+      const span = document.createElement("span");
+      span.className = "wf-imageview";
       return span;
     }
     default: {
@@ -184,7 +209,16 @@ const buildArgs = (writeSpec, node, el) => {
   return out;
 };
 
-const writeNodeValue = (node, val, fmt, label_map) => {
+const writeNodeValue = (node, val, fmt, label_map, class_map) => {
+  // class_map: state-driven CSS class swap (lamps, swatches, spinners, status icons).
+  if (class_map) {
+    for (const cls of Object.values(class_map)) node.classList.remove(cls);
+    const key = String(val);
+    if (class_map[key]) node.classList.add(class_map[key]);
+    // class-only bindings don't write text — return early so we don't clobber a static title.
+    if (!label_map && !fmt) return;
+  }
+
   let display = val;
   if (label_map) {
     const key = String(val);
@@ -192,10 +226,12 @@ const writeNodeValue = (node, val, fmt, label_map) => {
   } else if (fmt) {
     display = formatValue(val, fmt);
   }
+
   if (node.tagName === "OUTPUT")  node.textContent = display ?? "";
   else if (node.tagName === "BUTTON") node.textContent = display ?? "";
   else if (node.tagName === "SELECT") node.value = (display ?? "");
   else if (node.tagName === "INPUT") {
+    if (node.type === "checkbox") { node.checked = !!val; return; }
     // Focus guard: don't clobber the user's in-progress edit.
     if (document.activeElement === node) return;
     node.value = display ?? "";
@@ -212,7 +248,10 @@ const applyBinding = (el, node) => {
     const handler = (event) => {
       cmd(b.write.cmd, buildArgs(b.write, node, el)).catch(() => {});
     };
-    if (el.kind === "button") node.addEventListener("click", handler);
+    if (el.kind === "button") {
+      if (el.subkind === "check") node.addEventListener("change", handler);
+      else                        node.addEventListener("click",  handler);
+    }
     else if (el.kind === "popup") node.addEventListener("change", handler);
     else if (el.kind === "textfield" && el.subkind === "input") {
       node.addEventListener("change", handler);            // commit on blur / Enter
@@ -223,7 +262,7 @@ const applyBinding = (el, node) => {
     const r = b.read;
     topic(r.topic).subscribe((data) => {
       const val = pluck(data, r.path);
-      writeNodeValue(node, val, r.format, r.label_map);
+      writeNodeValue(node, val, r.format, r.label_map, r.class_map);
     });
   }
 };

@@ -241,11 +241,30 @@ ol#log .ts { color: var(--muted); margin-right: 8px; }
   font-size: 12px;
   padding: 0 6px;
   cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+  box-sizing: border-box;
+  font-family: inherit;
 }
-.window-frame button.wf-button:hover  { background: linear-gradient(#fff, #ededed); }
+.window-frame button.wf-button:hover  { background: linear-gradient(#fff, #ededed); color: #1a1a1a; }
 .window-frame button.wf-button:active { background: #d4d4d4; color: #1a1a1a; }
 
-.window-frame select.wf-popup,
+/* Bevel toggles (DCU lamps) — colour-only state, no PNG icons. */
+.window-frame button.wf-bevel-toggle,
+.window-frame button.wf-state-toggle {
+  border-radius: 4px;
+  font-weight: 600;
+}
+.window-frame button.wf-bevel-toggle.is-on,
+.window-frame button.wf-state-toggle.is-on   { background: #6cd66c; color: #0a3a0a; border-color: #4ca94c; }
+.window-frame button.wf-bevel-toggle.is-off,
+.window-frame button.wf-state-toggle.is-off  { background: #d8d8d8; color: #555;    border-color: #888; }
+.window-frame button.wf-bevel-toggle.is-err,
+.window-frame button.wf-state-toggle.is-err  { background: #ff6f6f; color: #3a0a0a; border-color: #c44; }
+
+/* Inputs and readouts. */
 .window-frame input.wf-input,
 .window-frame output.wf-readout {
   background: #ffffff;
@@ -257,26 +276,106 @@ ol#log .ts { color: var(--muted); margin-right: 8px; }
   padding: 0 4px;
   box-sizing: border-box;
 }
-.window-frame select.wf-popup { padding-right: 18px; }
 .window-frame output.wf-readout {
   background: #f5f5f5;
   display: flex;
   align-items: center;
+  justify-content: flex-end;
   font-variant-numeric: tabular-nums;
 }
 .window-frame input.wf-input { font-variant-numeric: tabular-nums; }
 
+/* Popup — strip native styling so the light theme actually applies on macOS. */
+.window-frame select.wf-popup {
+  appearance: none;
+  -webkit-appearance: none;
+  background-color: #ffffff;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='8' height='6' viewBox='0 0 8 6'><path fill='%23555' d='M0 0l4 6 4-6z'/></svg>");
+  background-repeat: no-repeat;
+  background-position: right 6px center;
+  border: 1px solid #888;
+  border-radius: 2px;
+  color: #1a1a1a;
+  font-size: 12px;
+  font-family: inherit;
+  padding: 0 18px 0 6px;
+  box-sizing: border-box;
+}
+
+/* Checkbox (NSButton type=check). */
+.window-frame input.wf-checkbox {
+  margin: 0;
+  padding: 0;
+  cursor: pointer;
+  accent-color: #4a8aff;
+}
+
+/* Decorative labels. */
 .window-frame .wf-label {
   font-size: 12px;
   color: #333;
+  font-family: inherit;
   display: flex;
   align-items: center;
+  white-space: nowrap;
+  overflow: hidden;
 }
 
+/* Status indicators (formerly NSColorWell + NSImageView icons).
+   State arrives over WS as an enum; renderer flips a CSS class. */
+.window-frame .wf-indicator {
+  display: inline-block;
+  background: #6b6b6b;
+  border: 1px solid #444;
+  border-radius: 50%;
+  box-sizing: border-box;
+}
+.window-frame .wf-indicator.is-on   { background: #6cd66c; border-color: #2e7a2e; }
+.window-frame .wf-indicator.is-off  { background: #2c2c2c; border-color: #111;    }
+.window-frame .wf-indicator.is-warn { background: #f5c44a; border-color: #b08a18; }
+.window-frame .wf-indicator.is-err  { background: #ff6f6f; border-color: #b03030; }
+
+/* State-icon (former NSImageView): square indicator that shows a glyph via CSS. */
+.window-frame .wf-imageview {
+  display: inline-block;
+  background: transparent;
+}
+.window-frame .wf-imageview.is-on  {
+  background: radial-gradient(circle at 50% 45%, #6cd66c 0 35%, transparent 38%);
+}
+.window-frame .wf-imageview.is-warn {
+  background: linear-gradient(45deg, transparent 45%, #f5c44a 45% 55%, transparent 55%);
+}
+
+/* Spinners (NSProgressIndicator indeterminate). Hidden until topic flips moving=true. */
+.window-frame .wf-progress {
+  display: inline-block;
+  border: 2px solid transparent;
+  border-radius: 50%;
+  visibility: hidden;
+  box-sizing: border-box;
+}
+.window-frame .wf-progress.is-moving {
+  visibility: visible;
+  border-top-color: #555;
+  border-right-color: #555;
+  border-bottom-color: transparent;
+  border-left-color: transparent;
+  animation: wf-spin 0.8s linear infinite;
+}
+@keyframes wf-spin { to { transform: rotate(360deg); } }
+
+/* NSBox separator — a thin horizontal/vertical rule. */
+.window-frame .wf-separator {
+  background: #c0c0c0;
+}
+
+/* Unknown / unhandled element placeholder (dev aid). */
 .window-frame .wf-unknown {
   background: #ffe;
   border: 1px dashed #c80;
   color: #840;
   font-size: 10px;
   padding: 1px 3px;
+  box-sizing: border-box;
 }

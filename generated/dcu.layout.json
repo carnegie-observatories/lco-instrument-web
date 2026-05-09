@@ -1,0 +1,208 @@
+{
+  "_generator": "fixture@phase3",
+  "app": "dcu",
+  "window_id": "371",
+  "window": { "title": "DCU", "width": 677, "height": 144 },
+  "elements": [
+    { "id": "533", "parent_id": null, "kind": "button", "subkind": "bevel-toggle",
+      "outlet": "but_lamp1",
+      "frame": { "x": 18, "y": 13, "w": 54, "h": 42 },
+      "title_default": "L1",
+      "binding": {
+        "read":  { "topic": "lamps", "path": "lamps[0].on",
+                   "class_map": { "true": "is-on", "false": "is-off" } },
+        "write": { "cmd": "set_lamp", "args": { "idx": 1, "on": "$not_state" } }
+      } },
+    { "id": "550", "parent_id": null, "kind": "button", "subkind": "bevel-toggle",
+      "outlet": "but_lamp2",
+      "frame": { "x": 76, "y": 13, "w": 54, "h": 42 },
+      "title_default": "L2",
+      "binding": {
+        "read":  { "topic": "lamps", "path": "lamps[1].on",
+                   "class_map": { "true": "is-on", "false": "is-off" } },
+        "write": { "cmd": "set_lamp", "args": { "idx": 2, "on": "$not_state" } }
+      } },
+    { "id": "553", "parent_id": null, "kind": "button", "subkind": "bevel-toggle",
+      "outlet": "but_lamp3",
+      "frame": { "x": 134, "y": 13, "w": 54, "h": 42 },
+      "title_default": "L3",
+      "binding": {
+        "read":  { "topic": "lamps", "path": "lamps[2].on",
+                   "class_map": { "true": "is-on", "false": "is-off" } },
+        "write": { "cmd": "set_lamp", "args": { "idx": 3, "on": "$not_state" } }
+      } },
+    { "id": "556", "parent_id": null, "kind": "button", "subkind": "bevel-toggle",
+      "outlet": "but_lamp4",
+      "frame": { "x": 192, "y": 13, "w": 54, "h": 42 },
+      "title_default": "L4",
+      "binding": {
+        "read":  { "topic": "lamps", "path": "lamps[3].on",
+                   "class_map": { "true": "is-on", "false": "is-off" } },
+        "write": { "cmd": "set_lamp", "args": { "idx": 4, "on": "$not_state" } }
+      } },
+    { "id": "559", "parent_id": null, "kind": "button", "subkind": "bevel-toggle",
+      "outlet": "but_lamp5",
+      "frame": { "x": 250, "y": 13, "w": 54, "h": 42 },
+      "title_default": "L5",
+      "binding": {
+        "read":  { "topic": "lamps", "path": "lamps[4].on",
+                   "class_map": { "true": "is-on", "false": "is-off" } },
+        "write": { "cmd": "set_lamp", "args": { "idx": 5, "on": "$not_state" } }
+      } },
+    { "id": "562", "parent_id": null, "kind": "button", "subkind": "bevel-toggle",
+      "outlet": "but_lamp6",
+      "frame": { "x": 308, "y": 13, "w": 54, "h": 42 },
+      "title_default": "L6",
+      "binding": {
+        "read":  { "topic": "lamps", "path": "lamps[5].on",
+                   "class_map": { "true": "is-on", "false": "is-off" } },
+        "write": { "cmd": "set_lamp", "args": { "idx": 6, "on": "$not_state" } }
+      } },
+    { "id": "565", "parent_id": null, "kind": "button", "subkind": "bevel-toggle",
+      "outlet": "but_lamp7",
+      "frame": { "x": 366, "y": 13, "w": 54, "h": 42 },
+      "title_default": "L7",
+      "binding": {
+        "read":  { "topic": "lamps", "path": "lamps[6].on",
+                   "class_map": { "true": "is-on", "false": "is-off" } },
+        "write": { "cmd": "set_lamp", "args": { "idx": 7, "on": "$not_state" } }
+      } },
+    { "id": "568", "parent_id": null, "kind": "button", "subkind": "bevel-toggle",
+      "outlet": "but_lamp8",
+      "frame": { "x": 424, "y": 13, "w": 54, "h": 42 },
+      "title_default": "L8",
+      "binding": {
+        "read":  { "topic": "lamps", "path": "lamps[7].on",
+                   "class_map": { "true": "is-on", "false": "is-off" } },
+        "write": { "cmd": "set_lamp", "args": { "idx": 8, "on": "$not_state" } }
+      } },
+
+    { "id": "785", "parent_id": null, "kind": "separator",
+      "frame": { "x": 20, "y": 59, "w": 645, "h": 2 } },
+
+    { "id": "584", "parent_id": null, "kind": "label",
+      "frame": { "x": 17, "y": 71, "w": 67, "h": 17 },
+      "title_default": "FF-Screen" },
+    { "id": "763", "parent_id": null, "kind": "popup", "subkind": "pulldown",
+      "outlet": "drop_ffs",
+      "frame": { "x": 86, "y": 68, "w": 102, "h": 26 },
+      "title_default": "FFS",
+      "options": [
+        { "value": "_title", "label": "FFS" },
+        { "value": "in",     "label": "Insert" },
+        { "value": "out",    "label": "Retract" }
+      ],
+      "binding": {
+        "read":  { "topic": "ffs", "path": "position" },
+        "write": { "cmd": "set_ffs_position", "args": { "pos": "$state" } }
+      } },
+    { "id": "592", "parent_id": null, "kind": "progress", "subkind": "spinner",
+      "outlet": "prog_screen",
+      "frame": { "x": 299, "y": 72, "w": 16, "h": 16 },
+      "custom_class": "FFprogress",
+      "binding": { "read": { "topic": "ffs", "path": "moving",
+                             "class_map": { "true": "is-moving" } } } },
+    { "id": "836", "parent_id": null, "kind": "imageview",
+      "outlet": "view_in",
+      "frame": { "x": 328, "y": 76, "w": 38, "h": 41 },
+      "binding": { "read": { "topic": "ffs", "path": "inserted",
+                             "class_map": { "true": "is-on" } } } },
+    { "id": "734", "parent_id": null, "kind": "label",
+      "frame": { "x": 383, "y": 71, "w": 39, "h": 17 },
+      "title_default": "Brake" },
+    { "id": "722", "parent_id": null, "kind": "popup", "subkind": "popup",
+      "outlet": "popup_ffbrake",
+      "frame": { "x": 424, "y": 68, "w": 102, "h": 26 },
+      "title_default": "Closed",
+      "options": [
+        { "value": "true",  "label": "Closed" },
+        { "value": "false", "label": "Open"   }
+      ],
+      "binding": {
+        "read":  { "topic": "ffs", "path": "brake" },
+        "write": { "cmd": "set_ffs_brake", "args": { "on": "$state" } }
+      } },
+
+    { "id": "652", "parent_id": null, "kind": "label",
+      "frame": { "x": 17, "y": 105, "w": 46, "h": 17 },
+      "title_default": "MCal" },
+    { "id": "769", "parent_id": null, "kind": "popup", "subkind": "pulldown",
+      "outlet": "drop_mcal",
+      "frame": { "x": 86, "y": 102, "w": 102, "h": 26 },
+      "title_default": "MCal",
+      "options": [
+        { "value": "_title", "label": "MCal" },
+        { "value": "in",     "label": "Insert" },
+        { "value": "out",    "label": "Retract" }
+      ],
+      "binding": {
+        "read":  { "topic": "mcal", "path": "position" },
+        "write": { "cmd": "set_mcal_position", "args": { "pos": "$state" } }
+      } },
+    { "id": "653", "parent_id": null, "kind": "progress", "subkind": "spinner",
+      "outlet": "prog_mcal",
+      "frame": { "x": 299, "y": 105, "w": 16, "h": 16 },
+      "custom_class": "FFprogress",
+      "binding": { "read": { "topic": "mcal", "path": "moving",
+                             "class_map": { "true": "is-moving" } } } },
+    { "id": "736", "parent_id": null, "kind": "label",
+      "frame": { "x": 383, "y": 105, "w": 39, "h": 17 },
+      "title_default": "Brake" },
+    { "id": "729", "parent_id": null, "kind": "popup", "subkind": "popup",
+      "outlet": "popup_mcbrake",
+      "frame": { "x": 424, "y": 102, "w": 102, "h": 26 },
+      "title_default": "Closed",
+      "options": [
+        { "value": "true",  "label": "Closed" },
+        { "value": "false", "label": "Open"   }
+      ],
+      "binding": {
+        "read":  { "topic": "mcal", "path": "brake" },
+        "write": { "cmd": "set_mcal_brake", "args": { "on": "$state" } }
+      } },
+
+    { "id": "775", "parent_id": null, "kind": "separator",
+      "frame": { "x": 573, "y": 70, "w": 2, "h": 54 } },
+
+    { "id": "613", "parent_id": null, "kind": "label",
+      "outlet": "label_quartz",
+      "frame": { "x": 481, "y": 23, "w": 40, "h": 17 },
+      "title_default": "Var.Q" },
+    { "id": "747", "parent_id": null, "kind": "popup", "subkind": "popup",
+      "outlet": "popup_quartz",
+      "frame": { "x": 523, "y": 20, "w": 77, "h": 26 },
+      "title_default": "off",
+      "options": [
+        { "value": "off",  "label": "off"  },
+        { "value": "low",  "label": "low"  },
+        { "value": "high", "label": "high" }
+      ],
+      "binding": {
+        "read":  { "topic": "lamps", "path": "quartz.level" },
+        "write": { "cmd": "set_quartz_level", "args": { "level": "$state" } }
+      } },
+    { "id": "790", "parent_id": null, "kind": "textfield", "subkind": "input",
+      "outlet": "edit_quartz",
+      "frame": { "x": 605, "y": 21, "w": 60, "h": 22 },
+      "title_default": "0",
+      "binding": {
+        "read":  { "topic": "lamps", "path": "quartz.value", "format": "%.0f" },
+        "write": { "cmd": "set_quartz_level", "args": { "level": "$value" } }
+      } },
+
+    { "id": "792", "parent_id": null, "kind": "label",
+      "frame": { "x": 581, "y": 87, "w": 30, "h": 17 },
+      "title_default": "AirP" },
+    { "id": "793", "parent_id": null, "kind": "textfield", "subkind": "readout",
+      "outlet": "edit_air",
+      "frame": { "x": 616, "y": 85, "w": 49, "h": 22 },
+      "title_default": "0.00",
+      "binding": { "read": { "topic": "pressure", "path": "air", "format": "%.2f" } } }
+  ],
+  "warnings": [
+    { "kind": "custom_class", "id": "592", "outlet": "prog_screen",
+      "custom_class": "FFprogress", "base_class": "progressIndicator" },
+    { "kind": "custom_class", "id": "653", "outlet": "prog_mcal",
+      "custom_class": "FFprogress", "base_class": "progressIndicator" }
+  ]
+}
