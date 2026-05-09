@@ -1,28 +1,21 @@
-# ADC outlet bindings — phase 5 (writes only). Phase 6 layers on `read:` clauses
-# for state-driven topic subscriptions; for now click/change handlers fire `cmd`s
-# but the UI does not reflect server state. The Step 0 audit drives this list:
-#   ws-ui-conversion-plan.md → InstrumentService surface for ADC.
+# ADC outlet bindings — phase 6 (writes + reads). Topics + paths follow the
+# Step 0 audit's snapshot shapes:
+#
+#   status    → { adc, control, other, update, running }
+#   lens      → { lens_a:{encoder,target,moving}, lens_b:{...} }
+#   telescope → { elevation, rotator }
 
 ignore_outlets:
-  - view_eng              # status icon, decorative — phase 6 binds it via class_map
-  - prog_adc              # spinner; visibility is read-driven (phase 6)
-  - prog_lensA            # spinner; phase 6
-  - prog_lensB            # spinner; phase 6
-  - prog_other            # spinner; phase 6
-  - col_adcIn             # color-well swatch; phase 6 read-only
-  - col_adcOut            # color-well swatch; phase 6 read-only
-  - col_otherIn           # color-well swatch; phase 6 read-only
-  - col_otherOut          # color-well swatch; phase 6 read-only
-  - edit_elevation        # readout; phase 6 read-only
-  - edit_rotator          # readout; phase 6 read-only
-  - edit_targetA          # readout; phase 6 read-only
-  - edit_targetB          # readout; phase 6 read-only
+  - view_eng              # eng-mode indicator; composes 3 flags — defer to phase 7
 
 outlets:
   popup_adc:
     options:
       Retracted: out
       Inserted:  in
+    read:
+      topic: status
+      path:  adc
     write:
       cmd: set_adc_insertion
       args: { pos: $state }
@@ -31,6 +24,9 @@ outlets:
     options:
       Retracted: out
       Inserted:  in
+    read:
+      topic: status
+      path:  other
     write:
       cmd: set_other_insertion
       args: { pos: $state }
@@ -39,11 +35,17 @@ outlets:
     options:
       "Off":  "off"
       Auto:   auto
+    read:
+      topic: status
+      path:  control
     write:
       cmd: set_control_mode
       args: { mode: $state }
 
   chk_update:
+    read:
+      topic: status
+      path:  update
     write:
       cmd: set_auto_update
       args: { enabled: $state }
@@ -53,16 +55,73 @@ outlets:
       cmd: trigger_manual_update
 
   but_run:
+    read:
+      topic: status
+      path:  running
+      label_map: { "true": Stop, "false": Run }
     write:
       cmd: set_running
       args: { running: $not_state }
 
+  # Lens encoders — editable input + readback. Focus guard in the renderer
+  # protects the user's in-progress typing from being clobbered.
   edit_encA:
-    write:
-      cmd: move_lens
-      args: { lens: A, angle: $value }
-
+    read:  { topic: lens, path: "lens_a.encoder", format: "%.2f" }
+    write: { cmd: move_lens, args: { lens: A, angle: $value } }
   edit_encB:
-    write:
-      cmd: move_lens
-      args: { lens: B, angle: $value }
+    read:  { topic: lens, path: "lens_b.encoder", format: "%.2f" }
+    write: { cmd: move_lens, args: { lens: B, angle: $value } }
+
+  edit_targetA:
+    read:  { topic: lens, path: "lens_a.target", format: "%.2f" }
+  edit_targetB:
+    read:  { topic: lens, path: "lens_b.target", format: "%.2f" }
+
+  edit_elevation:
+    read:  { topic: telescope, path: elevation, format: "%.2f" }
+  edit_rotator:
+    read:  { topic: telescope, path: rotator,   format: "%.2f" }
+
+  # Spinners — only visible when the corresponding axis reports moving.
+  prog_adc:
+    read:
+      topic: status
+      path:  adc
+      class_map: { moving: is-moving }
+  prog_other:
+    read:
+      topic: status
+      path:  other
+      class_map: { moving: is-moving }
+  prog_lensA:
+    read:
+      topic: lens
+      path:  "lens_a.moving"
+      class_map: { "true": is-moving }
+  prog_lensB:
+    read:
+      topic: lens
+      path:  "lens_b.moving"
+      class_map: { "true": is-moving }
+
+  # Color wells — Cocoa flips them green/grey based on the slide's state.
+  col_adcIn:
+    read:
+      topic: status
+      path:  adc
+      class_map: { in: is-on, moving: is-warn }
+  col_adcOut:
+    read:
+      topic: status
+      path:  adc
+      class_map: { out: is-on, moving: is-warn }
+  col_otherIn:
+    read:
+      topic: status
+      path:  other
+      class_map: { in: is-on, moving: is-warn }
+  col_otherOut:
+    read:
+      topic: status
+      path:  other
+      class_map: { out: is-on, moving: is-warn }

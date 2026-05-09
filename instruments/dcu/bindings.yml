@@ -1,49 +1,70 @@
-# DCU outlet bindings — phase 5 (writes only). Phase 6 layers `read:` clauses.
+# DCU outlet bindings — phase 6 (writes + reads). Topic shapes from the
+# Step 0 audit:
+#
+#   status   → { running, deployed, error_state }
+#   lamps    → { lamps:[{idx, on, err}, ...(8)], quartz:{level, value} }
+#   ffs      → { position, brake, inserted, retracted, moving }
+#   mcal     → { position, brake, inserted, retracted, moving }
+#   pressure → { air, min, ok }
 
 ignore_outlets:
-  # Read-only state surfaces — bind in phase 6.
-  - prog_screen           # FFprogress custom_class; moving spinner
-  - prog_mcal             # FFprogress custom_class; moving spinner
-  - view_in               # status icon; ffs.inserted
-  - label_quartz          # state-driven label (Var.Q ↔ Cal)
-  - edit_air              # AirP readout
-  # Disabled radio buttons → indicators (no writes).
-  - check_ffins
-  - check_ffret
-  - check_mcins
-  - check_mcret
+  - label_quartz          # state-driven label (Var.Q ↔ Cal); audit doesn't
+                          # cover the field yet — defer to phase 7
 
 outlets:
-  but_lamp1: { write: { cmd: set_lamp, args: { idx: 1, "on": $not_state } } }
-  but_lamp2: { write: { cmd: set_lamp, args: { idx: 2, "on": $not_state } } }
-  but_lamp3: { write: { cmd: set_lamp, args: { idx: 3, "on": $not_state } } }
-  but_lamp4: { write: { cmd: set_lamp, args: { idx: 4, "on": $not_state } } }
-  but_lamp5: { write: { cmd: set_lamp, args: { idx: 5, "on": $not_state } } }
-  but_lamp6: { write: { cmd: set_lamp, args: { idx: 6, "on": $not_state } } }
-  but_lamp7: { write: { cmd: set_lamp, args: { idx: 7, "on": $not_state } } }
-  but_lamp8: { write: { cmd: set_lamp, args: { idx: 8, "on": $not_state } } }
+  # Lamp buttons — bevel toggles. Read drives a CSS class swap; write toggles
+  # via $not_state which now reads from the topic, so click semantics flip
+  # only after the server confirms a state change.
+  but_lamp1:
+    read:  { topic: lamps, path: "lamps[0].on", class_map: { "true": is-on, "false": is-off } }
+    write: { cmd: set_lamp, args: { idx: 1, "on": $not_state } }
+  but_lamp2:
+    read:  { topic: lamps, path: "lamps[1].on", class_map: { "true": is-on, "false": is-off } }
+    write: { cmd: set_lamp, args: { idx: 2, "on": $not_state } }
+  but_lamp3:
+    read:  { topic: lamps, path: "lamps[2].on", class_map: { "true": is-on, "false": is-off } }
+    write: { cmd: set_lamp, args: { idx: 3, "on": $not_state } }
+  but_lamp4:
+    read:  { topic: lamps, path: "lamps[3].on", class_map: { "true": is-on, "false": is-off } }
+    write: { cmd: set_lamp, args: { idx: 4, "on": $not_state } }
+  but_lamp5:
+    read:  { topic: lamps, path: "lamps[4].on", class_map: { "true": is-on, "false": is-off } }
+    write: { cmd: set_lamp, args: { idx: 5, "on": $not_state } }
+  but_lamp6:
+    read:  { topic: lamps, path: "lamps[5].on", class_map: { "true": is-on, "false": is-off } }
+    write: { cmd: set_lamp, args: { idx: 6, "on": $not_state } }
+  but_lamp7:
+    read:  { topic: lamps, path: "lamps[6].on", class_map: { "true": is-on, "false": is-off } }
+    write: { cmd: set_lamp, args: { idx: 7, "on": $not_state } }
+  but_lamp8:
+    read:  { topic: lamps, path: "lamps[7].on", class_map: { "true": is-on, "false": is-off } }
+    write: { cmd: set_lamp, args: { idx: 8, "on": $not_state } }
 
   drop_ffs:
     options:
       "?":     _placeholder      # pullsDown title row; not a real value
       Deploy:  in
       Retract: out
+    read:
+      topic: ffs
+      path:  position
     write:
       cmd: set_ffs_position
       args: { pos: $state }
 
   drop_mcal:
     options:
-      "?":     _placeholder      # pullsDown title row
+      "?":     _placeholder
       Deploy:  in
       Retract: out
+    read:
+      topic: mcal
+      path:  position
     write:
       cmd: set_mcal_position
       args: { pos: $state }
 
   popup_quartz:
-    # XIB lists discrete numeric levels (off/1..5). Wire enum is the same
-    # numeric value as a string; phase 6 read can map back to a label.
     options:
       "off":  "off"
       "1":    "1"
@@ -51,19 +72,24 @@ outlets:
       "3":    "3"
       "4":    "4"
       "5":    "5"
+    read:
+      topic: lamps
+      path:  "quartz.level"
     write:
       cmd: set_quartz_level
       args: { level: $state }
 
   edit_quartz:
-    write:
-      cmd: set_quartz_value
-      args: { value: $value }
+    read:  { topic: lamps, path: "quartz.value", format: "%.0f" }
+    write: { cmd: set_quartz_value, args: { value: $value } }
 
   popup_ffbrake:
     options:
       Closed: "true"
       Open:   "false"
+    read:
+      topic: ffs
+      path:  brake
     write:
       cmd: set_ffs_brake
       args: { "on": $state }
@@ -72,6 +98,41 @@ outlets:
     options:
       Closed: "true"
       Open:   "false"
+    read:
+      topic: mcal
+      path:  brake
     write:
       cmd: set_mcal_brake
       args: { "on": $state }
+
+  # Spinners — show only while moving.
+  prog_screen:
+    read:
+      topic: ffs
+      path:  moving
+      class_map: { "true": is-moving }
+  prog_mcal:
+    read:
+      topic: mcal
+      path:  moving
+      class_map: { "true": is-moving }
+
+  # Status icon — green dot when FFS is inserted.
+  view_in:
+    read:
+      topic: ffs
+      path:  inserted
+      class_map: { "true": is-on }
+
+  # Disabled radio indicators — pure read.
+  check_ffins:
+    read: { topic: ffs,  path: inserted,  class_map: { "true": is-on } }
+  check_ffret:
+    read: { topic: ffs,  path: retracted, class_map: { "true": is-on } }
+  check_mcins:
+    read: { topic: mcal, path: inserted,  class_map: { "true": is-on } }
+  check_mcret:
+    read: { topic: mcal, path: retracted, class_map: { "true": is-on } }
+
+  edit_air:
+    read: { topic: pressure, path: air, format: "%.2f" }

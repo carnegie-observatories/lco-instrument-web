@@ -36,7 +36,13 @@
         "h": 21
       },
       "title_default": "00.00",
-      "binding": null
+      "binding": {
+        "read": {
+          "topic": "telescope",
+          "path": "elevation",
+          "format": "%.2f"
+        }
+      }
     },
     {
       "id": "qBq-ee-dAi",
@@ -77,7 +83,13 @@
         "h": 21
       },
       "title_default": "+000.00",
-      "binding": null
+      "binding": {
+        "read": {
+          "topic": "telescope",
+          "path": "rotator",
+          "format": "%.2f"
+        }
+      }
     },
     {
       "id": "A07-mE-UJS",
@@ -97,6 +109,10 @@
           "args": {
             "enabled": "$state"
           }
+        },
+        "read": {
+          "topic": "status",
+          "path": "update"
         }
       }
     },
@@ -162,6 +178,10 @@
           "args": {
             "pos": "$state"
           }
+        },
+        "read": {
+          "topic": "status",
+          "path": "adc"
         }
       }
     },
@@ -177,7 +197,15 @@
         "w": 16,
         "h": 16
       },
-      "binding": null
+      "binding": {
+        "read": {
+          "topic": "status",
+          "path": "adc",
+          "class_map": {
+            "moving": "is-moving"
+          }
+        }
+      }
     },
     {
       "id": "ebr-NF-Caq",
@@ -199,6 +227,11 @@
             "lens": "A",
             "angle": "$value"
           }
+        },
+        "read": {
+          "topic": "lens",
+          "path": "lens_a.encoder",
+          "format": "%.2f"
         }
       }
     },
@@ -228,7 +261,13 @@
         "h": 21
       },
       "title_default": "+000.00",
-      "binding": null
+      "binding": {
+        "read": {
+          "topic": "lens",
+          "path": "lens_a.target",
+          "format": "%.2f"
+        }
+      }
     },
     {
       "id": "X2m-ho-7qj",
@@ -250,6 +289,11 @@
             "lens": "B",
             "angle": "$value"
           }
+        },
+        "read": {
+          "topic": "lens",
+          "path": "lens_b.encoder",
+          "format": "%.2f"
         }
       }
     },
@@ -279,7 +323,13 @@
         "h": 21
       },
       "title_default": "+000.00",
-      "binding": null
+      "binding": {
+        "read": {
+          "topic": "lens",
+          "path": "lens_b.target",
+          "format": "%.2f"
+        }
+      }
     },
     {
       "id": "kdg-NA-cye",
@@ -310,6 +360,10 @@
           "args": {
             "mode": "$state"
           }
+        },
+        "read": {
+          "topic": "status",
+          "path": "control"
         }
       }
     },
@@ -338,7 +392,15 @@
         "w": 16,
         "h": 16
       },
-      "binding": null
+      "binding": {
+        "read": {
+          "topic": "lens",
+          "path": "lens_a.moving",
+          "class_map": {
+            "true": "is-moving"
+          }
+        }
+      }
     },
     {
       "id": "Aav-H3-qbO",
@@ -352,7 +414,15 @@
         "w": 16,
         "h": 16
       },
-      "binding": null
+      "binding": {
+        "read": {
+          "topic": "lens",
+          "path": "lens_b.moving",
+          "class_map": {
+            "true": "is-moving"
+          }
+        }
+      }
     },
     {
       "id": "EY0-Vz-gqt",
@@ -386,6 +456,14 @@
           "args": {
             "running": "$not_state"
           }
+        },
+        "read": {
+          "topic": "status",
+          "path": "running",
+          "label_map": {
+            "true": "Stop",
+            "false": "Run"
+          }
         }
       }
     },
@@ -414,7 +492,16 @@
         "w": 23,
         "h": 23
       },
-      "binding": null
+      "binding": {
+        "read": {
+          "topic": "status",
+          "path": "adc",
+          "class_map": {
+            "in": "is-on",
+            "moving": "is-warn"
+          }
+        }
+      }
     },
     {
       "id": "rvG-nO-90A",
@@ -428,7 +515,16 @@
         "w": 23,
         "h": 23
       },
-      "binding": null
+      "binding": {
+        "read": {
+          "topic": "status",
+          "path": "adc",
+          "class_map": {
+            "out": "is-on",
+            "moving": "is-warn"
+          }
+        }
+      }
     },
     {
       "id": "xMd-3y-X8s",
@@ -486,6 +582,10 @@
           "args": {
             "pos": "$state"
           }
+        },
+        "read": {
+          "topic": "status",
+          "path": "other"
         }
       }
     },
@@ -501,7 +601,15 @@
         "w": 16,
         "h": 16
       },
-      "binding": null
+      "binding": {
+        "read": {
+          "topic": "status",
+          "path": "other",
+          "class_map": {
+            "moving": "is-moving"
+          }
+        }
+      }
     },
     {
       "id": "s6t-eh-3J9",
@@ -528,7 +636,16 @@
         "w": 23,
         "h": 23
       },
-      "binding": null
+      "binding": {
+        "read": {
+          "topic": "status",
+          "path": "other",
+          "class_map": {
+            "in": "is-on",
+            "moving": "is-warn"
+          }
+        }
+      }
     },
     {
       "id": "Pfc-Tv-3lD",
@@ -542,7 +659,16 @@
         "w": 23,
         "h": 23
       },
-      "binding": null
+      "binding": {
+        "read": {
+          "topic": "status",
+          "path": "other",
+          "class_map": {
+            "out": "is-on",
+            "moving": "is-warn"
+          }
+        }
+      }
     },
     {
       "id": "FrI-Wg-wvA",

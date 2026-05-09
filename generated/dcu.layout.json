@@ -28,6 +28,14 @@
             "idx": 1,
             "on": "$not_state"
           }
+        },
+        "read": {
+          "topic": "lamps",
+          "path": "lamps[0].on",
+          "class_map": {
+            "true": "is-on",
+            "false": "is-off"
+          }
         }
       }
     },
@@ -50,6 +58,14 @@
           "args": {
             "idx": 2,
             "on": "$not_state"
+          }
+        },
+        "read": {
+          "topic": "lamps",
+          "path": "lamps[1].on",
+          "class_map": {
+            "true": "is-on",
+            "false": "is-off"
           }
         }
       }
@@ -74,6 +90,14 @@
             "idx": 3,
             "on": "$not_state"
           }
+        },
+        "read": {
+          "topic": "lamps",
+          "path": "lamps[2].on",
+          "class_map": {
+            "true": "is-on",
+            "false": "is-off"
+          }
         }
       }
     },
@@ -96,6 +120,14 @@
           "args": {
             "idx": 4,
             "on": "$not_state"
+          }
+        },
+        "read": {
+          "topic": "lamps",
+          "path": "lamps[3].on",
+          "class_map": {
+            "true": "is-on",
+            "false": "is-off"
           }
         }
       }
@@ -120,6 +152,14 @@
             "idx": 5,
             "on": "$not_state"
           }
+        },
+        "read": {
+          "topic": "lamps",
+          "path": "lamps[4].on",
+          "class_map": {
+            "true": "is-on",
+            "false": "is-off"
+          }
         }
       }
     },
@@ -142,6 +182,14 @@
           "args": {
             "idx": 6,
             "on": "$not_state"
+          }
+        },
+        "read": {
+          "topic": "lamps",
+          "path": "lamps[5].on",
+          "class_map": {
+            "true": "is-on",
+            "false": "is-off"
           }
         }
       }
@@ -166,6 +214,14 @@
             "idx": 7,
             "on": "$not_state"
           }
+        },
+        "read": {
+          "topic": "lamps",
+          "path": "lamps[6].on",
+          "class_map": {
+            "true": "is-on",
+            "false": "is-off"
+          }
         }
       }
     },
@@ -188,6 +244,14 @@
           "args": {
             "idx": 8,
             "on": "$not_state"
+          }
+        },
+        "read": {
+          "topic": "lamps",
+          "path": "lamps[7].on",
+          "class_map": {
+            "true": "is-on",
+            "false": "is-off"
           }
         }
       }
@@ -218,7 +282,15 @@
         "h": 16
       },
       "custom_class": "FFprogress",
-      "binding": null
+      "binding": {
+        "read": {
+          "topic": "ffs",
+          "path": "moving",
+          "class_map": {
+            "true": "is-moving"
+          }
+        }
+      }
     },
     {
       "id": "652",
@@ -246,7 +318,15 @@
         "h": 16
       },
       "custom_class": "FFprogress",
-      "binding": null
+      "binding": {
+        "read": {
+          "topic": "mcal",
+          "path": "moving",
+          "class_map": {
+            "true": "is-moving"
+          }
+        }
+      }
     },
     {
       "id": "613",
@@ -287,7 +367,15 @@
         "h": 18
       },
       "title_default": "Ret",
-      "binding": null
+      "binding": {
+        "read": {
+          "topic": "ffs",
+          "path": "retracted",
+          "class_map": {
+            "true": "is-on"
+          }
+        }
+      }
     },
     {
       "id": "710",
@@ -302,7 +390,15 @@
         "h": 18
       },
       "title_default": "Ret",
-      "binding": null
+      "binding": {
+        "read": {
+          "topic": "mcal",
+          "path": "retracted",
+          "class_map": {
+            "true": "is-on"
+          }
+        }
+      }
     },
     {
       "id": "706",
@@ -317,7 +413,15 @@
         "h": 18
       },
       "title_default": "Dep",
-      "binding": null
+      "binding": {
+        "read": {
+          "topic": "ffs",
+          "path": "inserted",
+          "class_map": {
+            "true": "is-on"
+          }
+        }
+      }
     },
     {
       "id": "708",
@@ -332,7 +436,15 @@
         "h": 18
       },
       "title_default": "Dep",
-      "binding": null
+      "binding": {
+        "read": {
+          "topic": "mcal",
+          "path": "inserted",
+          "class_map": {
+            "true": "is-on"
+          }
+        }
+      }
     },
     {
       "id": "722",
@@ -363,6 +475,10 @@
           "args": {
             "on": "$state"
           }
+        },
+        "read": {
+          "topic": "ffs",
+          "path": "brake"
         }
       }
     },
@@ -395,6 +511,10 @@
           "args": {
             "on": "$state"
           }
+        },
+        "read": {
+          "topic": "mcal",
+          "path": "brake"
         }
       }
     },
@@ -469,6 +589,10 @@
           "args": {
             "level": "$state"
           }
+        },
+        "read": {
+          "topic": "lamps",
+          "path": "quartz.level"
         }
       }
     },
@@ -497,7 +621,13 @@
         "w": 49,
         "h": 22
       },
-      "binding": null
+      "binding": {
+        "read": {
+          "topic": "pressure",
+          "path": "air",
+          "format": "%.2f"
+        }
+      }
     },
     {
       "id": "763",
@@ -532,6 +662,10 @@
           "args": {
             "pos": "$state"
           }
+        },
+        "read": {
+          "topic": "ffs",
+          "path": "position"
         }
       }
     },
@@ -568,6 +702,10 @@
           "args": {
             "pos": "$state"
           }
+        },
+        "read": {
+          "topic": "mcal",
+          "path": "position"
         }
       }
     },
@@ -613,6 +751,11 @@
           "args": {
             "value": "$value"
           }
+        },
+        "read": {
+          "topic": "lamps",
+          "path": "quartz.value",
+          "format": "%.0f"
         }
       }
     },
@@ -657,7 +800,15 @@
         "w": 38,
         "h": 41
       },
-      "binding": null
+      "binding": {
+        "read": {
+          "topic": "ffs",
+          "path": "inserted",
+          "class_map": {
+            "true": "is-on"
+          }
+        }
+      }
     }
   ],
   "warnings": [
