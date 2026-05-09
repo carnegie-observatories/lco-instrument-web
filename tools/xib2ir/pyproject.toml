@@ -1,0 +1,16 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "xib2ir"
+version = "0.1.0"
+description = "Cocoa XIB → renderer IR JSON converter for the LCO instrument web SPA"
+requires-python = ">=3.10"
+dependencies = []
+
+[project.scripts]
+xib2ir = "xib2ir.cli:main"
+
+[tool.setuptools.packages.find]
+include = ["xib2ir*"]
