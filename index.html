@@ -11,6 +11,10 @@
       <strong id="app-name">—</strong>
       <span class="muted" id="app-version"></span>
     </div>
+    <div class="view-toggle">
+      <button data-view="window">Window</button>
+      <button data-view="diagnostic">Diagnostic</button>
+    </div>
     <div class="conn">
       <span id="conn-dot" class="dot"></span>
       <span id="conn-state">connecting…</span>
@@ -18,26 +22,35 @@
     </div>
   </header>
 
-  <main>
-    <section id="topics-pane">
-      <h2>Topics</h2>
-      <div id="topics"></div>
-    </section>
-
-    <section id="commands-pane">
-      <h2>Commands</h2>
-      <div id="commands"></div>
-    </section>
-  </main>
-
-  <section id="log-pane">
-    <div class="log-head">
-      <h2>Log</h2>
-      <button id="log-clear">clear</button>
+  <div id="window-view">
+    <div class="placeholder">
+      <p>Main window view — not yet built.</p>
+      <p class="hint muted">The position-faithful main expose window will land here in a later phase. Use the Diagnostic view in the meantime.</p>
     </div>
-    <ol id="log"></ol>
-  </section>
+  </div>
 
-  <script type="module" src="diagnostic.js"></script>
+  <div id="diagnostic-view">
+    <main>
+      <section id="topics-pane">
+        <h2>Topics</h2>
+        <div id="topics"></div>
+      </section>
+
+      <section id="commands-pane">
+        <h2>Commands</h2>
+        <div id="commands"></div>
+      </section>
+    </main>
+
+    <section id="log-pane">
+      <div class="log-head">
+        <h2>Log</h2>
+        <button id="log-clear">clear</button>
+      </div>
+      <ol id="log"></ol>
+    </section>
+  </div>
+
+  <script type="module" src="app.js"></script>
 </body>
 </html>

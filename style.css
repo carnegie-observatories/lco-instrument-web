@@ -168,3 +168,35 @@ ol#log li.ok   { color: var(--ok); }
 ol#log li.err  { color: var(--err); }
 ol#log li.evt  { color: var(--warn); }
 ol#log .ts { color: var(--muted); margin-right: 8px; }
+
+/* View toggle */
+.view-toggle { display: flex; gap: 0; }
+.view-toggle button {
+  border-radius: 0;
+  padding: 4px 14px;
+  font-size: 12px;
+  border-right-width: 0;
+}
+.view-toggle button:first-child { border-radius: 3px 0 0 3px; }
+.view-toggle button:last-child {
+  border-radius: 0 3px 3px 0;
+  border-right-width: 1px;
+}
+.view-toggle button.active {
+  background: var(--accent);
+  color: var(--bg);
+  border-color: var(--accent);
+}
+
+/* Window-view placeholder (replaced by renderer.js in a later phase) */
+#window-view { padding: var(--gap); }
+.placeholder {
+  background: var(--bg-2);
+  border: 1px solid var(--bg-3);
+  border-radius: 6px;
+  padding: 32px 24px;
+  color: var(--muted);
+  text-align: center;
+}
+.placeholder p { margin: 4px 0; }
+.placeholder .hint { font-size: 12px; }
