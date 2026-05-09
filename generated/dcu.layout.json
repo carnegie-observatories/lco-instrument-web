@@ -35,7 +35,8 @@
           "class_map": {
             "true": "is-on",
             "false": "is-off"
-          }
+          },
+          "label_path": "lamps[0].name"
         }
       }
     },
@@ -66,7 +67,8 @@
           "class_map": {
             "true": "is-on",
             "false": "is-off"
-          }
+          },
+          "label_path": "lamps[1].name"
         }
       }
     },
@@ -97,7 +99,8 @@
           "class_map": {
             "true": "is-on",
             "false": "is-off"
-          }
+          },
+          "label_path": "lamps[2].name"
         }
       }
     },
@@ -128,7 +131,8 @@
           "class_map": {
             "true": "is-on",
             "false": "is-off"
-          }
+          },
+          "label_path": "lamps[3].name"
         }
       }
     },
@@ -159,7 +163,8 @@
           "class_map": {
             "true": "is-on",
             "false": "is-off"
-          }
+          },
+          "label_path": "lamps[4].name"
         }
       }
     },
@@ -190,7 +195,8 @@
           "class_map": {
             "true": "is-on",
             "false": "is-off"
-          }
+          },
+          "label_path": "lamps[5].name"
         }
       }
     },
@@ -221,7 +227,8 @@
           "class_map": {
             "true": "is-on",
             "false": "is-off"
-          }
+          },
+          "label_path": "lamps[6].name"
         }
       }
     },
@@ -252,7 +259,8 @@
           "class_map": {
             "true": "is-on",
             "false": "is-off"
-          }
+          },
+          "label_path": "lamps[7].name"
         }
       }
     },
@@ -340,7 +348,12 @@
         "h": 17
       },
       "title_default": "Var.Q",
-      "binding": null
+      "binding": {
+        "read": {
+          "topic": "lamps",
+          "path": "quartz.name"
+        }
+      }
     },
     {
       "id": "676",

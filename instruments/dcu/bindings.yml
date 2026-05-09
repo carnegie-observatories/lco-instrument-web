@@ -7,38 +7,79 @@
 #   mcal     → { position, brake, inserted, retracted, moving }
 #   pressure → { air, min, ok }
 
-ignore_outlets:
-  - label_quartz          # state-driven label (Var.Q ↔ Cal); audit doesn't
-                          # cover the field yet — defer to phase 7
+ignore_outlets: []
 
 outlets:
-  # Lamp buttons — bevel toggles. Read drives a CSS class swap; write toggles
-  # via $not_state which now reads from the topic, so click semantics flip
-  # only after the server confirms a state change.
+  # Lamp buttons — bevel toggles. Three things bound at once: a CSS class
+  # swap for on/off colour (class_map), a click-time toggle that reads the
+  # current state via $not_state, and a label_path that overrides the XIB
+  # placeholder ("L1"..."L8") with the real lamp name. Names come from the
+  # per-telescope Clay/Baade XML in the Cocoa app — the WSServer is expected
+  # to publish them in the lamps topic as lamps[i].name. Until it does, the
+  # buttons fall back to the XIB title_default.
   but_lamp1:
-    read:  { topic: lamps, path: "lamps[0].on", class_map: { "true": is-on, "false": is-off } }
+    read:
+      topic: lamps
+      path:  "lamps[0].on"
+      class_map: { "true": is-on, "false": is-off }
+      label_path: "lamps[0].name"
     write: { cmd: set_lamp, args: { idx: 1, "on": $not_state } }
   but_lamp2:
-    read:  { topic: lamps, path: "lamps[1].on", class_map: { "true": is-on, "false": is-off } }
+    read:
+      topic: lamps
+      path:  "lamps[1].on"
+      class_map: { "true": is-on, "false": is-off }
+      label_path: "lamps[1].name"
     write: { cmd: set_lamp, args: { idx: 2, "on": $not_state } }
   but_lamp3:
-    read:  { topic: lamps, path: "lamps[2].on", class_map: { "true": is-on, "false": is-off } }
+    read:
+      topic: lamps
+      path:  "lamps[2].on"
+      class_map: { "true": is-on, "false": is-off }
+      label_path: "lamps[2].name"
     write: { cmd: set_lamp, args: { idx: 3, "on": $not_state } }
   but_lamp4:
-    read:  { topic: lamps, path: "lamps[3].on", class_map: { "true": is-on, "false": is-off } }
+    read:
+      topic: lamps
+      path:  "lamps[3].on"
+      class_map: { "true": is-on, "false": is-off }
+      label_path: "lamps[3].name"
     write: { cmd: set_lamp, args: { idx: 4, "on": $not_state } }
   but_lamp5:
-    read:  { topic: lamps, path: "lamps[4].on", class_map: { "true": is-on, "false": is-off } }
+    read:
+      topic: lamps
+      path:  "lamps[4].on"
+      class_map: { "true": is-on, "false": is-off }
+      label_path: "lamps[4].name"
     write: { cmd: set_lamp, args: { idx: 5, "on": $not_state } }
   but_lamp6:
-    read:  { topic: lamps, path: "lamps[5].on", class_map: { "true": is-on, "false": is-off } }
+    read:
+      topic: lamps
+      path:  "lamps[5].on"
+      class_map: { "true": is-on, "false": is-off }
+      label_path: "lamps[5].name"
     write: { cmd: set_lamp, args: { idx: 6, "on": $not_state } }
   but_lamp7:
-    read:  { topic: lamps, path: "lamps[6].on", class_map: { "true": is-on, "false": is-off } }
+    read:
+      topic: lamps
+      path:  "lamps[6].on"
+      class_map: { "true": is-on, "false": is-off }
+      label_path: "lamps[6].name"
     write: { cmd: set_lamp, args: { idx: 7, "on": $not_state } }
   but_lamp8:
-    read:  { topic: lamps, path: "lamps[7].on", class_map: { "true": is-on, "false": is-off } }
+    read:
+      topic: lamps
+      path:  "lamps[7].on"
+      class_map: { "true": is-on, "false": is-off }
+      label_path: "lamps[7].name"
     write: { cmd: set_lamp, args: { idx: 8, "on": $not_state } }
+
+  # Var-quartz label — Cocoa swaps "Var.Q" ↔ "Cal" based on quartz mode.
+  # No class_map / write — the server pushes the label string directly.
+  label_quartz:
+    read:
+      topic: lamps
+      path:  "quartz.name"
 
   drop_ffs:
     options:

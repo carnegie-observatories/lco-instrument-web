@@ -261,6 +261,19 @@ const applyBinding = (el, node) => {
     topic(r.topic).subscribe((data) => {
       const val = pluck(data, r.path);
       writeNodeValue(node, val, r.format, r.label_map, r.class_map);
+      // Optional sibling-path that drives the element's text content
+      // independently of `path`. Used for state-driven labels — lamp
+      // button names ("ThAr"/"Ne"/...) and the var-quartz indicator
+      // text ("Var.Q"/"Cal") that the Cocoa controller swaps at
+      // runtime from the per-telescope XML resource. The web SPA
+      // expects the WSServer to publish these in the topic snapshot.
+      if (r.label_path) {
+        const labelVal = pluck(data, r.label_path);
+        if (labelVal != null) {
+          if (node.tagName === "BUTTON" || node.tagName === "OUTPUT" ||
+              node.tagName === "SPAN")  node.textContent = String(labelVal);
+        }
+      }
     });
   }
 };
