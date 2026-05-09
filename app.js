@@ -6,7 +6,7 @@
 // default to window once ADC + DCU layouts are bound and verified.
 
 import "./diagnostic.js";
-// import "./renderer.js";  // landed in a later phase
+import "./renderer.js";
 
 const VIEW_KEY = "lco_view";
 const DEFAULT_VIEW = "diagnostic";

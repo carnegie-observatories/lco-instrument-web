@@ -1,0 +1,73 @@
+{
+  "_generator": "fixture@phase3",
+  "app": "adc",
+  "window_id": "TNc-LT-7qW",
+  "window": { "title": "ADC", "width": 480, "height": 294 },
+  "elements": [
+    {
+      "id": "X7x-cu-smh",
+      "parent_id": null,
+      "kind": "box",
+      "title": "Stage 1 - ADC",
+      "frame": { "x": 17, "y": 86, "w": 446, "h": 119 },
+      "content_inset": { "dx": 0, "dy": 12 }
+    },
+    {
+      "id": "Sfu-91-ilv",
+      "parent_id": "X7x-cu-smh",
+      "kind": "popup",
+      "subkind": "popup",
+      "outlet": "popup_adc",
+      "frame": { "x": 16, "y": 20, "w": 94, "h": 26 },
+      "title_default": "Retracted",
+      "options": [
+        { "value": "out", "label": "Retracted" },
+        { "value": "in",  "label": "Inserted"  }
+      ],
+      "binding": {
+        "read":  { "topic": "status", "path": "adc" },
+        "write": { "cmd": "set_adc_insertion", "args": { "pos": "$state" } }
+      }
+    },
+    {
+      "id": "ebr-NF-Caq",
+      "parent_id": "X7x-cu-smh",
+      "kind": "textfield",
+      "subkind": "input",
+      "outlet": "edit_encA",
+      "frame": { "x": 99, "y": 49, "w": 68, "h": 22 },
+      "title_default": "+000.00",
+      "binding": {
+        "read":  { "topic": "lens", "path": "lens_a.encoder", "format": "%.2f" },
+        "write": { "cmd": "move_lens", "args": { "lens": "A", "angle": "$value" } }
+      }
+    },
+    {
+      "id": "EPY-ee-J4k",
+      "parent_id": "X7x-cu-smh",
+      "kind": "textfield",
+      "subkind": "readout",
+      "outlet": "edit_targetA",
+      "frame": { "x": 305, "y": 50, "w": 68, "h": 21 },
+      "title_default": "+000.00",
+      "binding": {
+        "read": { "topic": "lens", "path": "lens_a.target", "format": "%.2f" }
+      }
+    },
+    {
+      "id": "l01-th-A4H",
+      "parent_id": "X7x-cu-smh",
+      "kind": "button",
+      "subkind": "push",
+      "outlet": "but_run",
+      "frame": { "x": 377, "y": 18, "w": 59, "h": 32 },
+      "title_default": "Run",
+      "binding": {
+        "read":  { "topic": "status", "path": "running",
+                   "label_map": { "true": "Stop", "false": "Run" } },
+        "write": { "cmd": "set_running", "args": { "running": "$not_state" } }
+      }
+    }
+  ],
+  "warnings": []
+}

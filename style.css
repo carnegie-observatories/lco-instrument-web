@@ -188,7 +188,7 @@ ol#log .ts { color: var(--muted); margin-right: 8px; }
   border-color: var(--accent);
 }
 
-/* Window-view placeholder (replaced by renderer.js in a later phase) */
+/* Window-view placeholder (shown only when no layout is loaded) */
 #window-view { padding: var(--gap); }
 .placeholder {
   background: var(--bg-2);
@@ -200,3 +200,83 @@ ol#log .ts { color: var(--muted); margin-right: 8px; }
 }
 .placeholder p { margin: 4px 0; }
 .placeholder .hint { font-size: 12px; }
+
+/* Window frame: emulates the Cocoa main-expose window — light grey card,
+   absolutely-positioned controls inside. Children are placed by the
+   renderer via inline `style.left/top/width/height`. */
+.window-frame {
+  position: relative;
+  margin: 16px auto;
+  background: #ececec;
+  color: #1a1a1a;
+  border: 1px solid #999;
+  border-radius: 4px;
+  font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", Helvetica, Arial, sans-serif;
+  font-size: 13px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+}
+
+/* Boxes (NSBox) — bordered group with a notched legend. */
+.window-frame .wf-box {
+  border: 1px solid #888;
+  border-radius: 2px;
+  background: transparent;
+}
+.window-frame .wf-legend {
+  position: absolute;
+  top: -8px; left: 10px;
+  background: #ececec;
+  padding: 0 6px;
+  font-size: 11px;
+  color: #444;
+  line-height: 1;
+}
+
+/* Controls share the light theme; override the dark global button rules. */
+.window-frame button.wf-button {
+  background: linear-gradient(#fdfdfd, #e6e6e6);
+  border: 1px solid #888;
+  border-radius: 5px;
+  color: #1a1a1a;
+  font-size: 12px;
+  padding: 0 6px;
+  cursor: pointer;
+}
+.window-frame button.wf-button:hover  { background: linear-gradient(#fff, #ededed); }
+.window-frame button.wf-button:active { background: #d4d4d4; color: #1a1a1a; }
+
+.window-frame select.wf-popup,
+.window-frame input.wf-input,
+.window-frame output.wf-readout {
+  background: #ffffff;
+  border: 1px solid #888;
+  border-radius: 2px;
+  color: #1a1a1a;
+  font-size: 12px;
+  font-family: inherit;
+  padding: 0 4px;
+  box-sizing: border-box;
+}
+.window-frame select.wf-popup { padding-right: 18px; }
+.window-frame output.wf-readout {
+  background: #f5f5f5;
+  display: flex;
+  align-items: center;
+  font-variant-numeric: tabular-nums;
+}
+.window-frame input.wf-input { font-variant-numeric: tabular-nums; }
+
+.window-frame .wf-label {
+  font-size: 12px;
+  color: #333;
+  display: flex;
+  align-items: center;
+}
+
+.window-frame .wf-unknown {
+  background: #ffe;
+  border: 1px dashed #c80;
+  color: #840;
+  font-size: 10px;
+  padding: 1px 3px;
+}
