@@ -7,7 +7,7 @@ name = "xib2ir"
 version = "0.1.0"
 description = "Cocoa XIB → renderer IR JSON converter for the LCO instrument web SPA"
 requires-python = ">=3.10"
-dependencies = []
+dependencies = ["pyyaml>=6.0"]
 
 [project.scripts]
 xib2ir = "xib2ir.cli:main"

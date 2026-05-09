@@ -21,7 +21,15 @@
         "h": 42
       },
       "title_default": "L1",
-      "binding": null
+      "binding": {
+        "write": {
+          "cmd": "set_lamp",
+          "args": {
+            "idx": 1,
+            "on": "$not_state"
+          }
+        }
+      }
     },
     {
       "id": "550",
@@ -36,7 +44,15 @@
         "h": 42
       },
       "title_default": "L2",
-      "binding": null
+      "binding": {
+        "write": {
+          "cmd": "set_lamp",
+          "args": {
+            "idx": 2,
+            "on": "$not_state"
+          }
+        }
+      }
     },
     {
       "id": "553",
@@ -51,7 +67,15 @@
         "h": 42
       },
       "title_default": "L3",
-      "binding": null
+      "binding": {
+        "write": {
+          "cmd": "set_lamp",
+          "args": {
+            "idx": 3,
+            "on": "$not_state"
+          }
+        }
+      }
     },
     {
       "id": "556",
@@ -66,7 +90,15 @@
         "h": 42
       },
       "title_default": "L4",
-      "binding": null
+      "binding": {
+        "write": {
+          "cmd": "set_lamp",
+          "args": {
+            "idx": 4,
+            "on": "$not_state"
+          }
+        }
+      }
     },
     {
       "id": "559",
@@ -81,7 +113,15 @@
         "h": 42
       },
       "title_default": "L5",
-      "binding": null
+      "binding": {
+        "write": {
+          "cmd": "set_lamp",
+          "args": {
+            "idx": 5,
+            "on": "$not_state"
+          }
+        }
+      }
     },
     {
       "id": "562",
@@ -96,7 +136,15 @@
         "h": 42
       },
       "title_default": "L6",
-      "binding": null
+      "binding": {
+        "write": {
+          "cmd": "set_lamp",
+          "args": {
+            "idx": 6,
+            "on": "$not_state"
+          }
+        }
+      }
     },
     {
       "id": "565",
@@ -111,7 +159,15 @@
         "h": 42
       },
       "title_default": "L7",
-      "binding": null
+      "binding": {
+        "write": {
+          "cmd": "set_lamp",
+          "args": {
+            "idx": 7,
+            "on": "$not_state"
+          }
+        }
+      }
     },
     {
       "id": "568",
@@ -126,7 +182,15 @@
         "h": 42
       },
       "title_default": "L8",
-      "binding": null
+      "binding": {
+        "write": {
+          "cmd": "set_lamp",
+          "args": {
+            "idx": 8,
+            "on": "$not_state"
+          }
+        }
+      }
     },
     {
       "id": "584",
@@ -285,15 +349,22 @@
       "title_default": "Closed",
       "options": [
         {
-          "value": "Closed",
+          "value": "true",
           "label": "Closed"
         },
         {
-          "value": "Open",
+          "value": "false",
           "label": "Open"
         }
       ],
-      "binding": null
+      "binding": {
+        "write": {
+          "cmd": "set_ffs_brake",
+          "args": {
+            "on": "$state"
+          }
+        }
+      }
     },
     {
       "id": "729",
@@ -310,15 +381,22 @@
       "title_default": "Closed",
       "options": [
         {
-          "value": "Closed",
+          "value": "true",
           "label": "Closed"
         },
         {
-          "value": "Open",
+          "value": "false",
           "label": "Open"
         }
       ],
-      "binding": null
+      "binding": {
+        "write": {
+          "cmd": "set_mcal_brake",
+          "args": {
+            "on": "$state"
+          }
+        }
+      }
     },
     {
       "id": "734",
@@ -385,7 +463,14 @@
           "label": "5"
         }
       ],
-      "binding": null
+      "binding": {
+        "write": {
+          "cmd": "set_quartz_level",
+          "args": {
+            "level": "$state"
+          }
+        }
+      }
     },
     {
       "id": "792",
@@ -429,19 +514,26 @@
       "title_default": "?",
       "options": [
         {
-          "value": "?",
+          "value": "_placeholder",
           "label": "?"
         },
         {
-          "value": "Retract",
+          "value": "out",
           "label": "Retract"
         },
         {
-          "value": "Deploy",
+          "value": "in",
           "label": "Deploy"
         }
       ],
-      "binding": null
+      "binding": {
+        "write": {
+          "cmd": "set_ffs_position",
+          "args": {
+            "pos": "$state"
+          }
+        }
+      }
     },
     {
       "id": "769",
@@ -458,19 +550,26 @@
       "title_default": "?",
       "options": [
         {
-          "value": "?",
+          "value": "_placeholder",
           "label": "?"
         },
         {
-          "value": "Retract",
+          "value": "out",
           "label": "Retract"
         },
         {
-          "value": "Deploy",
+          "value": "in",
           "label": "Deploy"
         }
       ],
-      "binding": null
+      "binding": {
+        "write": {
+          "cmd": "set_mcal_position",
+          "args": {
+            "pos": "$state"
+          }
+        }
+      }
     },
     {
       "id": "775",
@@ -508,7 +607,14 @@
         "w": 60,
         "h": 22
       },
-      "binding": null
+      "binding": {
+        "write": {
+          "cmd": "set_quartz_value",
+          "args": {
+            "value": "$value"
+          }
+        }
+      }
     },
     {
       "id": "807",

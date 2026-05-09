@@ -27,6 +27,7 @@ def main(argv: list[str] | None = None) -> int:
     e.add_argument("xib", help="Path to the .xib file")
     e.add_argument("--window", required=True, help="Window id or title")
     e.add_argument("--app", required=True, help="App identifier for the IR's \"app\" field")
+    e.add_argument("--bindings", help="Optional bindings.yml to populate binding objects")
     e.add_argument("-o", "--output", default="-", help="Output path (default: stdout)")
     e.set_defaults(func=cmd_extract)
 
@@ -48,6 +49,16 @@ def cmd_extract(args: argparse.Namespace) -> int:
         return 2
 
     layout = build_layout(window, outlets, args.app)
+
+    if args.bindings:
+        from . import bindings as bindings_mod
+        bindings_path = Path(args.bindings)
+        if not bindings_path.exists():
+            print(f"xib2ir: bindings file not found: {bindings_path}", file=sys.stderr)
+            return 2
+        spec = bindings_mod.load(bindings_path)
+        layout["warnings"].extend(bindings_mod.apply(layout, spec))
+
     text = json.dumps(layout, indent=2) + "\n"
     if args.output == "-":
         sys.stdout.write(text)

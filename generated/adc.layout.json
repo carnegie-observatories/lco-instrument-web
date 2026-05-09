@@ -91,7 +91,14 @@
         "w": 22,
         "h": 18
       },
-      "binding": null
+      "binding": {
+        "write": {
+          "cmd": "set_auto_update",
+          "args": {
+            "enabled": "$state"
+          }
+        }
+      }
     },
     {
       "id": "avw-Dp-ZCc",
@@ -106,7 +113,11 @@
         "h": 32
       },
       "title_default": "Update",
-      "binding": null
+      "binding": {
+        "write": {
+          "cmd": "trigger_manual_update"
+        }
+      }
     },
     {
       "id": "X7x-cu-smh",
@@ -137,15 +148,22 @@
       },
       "options": [
         {
-          "value": "Retracted",
+          "value": "out",
           "label": "Retracted"
         },
         {
-          "value": "Inserted",
+          "value": "in",
           "label": "Inserted"
         }
       ],
-      "binding": null
+      "binding": {
+        "write": {
+          "cmd": "set_adc_insertion",
+          "args": {
+            "pos": "$state"
+          }
+        }
+      }
     },
     {
       "id": "O0J-Z1-qNM",
@@ -174,7 +192,15 @@
         "h": 22
       },
       "title_default": "+000.00",
-      "binding": null
+      "binding": {
+        "write": {
+          "cmd": "move_lens",
+          "args": {
+            "lens": "A",
+            "angle": "$value"
+          }
+        }
+      }
     },
     {
       "id": "hWh-tD-Z6w",
@@ -217,7 +243,15 @@
         "h": 22
       },
       "title_default": "+000.00",
-      "binding": null
+      "binding": {
+        "write": {
+          "cmd": "move_lens",
+          "args": {
+            "lens": "B",
+            "angle": "$value"
+          }
+        }
+      }
     },
     {
       "id": "ZZI-Jw-EsY",
@@ -262,15 +296,22 @@
       "title_default": "Off",
       "options": [
         {
-          "value": "Off",
+          "value": "off",
           "label": "Off"
         },
         {
-          "value": "Auto",
+          "value": "auto",
           "label": "Auto"
         }
       ],
-      "binding": null
+      "binding": {
+        "write": {
+          "cmd": "set_control_mode",
+          "args": {
+            "mode": "$state"
+          }
+        }
+      }
     },
     {
       "id": "Uyc-Ib-7Q3",
@@ -339,7 +380,14 @@
         "h": 32
       },
       "title_default": "Run",
-      "binding": null
+      "binding": {
+        "write": {
+          "cmd": "set_running",
+          "args": {
+            "running": "$not_state"
+          }
+        }
+      }
     },
     {
       "id": "fHT-qG-uCP",
@@ -424,15 +472,22 @@
       },
       "options": [
         {
-          "value": "Retracted",
+          "value": "out",
           "label": "Retracted"
         },
         {
-          "value": "Inserted",
+          "value": "in",
           "label": "Inserted"
         }
       ],
-      "binding": null
+      "binding": {
+        "write": {
+          "cmd": "set_other_insertion",
+          "args": {
+            "pos": "$state"
+          }
+        }
+      }
     },
     {
       "id": "AMb-eP-zzC",

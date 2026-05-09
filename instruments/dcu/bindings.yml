@@ -1,0 +1,77 @@
+# DCU outlet bindings — phase 5 (writes only). Phase 6 layers `read:` clauses.
+
+ignore_outlets:
+  # Read-only state surfaces — bind in phase 6.
+  - prog_screen           # FFprogress custom_class; moving spinner
+  - prog_mcal             # FFprogress custom_class; moving spinner
+  - view_in               # status icon; ffs.inserted
+  - label_quartz          # state-driven label (Var.Q ↔ Cal)
+  - edit_air              # AirP readout
+  # Disabled radio buttons → indicators (no writes).
+  - check_ffins
+  - check_ffret
+  - check_mcins
+  - check_mcret
+
+outlets:
+  but_lamp1: { write: { cmd: set_lamp, args: { idx: 1, "on": $not_state } } }
+  but_lamp2: { write: { cmd: set_lamp, args: { idx: 2, "on": $not_state } } }
+  but_lamp3: { write: { cmd: set_lamp, args: { idx: 3, "on": $not_state } } }
+  but_lamp4: { write: { cmd: set_lamp, args: { idx: 4, "on": $not_state } } }
+  but_lamp5: { write: { cmd: set_lamp, args: { idx: 5, "on": $not_state } } }
+  but_lamp6: { write: { cmd: set_lamp, args: { idx: 6, "on": $not_state } } }
+  but_lamp7: { write: { cmd: set_lamp, args: { idx: 7, "on": $not_state } } }
+  but_lamp8: { write: { cmd: set_lamp, args: { idx: 8, "on": $not_state } } }
+
+  drop_ffs:
+    options:
+      "?":     _placeholder      # pullsDown title row; not a real value
+      Deploy:  in
+      Retract: out
+    write:
+      cmd: set_ffs_position
+      args: { pos: $state }
+
+  drop_mcal:
+    options:
+      "?":     _placeholder      # pullsDown title row
+      Deploy:  in
+      Retract: out
+    write:
+      cmd: set_mcal_position
+      args: { pos: $state }
+
+  popup_quartz:
+    # XIB lists discrete numeric levels (off/1..5). Wire enum is the same
+    # numeric value as a string; phase 6 read can map back to a label.
+    options:
+      "off":  "off"
+      "1":    "1"
+      "2":    "2"
+      "3":    "3"
+      "4":    "4"
+      "5":    "5"
+    write:
+      cmd: set_quartz_level
+      args: { level: $state }
+
+  edit_quartz:
+    write:
+      cmd: set_quartz_value
+      args: { value: $value }
+
+  popup_ffbrake:
+    options:
+      Closed: "true"
+      Open:   "false"
+    write:
+      cmd: set_ffs_brake
+      args: { "on": $state }
+
+  popup_mcbrake:
+    options:
+      Closed: "true"
+      Open:   "false"
+    write:
+      cmd: set_mcal_brake
+      args: { "on": $state }

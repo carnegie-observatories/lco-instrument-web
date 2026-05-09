@@ -1,0 +1,68 @@
+# ADC outlet bindings — phase 5 (writes only). Phase 6 layers on `read:` clauses
+# for state-driven topic subscriptions; for now click/change handlers fire `cmd`s
+# but the UI does not reflect server state. The Step 0 audit drives this list:
+#   ws-ui-conversion-plan.md → InstrumentService surface for ADC.
+
+ignore_outlets:
+  - view_eng              # status icon, decorative — phase 6 binds it via class_map
+  - prog_adc              # spinner; visibility is read-driven (phase 6)
+  - prog_lensA            # spinner; phase 6
+  - prog_lensB            # spinner; phase 6
+  - prog_other            # spinner; phase 6
+  - col_adcIn             # color-well swatch; phase 6 read-only
+  - col_adcOut            # color-well swatch; phase 6 read-only
+  - col_otherIn           # color-well swatch; phase 6 read-only
+  - col_otherOut          # color-well swatch; phase 6 read-only
+  - edit_elevation        # readout; phase 6 read-only
+  - edit_rotator          # readout; phase 6 read-only
+  - edit_targetA          # readout; phase 6 read-only
+  - edit_targetB          # readout; phase 6 read-only
+
+outlets:
+  popup_adc:
+    options:
+      Retracted: out
+      Inserted:  in
+    write:
+      cmd: set_adc_insertion
+      args: { pos: $state }
+
+  popup_other:
+    options:
+      Retracted: out
+      Inserted:  in
+    write:
+      cmd: set_other_insertion
+      args: { pos: $state }
+
+  popup_control:
+    options:
+      "Off":  "off"
+      Auto:   auto
+    write:
+      cmd: set_control_mode
+      args: { mode: $state }
+
+  chk_update:
+    write:
+      cmd: set_auto_update
+      args: { enabled: $state }
+
+  but_update:
+    write:
+      cmd: trigger_manual_update
+
+  but_run:
+    write:
+      cmd: set_running
+      args: { running: $not_state }
+
+  edit_encA:
+    write:
+      cmd: move_lens
+      args: { lens: A, angle: $value }
+
+  edit_encB:
+    write:
+      cmd: move_lens
+      args: { lens: B, angle: $value }
