@@ -2,15 +2,13 @@
 // and builds an absolutely-positioned DOM tree, with each element bound to
 // WS topic stores and command dispatch via the shared ws.js plumbing.
 //
-// Phase 3: consumes a hand-authored fixture (generated/adc.layout.json).
-// Future phases: the converter generates the same IR shape; multi-app
-// routing picks the file by ?app= or by the WS hello frame.
+// App identity comes from the WS hello frame (msg.app); the renderer waits
+// for hello before fetching a layout. No URL fallback — until the WSServer
+// announces an app, the Window view shows a "waiting" placeholder.
 
-import { topic, cmd } from "./ws.js";
+import { topic, cmd, onHello } from "./ws.js";
 
-const params = new URLSearchParams(window.location.search);
-const APP = (params.get("app") || "adc").toLowerCase();
-const LAYOUT_URL = `./generated/${APP}.layout.json`;
+let currentApp = null;
 
 // ---------------- IR → DOM ----------------
 
@@ -269,22 +267,50 @@ const applyBinding = (el, node) => {
 
 // ---------------- go ----------------
 
-fetch(LAYOUT_URL)
-  .then((r) => {
-    if (!r.ok) throw new Error(`${r.status} ${r.statusText}`);
-    return r.json();
-  })
-  .then(renderWindow)
-  .catch((e) => {
-    console.error(`renderer: failed to load ${LAYOUT_URL}:`, e);
-    const root = document.getElementById("window-view");
-    if (root) {
-      root.innerHTML = "";
-      const div = document.createElement("div");
-      div.className = "placeholder";
-      div.innerHTML =
-        `<p>Layout not available for app "${APP}".</p>` +
-        `<p class="hint muted">${LAYOUT_URL} could not be loaded: ${e.message}.</p>`;
-      root.appendChild(div);
-    }
-  });
+const showPlaceholder = (text, hint) => {
+  const root = document.getElementById("window-view");
+  if (!root) return;
+  root.innerHTML = "";
+  const div = document.createElement("div");
+  div.className = "placeholder";
+  const p = document.createElement("p");
+  p.textContent = text;
+  div.appendChild(p);
+  if (hint) {
+    const h = document.createElement("p");
+    h.className = "hint muted";
+    h.textContent = hint;
+    div.appendChild(h);
+  }
+  root.appendChild(div);
+};
+
+const loadLayoutFor = (app) => {
+  const url = `./generated/${String(app).toLowerCase()}.layout.json`;
+  fetch(url)
+    .then((r) => {
+      if (!r.ok) throw new Error(`${r.status} ${r.statusText}`);
+      return r.json();
+    })
+    .then(renderWindow)
+    .catch((e) => {
+      console.error(`renderer: failed to load ${url}:`, e);
+      showPlaceholder(
+        `Layout not available for app "${app}".`,
+        `${url}: ${e.message}`
+      );
+    });
+};
+
+// Initial state: nothing to render until the WS hello announces an app.
+showPlaceholder(
+  "Waiting for WebSocket hello…",
+  "The Window view populates once the instrument app announces its identity over the control WS."
+);
+
+onHello((msg) => {
+  const app = msg && msg.app;
+  if (!app || app === currentApp) return;
+  currentApp = app;
+  loadLayoutFor(app);
+});
