@@ -235,8 +235,18 @@ const writeNodeValue = (node, val, fmt, label_map, class_map) => {
   // class_map: state-driven CSS class swap (lamps, swatches, spinners, status icons).
   if (class_map) {
     for (const cls of Object.values(class_map)) node.classList.remove(cls);
-    const key = String(val);
-    if (class_map[key]) node.classList.add(class_map[key]);
+    // Try the value as-is, plus bool↔int aliases. NSJSONSerialization
+    // sometimes ships @(int_expr) booleans as JSON 1/0 rather than
+    // true/false; mapping both forms here means YAML keyed on "true"/
+    // "false" still hits when the wire payload arrives as 1/0.
+    const candidates = [String(val)];
+    if (val === true)  candidates.push("1");
+    if (val === false) candidates.push("0");
+    if (val === 1)     candidates.push("true");
+    if (val === 0)     candidates.push("false");
+    for (const key of candidates) {
+      if (class_map[key]) { node.classList.add(class_map[key]); break; }
+    }
     // class-only bindings don't write text — return early so we don't clobber a static title.
     if (!label_map && !fmt) return;
   }

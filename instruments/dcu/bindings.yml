@@ -179,5 +179,13 @@ outlets:
   check_mcret:
     read: { topic: mcal, path: position, class_map: { out: is-on } }
 
+  # Brake air-pressure indicators ("Air" cell title) — light up when the
+  # brake's pressure-switch input reports high (enough air to operate
+  # the brake).
+  check_ffbrake:
+    read: { topic: ffs,  path: air, class_map: { "true": is-on } }
+  check_mcbrake:
+    read: { topic: mcal, path: air, class_map: { "true": is-on } }
+
   edit_air:
     read: { topic: pressure, path: air, format: "%.2f" }

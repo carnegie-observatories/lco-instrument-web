@@ -785,7 +785,15 @@
         "h": 18
       },
       "title_default": "Air",
-      "binding": null
+      "binding": {
+        "read": {
+          "topic": "ffs",
+          "path": "air",
+          "class_map": {
+            "true": "is-on"
+          }
+        }
+      }
     },
     {
       "id": "809",
@@ -800,7 +808,15 @@
         "h": 18
       },
       "title_default": "Air",
-      "binding": null
+      "binding": {
+        "read": {
+          "topic": "mcal",
+          "path": "air",
+          "class_map": {
+            "true": "is-on"
+          }
+        }
+      }
     },
     {
       "id": "836",
