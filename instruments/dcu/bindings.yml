@@ -80,6 +80,7 @@ outlets:
     read:
       topic: lamps
       path:  "quartz.name"
+    hidden_if: { topic: lamps, path: "quartz.name", equals: "-" }
 
   drop_ffs:
     options:
@@ -119,6 +120,9 @@ outlets:
     write:
       cmd: set_quartz_level
       args: { level: $state }
+    # Cocoa hides the var-quartz controls when the per-telescope
+    # XML's varLamp_Name is "-" (e.g. Clay, no var-quartz lamp).
+    hidden_if: { topic: lamps, path: "quartz.name", equals: "-" }
 
   edit_quartz:
     # Read-only voltage readout (the cell isn't editable in the XIB —
@@ -127,6 +131,7 @@ outlets:
     # NSNull from the controller when q_lamp is nil keeps the field
     # blank instead of an inconsistent "0".
     read: { topic: lamps, path: "quartz.value", format: "%.3f" }
+    hidden_if: { topic: lamps, path: "quartz.name", equals: "-" }
 
   popup_ffbrake:
     options:

@@ -310,6 +310,23 @@ const applyBinding = (el, node) => {
       }
     });
   }
+
+  // Conditional visibility: subscribe to a topic path and hide the
+  // element when its value matches the supplied predicate. Mirrors the
+  // Cocoa setHidden: calls in DCUcontroller (e.g. var-quartz
+  // controls hidden when varLamp_Name is "-"). Predicate forms:
+  //   { equals: <value> }   hide when path === value
+  //   { absent: true }      hide when path is null/undefined
+  if (b.hidden_if) {
+    const h = b.hidden_if;
+    topic(h.topic).subscribe((data) => {
+      const val = pluck(data, h.path);
+      let hide = false;
+      if ("equals" in h) hide = (val === h.equals);
+      else if (h.absent === true) hide = (val == null);
+      node.classList.toggle("wf-hidden", hide);
+    });
+  }
 };
 
 // ---------------- go ----------------

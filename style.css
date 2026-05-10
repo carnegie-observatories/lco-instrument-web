@@ -402,6 +402,10 @@ ol#log .ts { color: var(--muted); margin-right: 8px; }
   background: #c0c0c0;
 }
 
+/* Conditional visibility — driven by binding.hidden_if. !important
+   beats the absolute-positioning inline styles that the renderer sets. */
+.window-frame .wf-hidden { display: none !important; }
+
 /* Unknown / unhandled element placeholder (dev aid). */
 .window-frame .wf-unknown {
   background: #ffe;

@@ -78,6 +78,8 @@ def apply(layout: dict, spec: dict) -> list[dict]:
             binding["write"] = s["write"]
         if "read" in s and s["read"]:
             binding["read"] = s["read"]
+        if "hidden_if" in s and s["hidden_if"]:
+            binding["hidden_if"] = s["hidden_if"]
         el["binding"] = binding or None
 
     # Surface bindings.yml entries that don't correspond to any outlet in

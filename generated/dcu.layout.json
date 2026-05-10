@@ -352,6 +352,11 @@
         "read": {
           "topic": "lamps",
           "path": "quartz.name"
+        },
+        "hidden_if": {
+          "topic": "lamps",
+          "path": "quartz.name",
+          "equals": "-"
         }
       }
     },
@@ -606,6 +611,11 @@
         "read": {
           "topic": "lamps",
           "path": "quartz.level"
+        },
+        "hidden_if": {
+          "topic": "lamps",
+          "path": "quartz.name",
+          "equals": "-"
         }
       }
     },
@@ -763,6 +773,11 @@
           "topic": "lamps",
           "path": "quartz.value",
           "format": "%.3f"
+        },
+        "hidden_if": {
+          "topic": "lamps",
+          "path": "quartz.name",
+          "equals": "-"
         }
       }
     },
