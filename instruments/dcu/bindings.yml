@@ -165,15 +165,19 @@ outlets:
       path:  inserted
       class_map: { "true": is-on }
 
-  # Disabled radio indicators — pure read.
+  # Disabled radio indicators — pure read. Bind to the shared `position`
+  # enum rather than the sibling `inserted`/`retracted` booleans so the
+  # mapping stays consistent with the drop_ffs/drop_mcal popups (one
+  # field, three values: "in" → Dep lights up, "out" → Ret lights up,
+  # "moving" / unknown → both off).
   check_ffins:
-    read: { topic: ffs,  path: inserted,  class_map: { "true": is-on } }
+    read: { topic: ffs,  path: position, class_map: { in:  is-on } }
   check_ffret:
-    read: { topic: ffs,  path: retracted, class_map: { "true": is-on } }
+    read: { topic: ffs,  path: position, class_map: { out: is-on } }
   check_mcins:
-    read: { topic: mcal, path: inserted,  class_map: { "true": is-on } }
+    read: { topic: mcal, path: position, class_map: { in:  is-on } }
   check_mcret:
-    read: { topic: mcal, path: retracted, class_map: { "true": is-on } }
+    read: { topic: mcal, path: position, class_map: { out: is-on } }
 
   edit_air:
     read: { topic: pressure, path: air, format: "%.2f" }

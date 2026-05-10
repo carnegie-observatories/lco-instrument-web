@@ -383,9 +383,9 @@
       "binding": {
         "read": {
           "topic": "ffs",
-          "path": "retracted",
+          "path": "position",
           "class_map": {
-            "true": "is-on"
+            "out": "is-on"
           }
         }
       }
@@ -406,9 +406,9 @@
       "binding": {
         "read": {
           "topic": "mcal",
-          "path": "retracted",
+          "path": "position",
           "class_map": {
-            "true": "is-on"
+            "out": "is-on"
           }
         }
       }
@@ -429,9 +429,9 @@
       "binding": {
         "read": {
           "topic": "ffs",
-          "path": "inserted",
+          "path": "position",
           "class_map": {
-            "true": "is-on"
+            "in": "is-on"
           }
         }
       }
@@ -452,9 +452,9 @@
       "binding": {
         "read": {
           "topic": "mcal",
-          "path": "inserted",
+          "path": "position",
           "class_map": {
-            "true": "is-on"
+            "in": "is-on"
           }
         }
       }
