@@ -323,17 +323,49 @@ ol#log .ts { color: var(--muted); margin-right: 8px; }
 
 /* Status indicators (formerly NSColorWell + NSImageView icons).
    State arrives over WS as an enum; renderer flips a CSS class. */
-.window-frame .wf-indicator {
+
+/* NSColorWell-style swatch: a plain colour-only dot. */
+.window-frame .wf-indicator.wf-swatch {
   display: inline-block;
   background: #6b6b6b;
   border: 1px solid #444;
   border-radius: 50%;
   box-sizing: border-box;
 }
-.window-frame .wf-indicator.is-on   { background: #6cd66c; border-color: #2e7a2e; }
-.window-frame .wf-indicator.is-off  { background: #2c2c2c; border-color: #111;    }
-.window-frame .wf-indicator.is-warn { background: #f5c44a; border-color: #b08a18; }
-.window-frame .wf-indicator.is-err  { background: #ff6f6f; border-color: #b03030; }
+.window-frame .wf-indicator.wf-swatch.is-on   { background: #6cd66c; border-color: #2e7a2e; }
+.window-frame .wf-indicator.wf-swatch.is-off  { background: #2c2c2c; border-color: #111;    }
+.window-frame .wf-indicator.wf-swatch.is-warn { background: #f5c44a; border-color: #b08a18; }
+.window-frame .wf-indicator.wf-swatch.is-err  { background: #ff6f6f; border-color: #b03030; }
+
+/* Disabled NSButton type=radio used as a status indicator: a colour dot
+   plus the cell's "Ret"/"Dep" label. Mirrors Cocoa's image+title layout
+   and gives DCU's FFS/MCal status the same colAdcIn-style affordance. */
+.window-frame .wf-indicator.wf-radio {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  font-size: 12px;
+  color: #333;
+  font-family: inherit;
+  white-space: nowrap;
+}
+.window-frame .wf-indicator.wf-radio::before {
+  content: "";
+  width: 12px;
+  height: 12px;
+  flex-shrink: 0;
+  background: #6b6b6b;
+  border: 1px solid #444;
+  border-radius: 50%;
+  box-sizing: border-box;
+}
+.window-frame .wf-indicator.wf-radio.is-on::before   { background: #6cd66c; border-color: #2e7a2e; }
+.window-frame .wf-indicator.wf-radio.is-off::before  { background: #2c2c2c; border-color: #111;    }
+.window-frame .wf-indicator.wf-radio.is-warn::before { background: #f5c44a; border-color: #b08a18; }
+.window-frame .wf-indicator.wf-radio.is-err::before  { background: #ff6f6f; border-color: #b03030; }
 
 /* State-icon (former NSImageView): square indicator that shows a glyph via CSS. */
 .window-frame .wf-imageview {

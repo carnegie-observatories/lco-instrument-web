@@ -83,6 +83,8 @@ const createNode = (el) => {
     case "popup": {
       const sel = document.createElement("select");
       sel.className = `wf-popup wf-${el.subkind || "popup"}`;
+      const isPulldown = el.subkind === "pulldown";
+      let firstOption = true;
       for (const opt of (el.options || [])) {
         const o = document.createElement("option");
         if (typeof opt === "object") {
@@ -90,9 +92,20 @@ const createNode = (el) => {
         } else {
           o.value = String(opt); o.textContent = String(opt);
         }
+        // For NSPopUpButton pullsDown="YES", the first menu item is the
+        // title row — non-selectable and only visible until state defines
+        // a real position. Mark it disabled so the user can never pick it,
+        // selected so it shows initially; once a state push sets
+        // select.value to a real wire enum, the disabled placeholder is
+        // automatically de-selected and hidden from the displayed value.
+        if (isPulldown && firstOption) {
+          o.disabled = true;
+          o.selected = true;
+        }
         sel.appendChild(o);
+        firstOption = false;
       }
-      if (el.title_default != null) {
+      if (!isPulldown && el.title_default != null) {
         const match = [...sel.options].find(o => o.textContent === el.title_default);
         if (match) sel.value = match.value;
       }
@@ -120,6 +133,9 @@ const createNode = (el) => {
     case "indicator": {
       const span = document.createElement("span");
       span.className = `wf-indicator wf-${el.subkind || "indicator"}`;
+      // Cocoa NSButton type=radio carries its label on the cell; show
+      // it next to the colour dot (CSS provides the dot via ::before).
+      if (el.title_default) span.textContent = el.title_default;
       return span;
     }
     case "progress": {
