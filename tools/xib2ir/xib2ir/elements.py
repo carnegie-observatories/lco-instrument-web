@@ -69,13 +69,22 @@ def classify(el: ET.Element, outlet: str | None) -> tuple[str, str | None]:
 
 
 def extract_title(el: ET.Element) -> str | None:
-    """Pull the display title from the element's *Cell child if present.
+    """Pull the display title from the element.
 
-    Cocoa stores the human-visible string under the cell, not the outer
-    element: ``<textField><textFieldCell title="Elevation"/></textField>``.
+    Two storage conventions in XIBs:
+      * ``<box>`` carries its legend directly: ``<box title="Telescope">``.
+      * Most other controls stash it under a *Cell child:
+        ``<textField><textFieldCell title="Elevation"/></textField>``.
+
     Trailing whitespace ("00.00 ", "+000.00 ") is stripped — the XIB pads
     these for visual room in IB but the renderer handles its own padding.
     """
+    if el.tag == "box":
+        t = el.get("title")
+        if t is not None:
+            stripped = t.rstrip()
+            return stripped if stripped else None
+        return None
     for child in el:
         if isinstance(child.tag, str) and child.tag.endswith("Cell"):
             t = child.get("title")

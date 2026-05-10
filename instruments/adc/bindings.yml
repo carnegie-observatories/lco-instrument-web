@@ -58,7 +58,9 @@ outlets:
     read:
       topic: status
       path:  running
-      label_map: { "true": Stop, "false": Run }
+      # The Cocoa AppDelegate's updateRunMode flips between "Run" and
+      # "Park"; mirror that here so the web button reads the same.
+      label_map: { "true": Park, "false": Run }
     write:
       cmd: set_running
       args: { running: $not_state }

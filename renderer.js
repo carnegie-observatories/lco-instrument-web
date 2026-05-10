@@ -187,6 +187,14 @@ const readBoundState = (node, el) => {
 const resolveSigil = (sigil, node, el) => {
   if (sigil === "$value") return readControl(node);
   if (sigil === "$state") {
+    // For controls that carry their own state (popups, checkboxes,
+    // inputs), the user's current selection is the value to send.
+    // For plain push buttons (no inherent toggle state), fall back to
+    // the read binding's topic value if any. Without this distinction
+    // a popup change would send the *previous* topic value instead of
+    // the option the user just picked.
+    const isPushButton = el.kind === "button" && el.subkind !== "check";
+    if (!isPushButton) return readControl(node);
     const v = readBoundState(node, el);
     return v == null ? readControl(node) : v;
   }
