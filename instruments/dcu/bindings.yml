@@ -121,8 +121,12 @@ outlets:
       args: { level: $state }
 
   edit_quartz:
-    read:  { topic: lamps, path: "quartz.value", format: "%.0f" }
-    write: { cmd: set_quartz_value, args: { value: $value } }
+    # Read-only voltage readout (the cell isn't editable in the XIB —
+    # popup_quartz is the user-facing input). Match the Cocoa
+    # updateVar format (%.3f) so SPA and desktop show the same string;
+    # NSNull from the controller when q_lamp is nil keeps the field
+    # blank instead of an inconsistent "0".
+    read: { topic: lamps, path: "quartz.value", format: "%.3f" }
 
   popup_ffbrake:
     options:

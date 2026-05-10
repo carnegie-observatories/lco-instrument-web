@@ -759,16 +759,10 @@
         "h": 22
       },
       "binding": {
-        "write": {
-          "cmd": "set_quartz_value",
-          "args": {
-            "value": "$value"
-          }
-        },
         "read": {
           "topic": "lamps",
           "path": "quartz.value",
-          "format": "%.0f"
+          "format": "%.3f"
         }
       }
     },
