@@ -19,17 +19,33 @@ For the lead instruments:
 ```sh
 python3 -m xib2ir extract /Users/william/workspace/adc/src/ADC/Base.lproj/MainMenu.xib \
     --window TNc-LT-7qW --app adc \
+    --bindings ../../instruments/adc/bindings.yml \
     -o ../../generated/adc.layout.json
 
 python3 -m xib2ir extract /Users/william/workspace/dcu/src/DCU/Base.lproj/MainMenu.xib \
     --window 371 --app dcu \
+    --bindings ../../instruments/dcu/bindings.yml \
     -o ../../generated/dcu.layout.json
 ```
 
-Phase 4 of [ws-ui-conversion-plan.md](../../../lco-ansible/docs/plans/ws-ui-conversion-plan.md)
-emits IR with `binding: null` everywhere — every element gets a frame, kind,
-subkind, outlet, and a title_default but no read/write. Phase 5 adds
-`bindings.yml` support so the converter populates the binding objects.
+## Lint (drift check)
+
+`lint` re-extracts and diffs against a committed JSON; exits non-zero on
+drift. Designed for a future CI workflow but useful locally before
+pushing to make sure `generated/*.layout.json` matches the XIB +
+bindings.
+
+```sh
+python3 -m xib2ir lint /Users/william/workspace/adc/src/ADC/Base.lproj/MainMenu.xib \
+    --window TNc-LT-7qW --app adc \
+    --bindings ../../instruments/adc/bindings.yml \
+    --expected ../../generated/adc.layout.json
+
+python3 -m xib2ir lint /Users/william/workspace/dcu/src/DCU/Base.lproj/MainMenu.xib \
+    --window 371 --app dcu \
+    --bindings ../../instruments/dcu/bindings.yml \
+    --expected ../../generated/dcu.layout.json
+```
 
 ## Layout
 

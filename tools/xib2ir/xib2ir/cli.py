@@ -7,6 +7,7 @@ will layer bindings.yml on top via xib2ir/bindings.py.
 """
 
 import argparse
+import difflib
 import json
 import sys
 import xml.etree.ElementTree as ET
@@ -30,6 +31,17 @@ def main(argv: list[str] | None = None) -> int:
     e.add_argument("--bindings", help="Optional bindings.yml to populate binding objects")
     e.add_argument("-o", "--output", default="-", help="Output path (default: stdout)")
     e.set_defaults(func=cmd_extract)
+
+    ln = sub.add_parser(
+        "lint",
+        help="Re-extract an XIB and assert no drift against a committed IR JSON.",
+    )
+    ln.add_argument("xib", help="Path to the .xib file")
+    ln.add_argument("--window", required=True, help="Window id or title")
+    ln.add_argument("--app", required=True, help="App identifier")
+    ln.add_argument("--bindings", required=True, help="bindings.yml to apply")
+    ln.add_argument("--expected", required=True, help="Committed IR JSON to compare against")
+    ln.set_defaults(func=cmd_lint)
 
     args = ap.parse_args(argv)
     return args.func(args)
@@ -70,6 +82,49 @@ def cmd_extract(args: argparse.Namespace) -> int:
             file=sys.stderr,
         )
     return 0
+
+
+def cmd_lint(args: argparse.Namespace) -> int:
+    """Re-run extract and diff against the committed JSON. Exit 0 on match,
+    1 on drift. Designed for a future GitHub Action: the same invocation
+    runs locally before pushing."""
+    src = Path(args.xib)
+    expected_path = Path(args.expected)
+    bindings_path = Path(args.bindings)
+    for p, label in [(src, "XIB"), (expected_path, "expected JSON"), (bindings_path, "bindings")]:
+        if not p.exists():
+            print(f"xib2ir lint: {label} not found: {p}", file=sys.stderr)
+            return 2
+
+    root = xib_parser.parse(src)
+    outlets = xib_parser.outlet_map(root)
+    window = xib_parser.find_window(root, args.window)
+    if window is None:
+        print(f"xib2ir lint: window not found: {args.window!r}", file=sys.stderr)
+        return 2
+
+    layout = build_layout(window, outlets, args.app)
+    from . import bindings as bindings_mod
+    spec = bindings_mod.load(bindings_path)
+    layout["warnings"].extend(bindings_mod.apply(layout, spec))
+
+    fresh = json.dumps(layout, indent=2) + "\n"
+    committed = expected_path.read_text()
+    if fresh == committed:
+        print(f"xib2ir lint: OK — {args.app} matches {expected_path}", file=sys.stderr)
+        return 0
+
+    diff = difflib.unified_diff(
+        committed.splitlines(keepends=True),
+        fresh.splitlines(keepends=True),
+        fromfile=f"{expected_path} (committed)",
+        tofile=f"{args.xib} (fresh)",
+        n=3,
+    )
+    sys.stderr.write("xib2ir lint: drift detected — committed JSON is stale.\n")
+    sys.stderr.write("Run `python3 -m xib2ir extract ...` to regenerate.\n\n")
+    sys.stdout.writelines(diff)
+    return 1
 
 
 def build_layout(window: ET.Element, outlets: dict[str, str], app: str) -> dict:
