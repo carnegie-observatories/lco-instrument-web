@@ -16,12 +16,22 @@ const renderWindow = (layout) => {
   const root = document.getElementById("window-view");
   root.innerHTML = "";
 
+  // Wrapper absorbs the scaled dimensions so neighbours (header, log) flow
+  // around the scaled frame instead of overlapping it. The wrap's box
+  // dimensions are scale × natural frame size; the frame inside is
+  // transformed but keeps its natural width/height for absolute children.
+  const wrap = document.createElement("div");
+  wrap.className = "window-scale-wrap";
+  wrap.style.setProperty("--frame-w", `${layout.window.width}px`);
+  wrap.style.setProperty("--frame-h", `${layout.window.height}px`);
+  root.appendChild(wrap);
+
   const frame = document.createElement("div");
   frame.className = "window-frame";
   frame.style.width  = `${layout.window.width}px`;
   frame.style.height = `${layout.window.height}px`;
   if (layout.window.title) frame.dataset.title = layout.window.title;
-  root.appendChild(frame);
+  wrap.appendChild(frame);
 
   // Bucket elements by parent_id for tree reconstruction.
   const childrenOf = new Map();

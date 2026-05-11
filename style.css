@@ -188,6 +188,21 @@ ol#log .ts { color: var(--muted); margin-right: 8px; }
   border-color: var(--accent);
 }
 
+/* UI scale slider — sits beside the view toggle in the header. Drives
+   the global --ui-scale CSS var that scales the Window-view frame. */
+.ui-scale {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+}
+.ui-scale input[type="range"] { width: 120px; }
+.ui-scale #ui-scale-readout {
+  width: 36px;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
 /* Window-view placeholder (shown only when no layout is loaded) */
 #window-view { padding: var(--gap); }
 .placeholder {
@@ -201,12 +216,24 @@ ol#log .ts { color: var(--muted); margin-right: 8px; }
 .placeholder p { margin: 4px 0; }
 .placeholder .hint { font-size: 12px; }
 
+/* Window-scale wrapper: occupies the *scaled* dimensions of the frame
+   inside it so neighbouring layout (header, log pane) flows around it
+   correctly. The CSS vars --frame-w / --frame-h are set inline by
+   renderer.js per-app, --ui-scale is set on the document root by the
+   header slider. */
+.window-scale-wrap {
+  width:  calc(var(--frame-w, 480px) * var(--ui-scale, 1.5));
+  height: calc(var(--frame-h, 294px) * var(--ui-scale, 1.5));
+  margin: 16px auto;
+}
+
 /* Window frame: emulates the Cocoa main-expose window — light grey card,
    absolutely-positioned controls inside. Children are placed by the
-   renderer via inline `style.left/top/width/height`. */
+   renderer via inline `style.left/top/width/height`. The transform is
+   applied here so absolute-positioned children stay at their natural
+   pixel coordinates; the wrap above absorbs the visible size. */
 .window-frame {
   position: relative;
-  margin: 16px auto;
   background: #ececec;
   color: #1a1a1a;
   border: 1px solid #999;
@@ -214,6 +241,8 @@ ol#log .ts { color: var(--muted); margin-right: 8px; }
   font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", Helvetica, Arial, sans-serif;
   font-size: 13px;
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+  transform: scale(var(--ui-scale, 1.5));
+  transform-origin: top left;
 }
 
 /* Boxes (NSBox) — bordered group with a notched legend. */
