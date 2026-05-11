@@ -1,15 +1,15 @@
 // SPA shell: hosts the view toggle (Window | Diagnostic), persists the
 // active view in localStorage, and imports both views as side-effect
-// modules. The actual UI is owned by diagnostic.js and (later) renderer.js.
+// modules. The actual UI is owned by diagnostic.js and renderer.js.
 //
-// Default view: diagnostic. ws-ui-conversion-plan phase 12 flips the
-// default to window once ADC + DCU layouts are bound and verified.
+// Default view: window. ADC and DCU layouts are bound and verified;
+// Diagnostic stays one click away for protocol-level debugging.
 
 import "./diagnostic.js";
 import "./renderer.js";
 
 const VIEW_KEY = "lco_view";
-const DEFAULT_VIEW = "diagnostic";
+const DEFAULT_VIEW = "window";
 const VIEWS = ["window", "diagnostic"];
 
 const setView = (view) => {
