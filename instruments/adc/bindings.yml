@@ -19,6 +19,10 @@ outlets:
     write:
       cmd: set_adc_insertion
       args: { pos: $state }
+      # Short slide moves can complete inside the 1 Hz state coalesce, so
+      # the spinner would briefly flash 1s late. Show it on cmd-send;
+      # the existing read on `status.adc` clears it on the next push.
+      optimistic_spinner: prog_adc
 
   popup_other:
     options:
@@ -30,6 +34,7 @@ outlets:
     write:
       cmd: set_other_insertion
       args: { pos: $state }
+      optimistic_spinner: prog_other
 
   popup_control:
     options:
@@ -69,10 +74,10 @@ outlets:
   # protects the user's in-progress typing from being clobbered.
   edit_encA:
     read:  { topic: lens, path: "lens_a.encoder", format: "%.2f" }
-    write: { cmd: move_lens, args: { lens: A, angle: $value } }
+    write: { cmd: move_lens, args: { lens: A, angle: $value }, optimistic_spinner: prog_lensA }
   edit_encB:
     read:  { topic: lens, path: "lens_b.encoder", format: "%.2f" }
-    write: { cmd: move_lens, args: { lens: B, angle: $value } }
+    write: { cmd: move_lens, args: { lens: B, angle: $value }, optimistic_spinner: prog_lensB }
 
   edit_targetA:
     read:  { topic: lens, path: "lens_a.target", format: "%.2f" }

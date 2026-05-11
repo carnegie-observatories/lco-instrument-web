@@ -179,7 +179,8 @@
           "cmd": "set_adc_insertion",
           "args": {
             "pos": "$state"
-          }
+          },
+          "optimistic_spinner": "prog_adc"
         },
         "read": {
           "topic": "status",
@@ -228,7 +229,8 @@
           "args": {
             "lens": "A",
             "angle": "$value"
-          }
+          },
+          "optimistic_spinner": "prog_lensA"
         },
         "read": {
           "topic": "lens",
@@ -290,7 +292,8 @@
           "args": {
             "lens": "B",
             "angle": "$value"
-          }
+          },
+          "optimistic_spinner": "prog_lensB"
         },
         "read": {
           "topic": "lens",
@@ -437,7 +440,9 @@
         "w": 52,
         "h": 52
       },
-      "binding": null
+      "binding": {
+        "ignore": true
+      }
     },
     {
       "id": "l01-th-A4H",
@@ -584,7 +589,8 @@
           "cmd": "set_other_insertion",
           "args": {
             "pos": "$state"
-          }
+          },
+          "optimistic_spinner": "prog_other"
         },
         "read": {
           "topic": "status",

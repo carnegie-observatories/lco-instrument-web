@@ -684,7 +684,8 @@
           "cmd": "set_ffs_position",
           "args": {
             "pos": "$state"
-          }
+          },
+          "optimistic_spinner": "prog_screen"
         },
         "read": {
           "topic": "ffs",
@@ -724,7 +725,8 @@
           "cmd": "set_mcal_position",
           "args": {
             "pos": "$state"
-          }
+          },
+          "optimistic_spinner": "prog_mcal"
         },
         "read": {
           "topic": "mcal",

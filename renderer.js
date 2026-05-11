@@ -284,11 +284,36 @@ const writeNodeValue = (node, val, fmt, label_map, class_map) => {
 
 const applyBinding = (el, node) => {
   const b = el.binding;
-  if (!b) return;
+  if (!b) {
+    // Unbound outlet — flag in dev-mode so layout drift (XIB outlet added
+    // without a bindings.yml entry) is visible at a glance. Outlets in the
+    // bindings.yml ignore_outlets list carry binding: { ignore: true } and
+    // are filtered out by the caller (see below).
+    if (el.outlet) node.classList.add("wf-unbound");
+    return;
+  }
+  if (b.ignore) {
+    // Intentionally unbound (ignore_outlets); don't warn, don't wire.
+    return;
+  }
 
   if (b.write) {
     const handler = (event) => {
       cmd(b.write.cmd, buildArgs(b.write, node, el)).catch(() => {});
+      // Optimistic spinner: an outlet whose write spec names a sibling
+      // outlet via `optimistic_spinner` gets that sibling's `is-moving`
+      // class set immediately on cmd send. Cocoa's WSServer publishes
+      // moving=true via a 1 Hz coalesce, so without this the user sees
+      // "click → silence → spinner appears 1s later" for short moves.
+      // The class is cleared by the spinner's own read binding on the
+      // next state push that resolves the moving flag.
+      const sp = b.write.optimistic_spinner;
+      if (sp) {
+        const target = document.querySelector(
+          `#window-view [data-outlet="${CSS.escape(sp)}"]`
+        );
+        if (target) target.classList.add("is-moving");
+      }
     };
     if (el.kind === "button") {
       if (el.subkind === "check") node.addEventListener("change", handler);

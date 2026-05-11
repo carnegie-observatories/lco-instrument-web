@@ -60,6 +60,9 @@ def apply(layout: dict, spec: dict) -> list[dict]:
         if not outlet:
             continue
         if outlet in ignore:
+            # Tag the element so the renderer can distinguish
+            # intentionally-unbound outlets from outright drift.
+            el["binding"] = {"ignore": True}
             continue
         s = outlets_spec.get(outlet)
         if s is None:

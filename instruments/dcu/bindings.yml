@@ -93,6 +93,10 @@ outlets:
     write:
       cmd: set_ffs_position
       args: { pos: $state }
+      # Brief screen moves (~few hundred ms) can finish inside the WSServer's
+      # 1 Hz state coalesce; show the spinner on cmd-send so the operator
+      # has feedback even before the first state push.
+      optimistic_spinner: prog_screen
 
   drop_mcal:
     options:
@@ -105,6 +109,7 @@ outlets:
     write:
       cmd: set_mcal_position
       args: { pos: $state }
+      optimistic_spinner: prog_mcal
 
   popup_quartz:
     options:
