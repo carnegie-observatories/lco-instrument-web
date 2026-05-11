@@ -41,15 +41,18 @@
         <div id="commands"></div>
       </section>
     </main>
-
-    <section id="log-pane">
-      <div class="log-head">
-        <h2>Log</h2>
-        <button id="log-clear">clear</button>
-      </div>
-      <ol id="log"></ol>
-    </section>
   </div>
+
+  <!-- Log pane lives outside the view wrappers so it stays visible in
+       both Window and Diagnostic views — useful for protocol debugging
+       while operating the instrument. -->
+  <section id="log-pane">
+    <div class="log-head">
+      <h2>Log</h2>
+      <button id="log-clear">clear</button>
+    </div>
+    <ol id="log"></ol>
+  </section>
 
   <script type="module" src="app.js"></script>
 </body>

@@ -112,6 +112,8 @@ const formatValue = (v) => {
   if (typeof v === "boolean") return v ? "true" : "false";
   if (typeof v === "number")  return Number.isInteger(v) ? String(v) : v.toFixed(3);
   if (Array.isArray(v))       return "[" + v.map(formatValue).join(", ") + "]";
+  if (typeof v === "object")  return "{" + Object.entries(v)
+    .map(([k, val]) => `${k}:${formatValue(val)}`).join(", ") + "}";
   return String(v);
 };
 
@@ -220,8 +222,14 @@ const buildCommands = (appName) => {
 
 onHello((msg) => {
   setConn(`connected · protocol v${msg.protocol_version}`, "ok");
-  $("app-name").textContent = msg.app || "(unknown)";
-  $("app-version").textContent = `${msg.version || "?"}  (${msg.build || "?"})`;
+  const app  = msg.app     || "(unknown)";
+  const ver  = msg.version || "?";
+  const bld  = msg.build   || "?";
+  $("app-name").textContent    = app;
+  $("app-version").textContent = `v${ver}  (${bld})`;
+  // Reflect the same identity in the browser tab title so multi-window
+  // operators can tell ADC/DCU/etc. apart at a glance.
+  document.title = `${app} v${ver} (${bld})`;
   log("ok", "hello", msg);
 
   buildTopics(msg.topics || []);
