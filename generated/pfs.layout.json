@@ -1,0 +1,1558 @@
+{
+  "_generator": "xib2ir@0.1.0",
+  "app": "pfs",
+  "window_id": "F0z-JX-Cv5",
+  "window": {
+    "title": "PFS Camera",
+    "width": 377,
+    "height": 586
+  },
+  "elements": [
+    {
+      "id": "qFU-Tl-Dpx",
+      "parent_id": null,
+      "kind": "box",
+      "frame": {
+        "x": 9,
+        "y": 525,
+        "w": 359,
+        "h": 53
+      },
+      "title": "Disk(s)",
+      "content_inset": {
+        "dx": 0,
+        "dy": 12
+      }
+    },
+    {
+      "id": "RDV-RK-geM",
+      "parent_id": "qFU-Tl-Dpx",
+      "kind": "levelindicator",
+      "outlet": "level_disk1",
+      "frame": {
+        "x": 18,
+        "y": 22,
+        "w": 150,
+        "h": 16
+      },
+      "bounds": {
+        "max": 100,
+        "warning": 80,
+        "critical": 95,
+        "style": "continuousCapacity"
+      },
+      "binding": {
+        "read": {
+          "topic": "disk",
+          "path": "disk1_pct"
+        }
+      }
+    },
+    {
+      "id": "fmU-IZ-2Dx",
+      "parent_id": "qFU-Tl-Dpx",
+      "kind": "levelindicator",
+      "outlet": "level_disk2",
+      "frame": {
+        "x": 189,
+        "y": 22,
+        "w": 150,
+        "h": 16
+      },
+      "bounds": {
+        "max": 100,
+        "warning": 80,
+        "critical": 95,
+        "style": "continuousCapacity"
+      },
+      "binding": {
+        "read": {
+          "topic": "disk",
+          "path": "disk2_pct"
+        }
+      }
+    },
+    {
+      "id": "Gpu-Uq-ndB",
+      "parent_id": null,
+      "kind": "box",
+      "frame": {
+        "x": 9,
+        "y": 347,
+        "w": 359,
+        "h": 176
+      },
+      "title": "Exposure Control",
+      "content_inset": {
+        "dx": 0,
+        "dy": 12
+      }
+    },
+    {
+      "id": "VUX-Gk-7G3",
+      "parent_id": "Gpu-Uq-ndB",
+      "kind": "button",
+      "subkind": "push",
+      "outlet": "but_start",
+      "frame": {
+        "x": 12,
+        "y": 75,
+        "w": 89,
+        "h": 32
+      },
+      "title_default": "Start",
+      "binding": {
+        "write": {
+          "cmd": "start_exposure"
+        },
+        "enabled_if": {
+          "topic": "exposure",
+          "path": "running",
+          "equals": false
+        }
+      }
+    },
+    {
+      "id": "KwY-9p-ihz",
+      "parent_id": "Gpu-Uq-ndB",
+      "kind": "textfield",
+      "subkind": "input",
+      "outlet": "edit_object",
+      "frame": {
+        "x": 89,
+        "y": 22,
+        "w": 250,
+        "h": 22
+      },
+      "binding": {
+        "write": {
+          "cmd": "set_object_name",
+          "args": {
+            "name": "$value"
+          }
+        }
+      }
+    },
+    {
+      "id": "JCa-8y-su1",
+      "parent_id": "Gpu-Uq-ndB",
+      "kind": "textfield",
+      "subkind": "input",
+      "outlet": "edit_comment",
+      "frame": {
+        "x": 89,
+        "y": 49,
+        "w": 250,
+        "h": 22
+      },
+      "binding": {
+        "write": {
+          "cmd": "set_comment",
+          "args": {
+            "comment": "$value"
+          }
+        }
+      }
+    },
+    {
+      "id": "ZhR-9f-8O4",
+      "parent_id": "Gpu-Uq-ndB",
+      "kind": "button",
+      "subkind": "push",
+      "outlet": "but_stop",
+      "frame": {
+        "x": 101,
+        "y": 104,
+        "w": 76,
+        "h": 32
+      },
+      "title_default": "Stop",
+      "binding": {
+        "write": {
+          "cmd": "stop_exposure"
+        },
+        "enabled_if": {
+          "topic": "exposure",
+          "path": "running",
+          "equals": true
+        }
+      }
+    },
+    {
+      "id": "y1O-g4-MfN",
+      "parent_id": "Gpu-Uq-ndB",
+      "kind": "button",
+      "subkind": "push",
+      "outlet": "but_pause",
+      "frame": {
+        "x": 12,
+        "y": 104,
+        "w": 89,
+        "h": 32
+      },
+      "title_default": "Pause",
+      "binding": {
+        "write": {
+          "cmd": "pause_exposure"
+        },
+        "enabled_if": {
+          "topic": "exposure",
+          "path": "running",
+          "equals": true
+        }
+      }
+    },
+    {
+      "id": "ac7-hQ-hWb",
+      "parent_id": "Gpu-Uq-ndB",
+      "kind": "button",
+      "subkind": "push",
+      "outlet": "but_snap",
+      "frame": {
+        "x": 101,
+        "y": 75,
+        "w": 76,
+        "h": 32
+      },
+      "title_default": "Snap",
+      "binding": {
+        "write": {
+          "cmd": "snap_exposure"
+        },
+        "enabled_if": {
+          "topic": "exposure",
+          "path": "running",
+          "equals": false
+        }
+      }
+    },
+    {
+      "id": "end-f8-n67",
+      "parent_id": "Gpu-Uq-ndB",
+      "kind": "label",
+      "frame": {
+        "x": 16,
+        "y": 24,
+        "w": 45,
+        "h": 17
+      },
+      "title_default": "Object",
+      "binding": null
+    },
+    {
+      "id": "40u-ZN-y1j",
+      "parent_id": "Gpu-Uq-ndB",
+      "kind": "label",
+      "frame": {
+        "x": 16,
+        "y": 52,
+        "w": 66,
+        "h": 17
+      },
+      "title_default": "Comment",
+      "binding": null
+    },
+    {
+      "id": "uOd-ri-TQQ",
+      "parent_id": "Gpu-Uq-ndB",
+      "kind": "textfield",
+      "subkind": "readout",
+      "outlet": "edit_file",
+      "frame": {
+        "x": 260,
+        "y": 79,
+        "w": 79,
+        "h": 22
+      },
+      "binding": {
+        "read": {
+          "topic": "exposure",
+          "path": "id"
+        }
+      }
+    },
+    {
+      "id": "iI1-Cq-5wJ",
+      "parent_id": "Gpu-Uq-ndB",
+      "kind": "label",
+      "frame": {
+        "x": 222,
+        "y": 81,
+        "w": 34,
+        "h": 17
+      },
+      "title_default": "File#",
+      "binding": null
+    },
+    {
+      "id": "Md1-ok-9Ab",
+      "parent_id": "Gpu-Uq-ndB",
+      "kind": "label",
+      "frame": {
+        "x": 206,
+        "y": 110,
+        "w": 50,
+        "h": 17
+      },
+      "title_default": "Shutter",
+      "binding": null
+    },
+    {
+      "id": "K6q-YL-M31",
+      "parent_id": "Gpu-Uq-ndB",
+      "kind": "label",
+      "frame": {
+        "x": 206,
+        "y": 138,
+        "w": 50,
+        "h": 17
+      },
+      "title_default": "P-Total",
+      "binding": null
+    },
+    {
+      "id": "XnE-iR-cyW",
+      "parent_id": "Gpu-Uq-ndB",
+      "kind": "textfield",
+      "subkind": "readout",
+      "outlet": "edit_prate",
+      "frame": {
+        "x": 107,
+        "y": 136,
+        "w": 64,
+        "h": 21
+      },
+      "title_default": "00000",
+      "binding": {
+        "read": {
+          "topic": "photons",
+          "path": "rate",
+          "format": "%.2f"
+        }
+      }
+    },
+    {
+      "id": "AcH-k5-mAB",
+      "parent_id": "Gpu-Uq-ndB",
+      "kind": "textfield",
+      "subkind": "readout",
+      "outlet": "edit_ptotal",
+      "frame": {
+        "x": 260,
+        "y": 136,
+        "w": 78,
+        "h": 21
+      },
+      "binding": {
+        "read": {
+          "topic": "photons",
+          "path": "total",
+          "format": "%.0f"
+        }
+      }
+    },
+    {
+      "id": "At5-YE-Jl4",
+      "parent_id": "Gpu-Uq-ndB",
+      "kind": "label",
+      "frame": {
+        "x": 18,
+        "y": 138,
+        "w": 51,
+        "h": 17
+      },
+      "title_default": "P-Rate",
+      "binding": null
+    },
+    {
+      "id": "tSx-xG-jBT",
+      "parent_id": "Gpu-Uq-ndB",
+      "kind": "imageview",
+      "outlet": "view_shutter",
+      "frame": {
+        "x": 257,
+        "y": 103,
+        "w": 84,
+        "h": 31
+      },
+      "binding": {
+        "read": {
+          "topic": "shutter",
+          "path": "state",
+          "class_map": {
+            "open": "is-open",
+            "closed": "is-closed",
+            "moving": "is-moving",
+            "err": "is-err"
+          },
+          "label_map": {
+            "open": "OPEN",
+            "closed": "CLOSED",
+            "moving": "\u2026",
+            "err": "ERR"
+          }
+        }
+      }
+    },
+    {
+      "id": "ov0-cQ-CFO",
+      "parent_id": null,
+      "kind": "box",
+      "frame": {
+        "x": 9,
+        "y": 177,
+        "w": 359,
+        "h": 168
+      },
+      "title": "PFS",
+      "content_inset": {
+        "dx": 0,
+        "dy": 12
+      }
+    },
+    {
+      "id": "iAM-bv-cXM",
+      "parent_id": "ov0-cQ-CFO",
+      "kind": "popup",
+      "subkind": "pulldown",
+      "outlet": "drop_slit",
+      "frame": {
+        "x": 86,
+        "y": 20,
+        "w": 102,
+        "h": 26
+      },
+      "title_default": "?",
+      "options": [
+        {
+          "value": "?",
+          "label": "?"
+        }
+      ],
+      "binding": {
+        "write": {
+          "cmd": "move_slit",
+          "args": {
+            "encoder": "$state"
+          }
+        },
+        "read": {
+          "topic": "mechanics",
+          "path": "slit.position",
+          "options_path": "slit_options"
+        }
+      }
+    },
+    {
+      "id": "mA2-KA-v8H",
+      "parent_id": "ov0-cQ-CFO",
+      "kind": "popup",
+      "subkind": "popup",
+      "outlet": "popup_lamp",
+      "frame": {
+        "x": 87,
+        "y": 47,
+        "w": 101,
+        "h": 26
+      },
+      "title_default": "off",
+      "options": [
+        {
+          "value": "off",
+          "label": "off"
+        },
+        {
+          "value": "quartz",
+          "label": "Quartz"
+        },
+        {
+          "value": "thar",
+          "label": "ThAr"
+        }
+      ],
+      "binding": {
+        "write": {
+          "cmd": "set_lamp",
+          "args": {
+            "which": "$state"
+          }
+        },
+        "read": {
+          "topic": "mechanics",
+          "path": "lamp.position"
+        }
+      }
+    },
+    {
+      "id": "kSe-EM-FJI",
+      "parent_id": "ov0-cQ-CFO",
+      "kind": "popup",
+      "subkind": "popup",
+      "outlet": "popup_diffuser",
+      "frame": {
+        "x": 87,
+        "y": 74,
+        "w": 101,
+        "h": 26
+      },
+      "title_default": "out",
+      "options": [
+        {
+          "value": "out",
+          "label": "out"
+        },
+        {
+          "value": "in",
+          "label": "In"
+        }
+      ],
+      "binding": {
+        "write": {
+          "cmd": "set_diffuser",
+          "args": {
+            "position": "$state"
+          }
+        },
+        "read": {
+          "topic": "mechanics",
+          "path": "diffuser.position"
+        }
+      }
+    },
+    {
+      "id": "X5m-Ss-fwm",
+      "parent_id": "ov0-cQ-CFO",
+      "kind": "popup",
+      "subkind": "pulldown",
+      "outlet": "drop_cell",
+      "frame": {
+        "x": 86,
+        "y": 101,
+        "w": 102,
+        "h": 26
+      },
+      "title_default": "?",
+      "options": [
+        {
+          "value": "?",
+          "label": "?"
+        }
+      ],
+      "binding": {
+        "write": {
+          "cmd": "move_cell",
+          "args": {
+            "encoder": "$state"
+          }
+        },
+        "read": {
+          "topic": "mechanics",
+          "path": "cell.position",
+          "options_path": "cell_options"
+        }
+      }
+    },
+    {
+      "id": "vqD-kZ-G5C",
+      "parent_id": "ov0-cQ-CFO",
+      "kind": "popup",
+      "subkind": "popup",
+      "outlet": "popup_mirror",
+      "frame": {
+        "x": 258,
+        "y": 47,
+        "w": 84,
+        "h": 26
+      },
+      "title_default": "out",
+      "options": [
+        {
+          "value": "out",
+          "label": "out"
+        },
+        {
+          "value": "in",
+          "label": "In"
+        }
+      ],
+      "binding": {
+        "write": {
+          "cmd": "set_mirror",
+          "args": {
+            "position": "$state"
+          }
+        },
+        "read": {
+          "topic": "mechanics",
+          "path": "mirror.position"
+        }
+      }
+    },
+    {
+      "id": "So5-p7-1qf",
+      "parent_id": "ov0-cQ-CFO",
+      "kind": "popup",
+      "subkind": "pulldown",
+      "outlet": "drop_hart",
+      "frame": {
+        "x": 257,
+        "y": 73,
+        "w": 85,
+        "h": 26
+      },
+      "title_default": "?",
+      "options": [
+        {
+          "value": "?",
+          "label": "?"
+        }
+      ],
+      "binding": {
+        "write": {
+          "cmd": "move_hart",
+          "args": {
+            "encoder": "$state"
+          }
+        },
+        "read": {
+          "topic": "mechanics",
+          "path": "hart.position",
+          "options_path": "hart_options"
+        }
+      }
+    },
+    {
+      "id": "gGc-yx-Heo",
+      "parent_id": "ov0-cQ-CFO",
+      "kind": "popup",
+      "subkind": "popup",
+      "outlet": "popup_gshutter",
+      "frame": {
+        "x": 258,
+        "y": 127,
+        "w": 84,
+        "h": 26
+      },
+      "title_default": "Closed",
+      "options": [
+        {
+          "value": "closed",
+          "label": "Closed"
+        },
+        {
+          "value": "open",
+          "label": "Open"
+        }
+      ],
+      "binding": {
+        "write": {
+          "cmd": "set_gshutter",
+          "args": {
+            "position": "$state"
+          }
+        },
+        "read": {
+          "topic": "mechanics",
+          "path": "gshutter.position"
+        }
+      }
+    },
+    {
+      "id": "jeV-oX-iQq",
+      "parent_id": "ov0-cQ-CFO",
+      "kind": "textfield",
+      "subkind": "input",
+      "outlet": "edit_focus",
+      "frame": {
+        "x": 260,
+        "y": 22,
+        "w": 79,
+        "h": 22
+      },
+      "title_default": "00000",
+      "binding": {
+        "write": {
+          "cmd": "set_focus",
+          "args": {
+            "um": "$value"
+          }
+        },
+        "read": {
+          "topic": "focus",
+          "path": "value"
+        }
+      }
+    },
+    {
+      "id": "UU4-Mx-1GX",
+      "parent_id": "ov0-cQ-CFO",
+      "kind": "textfield",
+      "subkind": "readout",
+      "outlet": "edit_itemp",
+      "frame": {
+        "x": 260,
+        "y": 103,
+        "w": 79,
+        "h": 21
+      },
+      "title_default": "00000",
+      "binding": {
+        "read": {
+          "topic": "mechanics",
+          "path": "iodine_temp",
+          "format": "%.1f"
+        }
+      }
+    },
+    {
+      "id": "qwX-XZ-AbK",
+      "parent_id": "ov0-cQ-CFO",
+      "kind": "label",
+      "frame": {
+        "x": 216,
+        "y": 24,
+        "w": 40,
+        "h": 17
+      },
+      "title_default": "Focus",
+      "binding": null
+    },
+    {
+      "id": "e9c-Hn-NeN",
+      "parent_id": "ov0-cQ-CFO",
+      "kind": "label",
+      "frame": {
+        "x": 16,
+        "y": 23,
+        "w": 38,
+        "h": 17
+      },
+      "title_default": "Slit",
+      "binding": null
+    },
+    {
+      "id": "4z2-dL-9sG",
+      "parent_id": "ov0-cQ-CFO",
+      "kind": "label",
+      "frame": {
+        "x": 16,
+        "y": 51,
+        "w": 38,
+        "h": 17
+      },
+      "title_default": "Lamp",
+      "binding": null
+    },
+    {
+      "id": "iPw-Um-b1d",
+      "parent_id": "ov0-cQ-CFO",
+      "kind": "label",
+      "frame": {
+        "x": 16,
+        "y": 78,
+        "w": 54,
+        "h": 17
+      },
+      "title_default": "Diffuser",
+      "binding": null
+    },
+    {
+      "id": "p1M-lu-88v",
+      "parent_id": "ov0-cQ-CFO",
+      "kind": "label",
+      "frame": {
+        "x": 16,
+        "y": 104,
+        "w": 38,
+        "h": 17
+      },
+      "title_default": "I-Cell",
+      "binding": null
+    },
+    {
+      "id": "A4c-Tc-Cqj",
+      "parent_id": "ov0-cQ-CFO",
+      "kind": "label",
+      "frame": {
+        "x": 189,
+        "y": 131,
+        "w": 67,
+        "h": 17
+      },
+      "title_default": "G-Shutter",
+      "binding": null
+    },
+    {
+      "id": "lAf-uk-Ig0",
+      "parent_id": "ov0-cQ-CFO",
+      "kind": "label",
+      "frame": {
+        "x": 213,
+        "y": 51,
+        "w": 43,
+        "h": 17
+      },
+      "title_default": "Mirror",
+      "binding": null
+    },
+    {
+      "id": "Hxd-fN-RpL",
+      "parent_id": "ov0-cQ-CFO",
+      "kind": "label",
+      "frame": {
+        "x": 205,
+        "y": 105,
+        "w": 51,
+        "h": 17
+      },
+      "title_default": "I-Temp",
+      "binding": null
+    },
+    {
+      "id": "Pte-jg-aML",
+      "parent_id": "ov0-cQ-CFO",
+      "kind": "label",
+      "frame": {
+        "x": 197,
+        "y": 77,
+        "w": 59,
+        "h": 17
+      },
+      "title_default": "Hartman",
+      "binding": null
+    },
+    {
+      "id": "x2c-zu-I4m",
+      "parent_id": "ov0-cQ-CFO",
+      "kind": "popup",
+      "subkind": "popup",
+      "outlet": "popup_pmt",
+      "frame": {
+        "x": 87,
+        "y": 129,
+        "w": 101,
+        "h": 26
+      },
+      "title_default": "off",
+      "options": [
+        {
+          "value": "false",
+          "label": "off"
+        },
+        {
+          "value": "true",
+          "label": "On"
+        }
+      ],
+      "binding": {
+        "write": {
+          "cmd": "set_pmt",
+          "args": {
+            "on": "$state"
+          }
+        },
+        "read": {
+          "topic": "mechanics",
+          "path": "pmt.position",
+          "label_map": {
+            "off": "false",
+            "on": "true"
+          }
+        }
+      }
+    },
+    {
+      "id": "NKG-bo-zLA",
+      "parent_id": "ov0-cQ-CFO",
+      "kind": "label",
+      "frame": {
+        "x": 16,
+        "y": 133,
+        "w": 31,
+        "h": 17
+      },
+      "title_default": "PMT",
+      "binding": null
+    },
+    {
+      "id": "TkE-8E-cwK",
+      "parent_id": null,
+      "kind": "box",
+      "frame": {
+        "x": 9,
+        "y": 8,
+        "w": 359,
+        "h": 167
+      },
+      "title": "Exposure Parameters",
+      "content_inset": {
+        "dx": 0,
+        "dy": 12
+      }
+    },
+    {
+      "id": "t4r-bp-sxe",
+      "parent_id": "TkE-8E-cwK",
+      "kind": "textfield",
+      "subkind": "input",
+      "outlet": "edit_exptime",
+      "frame": {
+        "x": 89,
+        "y": 22,
+        "w": 54,
+        "h": 22
+      },
+      "title_default": "1",
+      "binding": {
+        "write": {
+          "cmd": "set_exptime",
+          "args": {
+            "seconds": "$value"
+          }
+        },
+        "read": {
+          "topic": "exposure",
+          "path": "exptime",
+          "format": "%.0f"
+        },
+        "enabled_if": {
+          "all": [
+            {
+              "topic": "exposure",
+              "path": "running",
+              "equals": false
+            },
+            {
+              "topic": "exposure",
+              "path": "type",
+              "not_equals": "bias"
+            },
+            {
+              "topic": "exposure",
+              "path": "mode",
+              "equals": "time"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "Q4R-f2-yq0",
+      "parent_id": "TkE-8E-cwK",
+      "kind": "label",
+      "frame": {
+        "x": 16,
+        "y": 24,
+        "w": 58,
+        "h": 17
+      },
+      "title_default": "ExpTime",
+      "binding": null
+    },
+    {
+      "id": "JfZ-4e-rOb",
+      "parent_id": "TkE-8E-cwK",
+      "kind": "textfield",
+      "subkind": "input",
+      "outlet": "edit_nloops",
+      "frame": {
+        "x": 89,
+        "y": 49,
+        "w": 54,
+        "h": 22
+      },
+      "title_default": "1",
+      "binding": {
+        "write": {
+          "cmd": "set_nloops",
+          "args": {
+            "n": "$value"
+          }
+        },
+        "read": {
+          "topic": "exposure",
+          "path": "nloops"
+        },
+        "enabled_if": {
+          "all": [
+            {
+              "topic": "exposure",
+              "path": "running",
+              "equals": false
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "Xci-tY-wxq",
+      "parent_id": "TkE-8E-cwK",
+      "kind": "label",
+      "frame": {
+        "x": 16,
+        "y": 51,
+        "w": 58,
+        "h": 17
+      },
+      "title_default": "Loops",
+      "binding": null
+    },
+    {
+      "id": "sPV-2j-RXH",
+      "parent_id": "TkE-8E-cwK",
+      "kind": "label",
+      "frame": {
+        "x": 16,
+        "y": 77,
+        "w": 58,
+        "h": 17
+      },
+      "title_default": "ExpType",
+      "binding": null
+    },
+    {
+      "id": "Y81-QN-BbF",
+      "parent_id": "TkE-8E-cwK",
+      "kind": "popup",
+      "subkind": "popup",
+      "outlet": "popup_exptype",
+      "frame": {
+        "x": 87,
+        "y": 74,
+        "w": 101,
+        "h": 26
+      },
+      "title_default": "Object",
+      "options": [
+        {
+          "value": "object",
+          "label": "Object"
+        },
+        {
+          "value": "bias",
+          "label": "Bias"
+        },
+        {
+          "value": "dark",
+          "label": "Dark"
+        },
+        {
+          "value": "flat",
+          "label": "Flat"
+        },
+        {
+          "value": "quartz",
+          "label": "Quartz"
+        },
+        {
+          "value": "thar",
+          "label": "ThAr"
+        }
+      ],
+      "binding": {
+        "write": {
+          "cmd": "set_exposure_type",
+          "args": {
+            "type": "$state"
+          }
+        },
+        "read": {
+          "topic": "exposure",
+          "path": "type"
+        },
+        "enabled_if": {
+          "all": [
+            {
+              "topic": "exposure",
+              "path": "running",
+              "equals": false
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "lqa-vS-vje",
+      "parent_id": "TkE-8E-cwK",
+      "kind": "popup",
+      "subkind": "popup",
+      "outlet": "popup_readmode",
+      "frame": {
+        "x": 258,
+        "y": 74,
+        "w": 84,
+        "h": 26
+      },
+      "title_default": "Full",
+      "options": [
+        {
+          "value": "full",
+          "label": "Full"
+        },
+        {
+          "value": "window",
+          "label": "Window"
+        }
+      ],
+      "binding": {
+        "write": {
+          "cmd": "set_read_mode",
+          "args": {
+            "mode": "$state"
+          }
+        },
+        "read": {
+          "topic": "readout",
+          "path": "readmode"
+        },
+        "enabled_if": {
+          "all": [
+            {
+              "topic": "exposure",
+              "path": "running",
+              "equals": false
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "m01-yC-kTg",
+      "parent_id": "TkE-8E-cwK",
+      "kind": "label",
+      "frame": {
+        "x": 16,
+        "y": 103,
+        "w": 62,
+        "h": 17
+      },
+      "title_default": "ExpMode",
+      "binding": null
+    },
+    {
+      "id": "dBi-nO-eQ1",
+      "parent_id": "TkE-8E-cwK",
+      "kind": "popup",
+      "subkind": "popup",
+      "outlet": "popup_expmode",
+      "frame": {
+        "x": 87,
+        "y": 100,
+        "w": 101,
+        "h": 26
+      },
+      "title_default": "Time",
+      "options": [
+        {
+          "value": "time",
+          "label": "Time"
+        },
+        {
+          "value": "counts",
+          "label": "Counts"
+        }
+      ],
+      "binding": {
+        "write": {
+          "cmd": "set_exposure_mode",
+          "args": {
+            "mode": "$state"
+          }
+        },
+        "read": {
+          "topic": "exposure",
+          "path": "mode"
+        },
+        "enabled_if": {
+          "all": [
+            {
+              "topic": "exposure",
+              "path": "running",
+              "equals": false
+            },
+            {
+              "topic": "exposure",
+              "path": "type",
+              "not_equals": "bias"
+            },
+            {
+              "topic": "exposure",
+              "path": "type",
+              "not_equals": "dark"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "Lyr-Lt-bVS",
+      "parent_id": "TkE-8E-cwK",
+      "kind": "progress",
+      "subkind": "bar",
+      "outlet": "prog_exposure",
+      "frame": {
+        "x": 151,
+        "y": 21,
+        "w": 126,
+        "h": 12
+      },
+      "bounds": {
+        "max": 100
+      },
+      "binding": {
+        "read": {
+          "topic": "exposure",
+          "path": "progress"
+        }
+      }
+    },
+    {
+      "id": "7lP-NS-SM2",
+      "parent_id": "TkE-8E-cwK",
+      "kind": "progress",
+      "subkind": "bar",
+      "outlet": "prog_readout",
+      "frame": {
+        "x": 151,
+        "y": 34,
+        "w": 126,
+        "h": 12
+      },
+      "bounds": {
+        "max": 100
+      },
+      "binding": {
+        "read": {
+          "topic": "readout",
+          "path": "progress"
+        }
+      }
+    },
+    {
+      "id": "FE2-2H-NIe",
+      "parent_id": "TkE-8E-cwK",
+      "kind": "textfield",
+      "subkind": "readout",
+      "outlet": "edit_runtime",
+      "frame": {
+        "x": 285,
+        "y": 23,
+        "w": 54,
+        "h": 21
+      },
+      "title_default": "0",
+      "binding": {
+        "read": {
+          "topic": "exposure",
+          "path": "runtime",
+          "format": "%.1f"
+        }
+      }
+    },
+    {
+      "id": "HV4-rM-1m9",
+      "parent_id": "TkE-8E-cwK",
+      "kind": "textfield",
+      "subkind": "readout",
+      "outlet": "edit_loop",
+      "frame": {
+        "x": 285,
+        "y": 50,
+        "w": 54,
+        "h": 21
+      },
+      "title_default": "0",
+      "binding": {
+        "read": {
+          "topic": "exposure",
+          "path": "loop"
+        }
+      }
+    },
+    {
+      "id": "ifw-0y-MLh",
+      "parent_id": "TkE-8E-cwK",
+      "kind": "textfield",
+      "subkind": "input",
+      "outlet": "edit_counts",
+      "frame": {
+        "x": 260,
+        "y": 102,
+        "w": 79,
+        "h": 22
+      },
+      "title_default": "n/a",
+      "binding": {
+        "write": {
+          "cmd": "set_target_counts",
+          "args": {
+            "counts": "$value"
+          }
+        },
+        "read": {
+          "topic": "exposure",
+          "path": "counts",
+          "format": "%.0f"
+        },
+        "enabled_if": {
+          "all": [
+            {
+              "topic": "exposure",
+              "path": "running",
+              "equals": false
+            },
+            {
+              "topic": "exposure",
+              "path": "mode",
+              "equals": "counts"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "mnl-GA-4K0",
+      "parent_id": "TkE-8E-cwK",
+      "kind": "label",
+      "frame": {
+        "x": 16,
+        "y": 130,
+        "w": 67,
+        "h": 17
+      },
+      "title_default": "Binning X",
+      "binding": null
+    },
+    {
+      "id": "zcj-t9-gzk",
+      "parent_id": "TkE-8E-cwK",
+      "kind": "popup",
+      "subkind": "popup",
+      "outlet": "popup_binx",
+      "frame": {
+        "x": 87,
+        "y": 126,
+        "w": 43,
+        "h": 26
+      },
+      "title_default": "1",
+      "options": [
+        {
+          "value": "1",
+          "label": "1"
+        },
+        {
+          "value": "2",
+          "label": "2"
+        },
+        {
+          "value": "3",
+          "label": "3"
+        },
+        {
+          "value": "4",
+          "label": "4"
+        }
+      ],
+      "binding": {
+        "write": {
+          "cmd": "set_binning",
+          "args": {
+            "bx": "$state",
+            "by": {
+              "topic": "readout",
+              "path": "biny"
+            }
+          }
+        },
+        "read": {
+          "topic": "readout",
+          "path": "binx"
+        },
+        "enabled_if": {
+          "all": [
+            {
+              "topic": "exposure",
+              "path": "running",
+              "equals": false
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "fb0-h9-caZ",
+      "parent_id": "TkE-8E-cwK",
+      "kind": "label",
+      "frame": {
+        "x": 133,
+        "y": 130,
+        "w": 13,
+        "h": 17
+      },
+      "title_default": "Y",
+      "binding": null
+    },
+    {
+      "id": "w7Q-nO-YSU",
+      "parent_id": "TkE-8E-cwK",
+      "kind": "popup",
+      "subkind": "popup",
+      "outlet": "popup_biny",
+      "frame": {
+        "x": 145,
+        "y": 126,
+        "w": 43,
+        "h": 26
+      },
+      "title_default": "1",
+      "options": [
+        {
+          "value": "1",
+          "label": "1"
+        },
+        {
+          "value": "2",
+          "label": "2"
+        },
+        {
+          "value": "3",
+          "label": "3"
+        },
+        {
+          "value": "4",
+          "label": "4"
+        }
+      ],
+      "binding": {
+        "write": {
+          "cmd": "set_binning",
+          "args": {
+            "bx": {
+              "topic": "readout",
+              "path": "binx"
+            },
+            "by": "$state"
+          }
+        },
+        "read": {
+          "topic": "readout",
+          "path": "biny"
+        },
+        "enabled_if": {
+          "all": [
+            {
+              "topic": "exposure",
+              "path": "running",
+              "equals": false
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "0te-4O-YdU",
+      "parent_id": "TkE-8E-cwK",
+      "kind": "label",
+      "frame": {
+        "x": 200,
+        "y": 77,
+        "w": 56,
+        "h": 17
+      },
+      "title_default": "Readout",
+      "binding": null
+    },
+    {
+      "id": "CjV-BE-syh",
+      "parent_id": "TkE-8E-cwK",
+      "kind": "popup",
+      "subkind": "popup",
+      "outlet": "popup_speed",
+      "frame": {
+        "x": 258,
+        "y": 126,
+        "w": 84,
+        "h": 26
+      },
+      "title_default": "Normal",
+      "options": [
+        {
+          "value": "normal",
+          "label": "Normal"
+        },
+        {
+          "value": "turbo",
+          "label": "Turbo"
+        }
+      ],
+      "binding": {
+        "write": {
+          "cmd": "set_readout_speed",
+          "args": {
+            "speed": "$state"
+          }
+        },
+        "read": {
+          "topic": "readout",
+          "path": "speed"
+        },
+        "enabled_if": {
+          "all": [
+            {
+              "topic": "exposure",
+              "path": "running",
+              "equals": false
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "97B-At-zOg",
+      "parent_id": "TkE-8E-cwK",
+      "kind": "label",
+      "frame": {
+        "x": 214,
+        "y": 129,
+        "w": 42,
+        "h": 17
+      },
+      "title_default": "Speed",
+      "binding": null
+    },
+    {
+      "id": "erS-2P-qwQ",
+      "parent_id": "TkE-8E-cwK",
+      "kind": "label",
+      "frame": {
+        "x": 208,
+        "y": 104,
+        "w": 48,
+        "h": 17
+      },
+      "title_default": "Counts",
+      "binding": null
+    },
+    {
+      "id": "Vg6-Fm-Wzp",
+      "parent_id": "TkE-8E-cwK",
+      "kind": "label",
+      "outlet": "edit_estimate",
+      "frame": {
+        "x": 151,
+        "y": 51,
+        "w": 128,
+        "h": 17
+      },
+      "binding": {
+        "read": {
+          "topic": "exposure",
+          "path": "estimate",
+          "format": "%.1f"
+        }
+      }
+    }
+  ],
+  "warnings": []
+}

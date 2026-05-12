@@ -83,6 +83,8 @@ def apply(layout: dict, spec: dict) -> list[dict]:
             binding["read"] = s["read"]
         if "hidden_if" in s and s["hidden_if"]:
             binding["hidden_if"] = s["hidden_if"]
+        if "enabled_if" in s and s["enabled_if"]:
+            binding["enabled_if"] = s["enabled_if"]
         el["binding"] = binding or None
 
     # Surface bindings.yml entries that don't correspond to any outlet in
