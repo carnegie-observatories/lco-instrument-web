@@ -690,6 +690,25 @@
         "read": {
           "topic": "ffs",
           "path": "position"
+        },
+        "enabled_if": {
+          "all": [
+            {
+              "topic": "ffs",
+              "path": "position",
+              "not_equals": "moving"
+            },
+            {
+              "topic": "mcal",
+              "path": "position",
+              "equals": "out"
+            },
+            {
+              "topic": "mcal",
+              "path": "brake",
+              "equals": true
+            }
+          ]
         }
       }
     },
@@ -731,6 +750,25 @@
         "read": {
           "topic": "mcal",
           "path": "position"
+        },
+        "enabled_if": {
+          "all": [
+            {
+              "topic": "mcal",
+              "path": "position",
+              "not_equals": "moving"
+            },
+            {
+              "topic": "ffs",
+              "path": "position",
+              "equals": "out"
+            },
+            {
+              "topic": "ffs",
+              "path": "brake",
+              "equals": true
+            }
+          ]
         }
       }
     },
