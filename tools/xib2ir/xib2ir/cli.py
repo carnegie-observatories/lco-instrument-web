@@ -247,5 +247,9 @@ def walk(
             if opts:
                 ir["options"] = opts
 
+        bounds = elements.extract_bounds(child)
+        if bounds is not None:
+            ir["bounds"] = bounds
+
         ir["binding"] = None
         out.append(ir)
