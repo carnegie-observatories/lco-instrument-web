@@ -6,7 +6,7 @@
 // Diagnostic stays one click away for protocol-level debugging.
 
 import "./diagnostic.js";
-import "./renderer.js";
+import "./window-host.js";   // owns #window-view; mounts renderer.js per sub-tab
 
 const VIEW_KEY = "lco_view";
 const DEFAULT_VIEW = "window";

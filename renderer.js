@@ -1,122 +1,49 @@
-// Window-view renderer. Loads <app>.layout.json (the IR produced by xib2ir)
-// and builds an absolutely-positioned DOM tree, with each element bound to
-// WS topic stores and command dispatch via the shared ws.js plumbing.
+// Window-view renderer. Builds an absolutely-positioned DOM tree from
+// an xib2ir layout JSON and wires each element to WS topic stores +
+// command dispatch via the shared ws.js plumbing.
 //
-// App identity comes from the WS hello frame (msg.app); the renderer waits
-// for hello before fetching a layout. No URL fallback — until the WSServer
-// announces an app, the Window view shows a "waiting" placeholder.
+// Multi-window: this module exports `mountRenderer(hostEl, layout)`
+// which renders into the supplied host element and returns
+// `{ destroy }`. window-host.js owns the host-element lifecycle and
+// the per-app manifest loading. Multiple renderers can be mounted
+// concurrently in sibling host divs (one per sub-tab); each tracks
+// its own set of topic subscribers so a tab teardown only removes
+// that tab's subscribers — others stay live.
 
-import { topic, cmd, onHello } from "./ws.js";
+import { topic, cmd } from "./ws.js";
 
-let currentApp = null;
+// ---------------- stateless helpers ----------------
 
-// Subscribe handles produced during the current render. The renderer
-// installs many topic subscribers via applyBinding; without retaining
-// the unsubscribe callbacks, a re-render (different hello / different
-// app) would leak each one — they'd keep firing into detached DOM,
-// growing the topic-store subscriber set unbounded over the
-// application's lifetime. renderWindow runs `_clearRenderedSubs`
-// before laying out the new layout.
-let renderedUnsubs = [];
-const subscribeTracked = (topicName, cb) => {
-  const unsub = topic(topicName).subscribe(cb);
-  renderedUnsubs.push(unsub);
-};
-const _clearRenderedSubs = () => {
-  for (const unsub of renderedUnsubs) {
-    try { unsub(); } catch (e) { console.error("renderer: unsub failed", e); }
-  }
-  renderedUnsubs.length = 0;
+const pluck = (obj, path) => {
+  if (obj == null) return obj;
+  if (!path) return obj;
+  return path
+    .split(/[.[\]]+/).filter(Boolean)
+    .reduce((o, k) => (o == null ? o : o[k]), obj);
 };
 
-// ---------------- IR → DOM ----------------
-
-const renderWindow = (layout) => {
-  const root = document.getElementById("window-view");
-  // Drop any subscribers from a prior render BEFORE clearing the DOM,
-  // so stale callbacks can't fire one last time into nodes about to be
-  // detached.
-  _clearRenderedSubs();
-  root.innerHTML = "";
-
-  // Inflate inter-box gaps when sibling boxes-with-titles sit too
-  // close. The .wf-legend pokes 8 px above its box (CSS top:-8px) to
-  // mimic Cocoa's notched-border title look; if the previous box's
-  // bottom is closer than that, the legend overlaps the previous
-  // box's last row of content. PFS stacks its top-level boxes with
-  // ~2 px gaps; ADC/DCU have ~20 px gaps already and get the no-op
-  // path below.
-  // MIN_GAP > LEGEND_PROTRUSION (currently 8px in style.css's .wf-legend
-  // top:-8px) so the protruding label has clear space above its own box.
-  const MIN_GAP = 12;
-  const yShift = new Map();   // element id → cumulative y shift to apply
-  const topTitledBoxes = layout.elements
-    .filter(e => e.parent_id === null && e.kind === "box" && e.title)
-    .sort((a, b) => a.frame.y - b.frame.y);
-  let totalShift = 0;
-  for (let i = 1; i < topTitledBoxes.length; i++) {
-    const prev = topTitledBoxes[i - 1];
-    const cur  = topTitledBoxes[i];
-    const prevBottom = prev.frame.y + prev.frame.h + (yShift.get(prev.id) || 0);
-    const curTop     = cur.frame.y + totalShift;
-    const gap = curTop - prevBottom;
-    if (gap < MIN_GAP) {
-      const add = MIN_GAP - gap;
-      totalShift += add;
-    }
-    if (totalShift > 0) yShift.set(cur.id, totalShift);
-  }
-
-  // Wrapper absorbs the scaled dimensions so neighbours (header, log) flow
-  // around the scaled frame instead of overlapping it. The wrap's box
-  // dimensions are scale × natural frame size; the frame inside is
-  // transformed but keeps its natural width/height for absolute children.
-  const wrap = document.createElement("div");
-  wrap.className = "window-scale-wrap";
-  wrap.style.setProperty("--frame-w", `${layout.window.width}px`);
-  wrap.style.setProperty("--frame-h", `${layout.window.height + totalShift}px`);
-  root.appendChild(wrap);
-
-  const frame = document.createElement("div");
-  frame.className = "window-frame";
-  frame.style.width  = `${layout.window.width}px`;
-  frame.style.height = `${layout.window.height + totalShift}px`;
-  if (layout.window.title) frame.dataset.title = layout.window.title;
-  wrap.appendChild(frame);
-
-  // Bucket elements by parent_id for tree reconstruction.
-  const childrenOf = new Map();
-  for (const el of layout.elements) {
-    const list = childrenOf.get(el.parent_id) ?? [];
-    list.push(el);
-    childrenOf.set(el.parent_id, list);
-  }
-
-  for (const el of (childrenOf.get(null) || [])) {
-    frame.appendChild(renderEl(el, childrenOf, yShift));
-  }
+const formatValue = (v, fmt) => {
+  if (v == null) return "";
+  if (!fmt) return typeof v === "object" ? JSON.stringify(v) : String(v);
+  if (typeof v !== "number") return String(v);
+  const m = /%\.(\d+)f/.exec(fmt);
+  if (m) return v.toFixed(parseInt(m[1], 10));
+  return String(v);
 };
 
-const renderEl = (el, childrenOf, yShift) => {
-  const node = createNode(el);
-  const extraY = (yShift && yShift.get(el.id)) || 0;
-  positionAbs(node, el.frame, extraY);
-  node.dataset.outlet = el.outlet || "";
-  node.dataset.id = el.id;
+const readControl = (node) => {
+  if (node.tagName === "INPUT" && node.type === "checkbox") return node.checked;
+  if ("value" in node) return node.value;
+  return null;
+};
 
-  // Only top-level shifts apply to box wrappers themselves; children
-  // are positioned relative to their parent box and ride along with
-  // the shift automatically, so we don't propagate yShift into the
-  // recursion.
-  for (const child of (childrenOf.get(el.id) || [])) {
-    // yShift is intentionally null at the recursive call — only the
-    // top-level boxes get the inter-box-gap shift; children are
-    // positioned relative to their parent and ride along automatically.
-    node.appendChild(renderEl(child, childrenOf, null));
-  }
-
-  applyBinding(el, node);
-  return node;
+const positionAbs = (node, f, extraY = 0) => {
+  if (!f) return;
+  node.style.position = "absolute";
+  node.style.left   = `${f.x}px`;
+  node.style.top    = `${f.y + extraY}px`;
+  node.style.width  = `${f.w}px`;
+  node.style.height = `${f.h}px`;
 };
 
 const createNode = (el) => {
@@ -250,90 +177,6 @@ const createNode = (el) => {
   }
 };
 
-const positionAbs = (node, f, extraY = 0) => {
-  if (!f) return;
-  node.style.position = "absolute";
-  node.style.left   = `${f.x}px`;
-  node.style.top    = `${f.y + extraY}px`;
-  node.style.width  = `${f.w}px`;
-  node.style.height = `${f.h}px`;
-};
-
-// ---------------- bindings ----------------
-
-const pluck = (obj, path) => {
-  if (obj == null) return obj;
-  if (!path) return obj;
-  return path
-    .split(/[.[\]]+/).filter(Boolean)
-    .reduce((o, k) => (o == null ? o : o[k]), obj);
-};
-
-const formatValue = (v, fmt) => {
-  if (v == null) return "";
-  if (!fmt) return typeof v === "object" ? JSON.stringify(v) : String(v);
-  if (typeof v !== "number") return String(v);
-  const m = /%\.(\d+)f/.exec(fmt);
-  if (m) return v.toFixed(parseInt(m[1], 10));
-  return String(v);
-};
-
-const readControl = (node) => {
-  if (node.tagName === "INPUT" && node.type === "checkbox") return node.checked;
-  if ("value" in node) return node.value;
-  return null;
-};
-
-const readBoundState = (node, el) => {
-  // Most-recent read-binding topic value, if any; else the control's value.
-  const r = el.binding && el.binding.read;
-  if (!r) return readControl(node);
-  const data = topic(r.topic).get();
-  if (data == null) return null;
-  return pluck(data, r.path);
-};
-
-const resolveSigil = (sigil, node, el) => {
-  if (sigil === "$value") return readControl(node);
-  if (sigil === "$state") {
-    // For controls that carry their own state (popups, checkboxes,
-    // inputs), the user's current selection is the value to send.
-    // For plain push buttons (no inherent toggle state), fall back to
-    // the read binding's topic value if any. Without this distinction
-    // a popup change would send the *previous* topic value instead of
-    // the option the user just picked.
-    const isPushButton = el.kind === "button" && el.subkind !== "check";
-    if (!isPushButton) return readControl(node);
-    const v = readBoundState(node, el);
-    return v == null ? readControl(node) : v;
-  }
-  if (sigil === "$not_state") {
-    const v = readBoundState(node, el);
-    return !(v == null ? readControl(node) : v);
-  }
-  return sigil;
-};
-
-const buildArgs = (writeSpec, node, el) => {
-  const out = {};
-  for (const [k, v] of Object.entries(writeSpec.args || {})) {
-    if (typeof v === "string" && v.startsWith("$")) {
-      out[k] = resolveSigil(v, node, el);
-    } else if (v && typeof v === "object"
-               && typeof v.topic === "string" && typeof v.path === "string") {
-      // Topic-state lookup: read another outlet's current value via its
-      // topic + path. Used when one control's write needs a sibling's
-      // value — e.g., PFS's set_binning takes both axes, but the user
-      // only twiddled one popup, so the other comes from readout state.
-      const data = topic(v.topic).get();
-      out[k] = data == null ? null : pluck(data, v.path);
-    } else {
-      out[k] = v;
-    }
-  }
-  return out;
-};
-
 // Rebuild a <select>'s option list from a topic-supplied array. Each
 // entry is {name, encoder} (or {label, value}); the wire-side value is
 // the encoder/value, the operator-facing string is the name/label.
@@ -443,148 +286,6 @@ const writeNodeValue = (node, val, fmt, label_map, class_map) => {
   }
 };
 
-const applyBinding = (el, node) => {
-  const b = el.binding;
-  if (!b) {
-    // Unbound outlet — flag in dev-mode so layout drift (XIB outlet added
-    // without a bindings.yml entry) is visible at a glance. Outlets in the
-    // bindings.yml ignore_outlets list carry binding: { ignore: true } and
-    // are filtered out by the caller (see below).
-    if (el.outlet) node.classList.add("wf-unbound");
-    return;
-  }
-  if (b.ignore) {
-    // Intentionally unbound (ignore_outlets); don't warn, don't wire.
-    return;
-  }
-
-  if (b.write) {
-    const handler = (event) => {
-      cmd(b.write.cmd, buildArgs(b.write, node, el)).catch(() => {});
-      // Optimistic spinner: an outlet whose write spec names a sibling
-      // outlet via `optimistic_spinner` gets that sibling's `is-moving`
-      // class set immediately on cmd send. Cocoa's WSServer publishes
-      // moving=true via a 1 Hz coalesce, so without this the user sees
-      // "click → silence → spinner appears 1s later" for short moves.
-      // The class is cleared by the spinner's own read binding on the
-      // next state push that resolves the moving flag.
-      const sp = b.write.optimistic_spinner;
-      if (sp) {
-        const target = document.querySelector(
-          `#window-view [data-outlet="${CSS.escape(sp)}"]`
-        );
-        if (target) target.classList.add("is-moving");
-      }
-    };
-    if (el.kind === "button") {
-      if (el.subkind === "check") node.addEventListener("change", handler);
-      else                        node.addEventListener("click",  handler);
-    }
-    else if (el.kind === "popup") node.addEventListener("change", handler);
-    else if (el.kind === "textfield" && el.subkind === "input") {
-      node.addEventListener("change", handler);            // commit on blur / Enter
-    }
-  }
-
-  if (b.read) {
-    const r = b.read;
-    subscribeTracked(r.topic, (data) => {
-      // Dynamic options must run first — populateOptions may rewrite
-      // the select's children, and writeNodeValue below sets
-      // node.value, which only sticks if the matching <option> exists.
-      // Used for popups whose option list is runtime data shipped on
-      // the topic (PFS drop_slit / drop_cell / drop_hart loaded from
-      // slits.xml / iodinecell.xml / hartmann.xml at windowDidLoad).
-      if (r.options_path) {
-        const opts = pluck(data, r.options_path);
-        if (Array.isArray(opts) && opts.length > 0) {
-          const sig = JSON.stringify(opts);
-          if (node.dataset.lastOptsSig !== sig) {
-            populateOptions(node, opts, el.subkind === "pulldown",
-                            el.title_default);
-            node.dataset.lastOptsSig = sig;
-          }
-        }
-      }
-
-      const val = pluck(data, r.path);
-      // Bounded-fill widgets (determinate progress bar, level indicator)
-      // take a dedicated writer because their value is a numeric ratio
-      // against el.bounds, not a label/text/class swap.
-      if (el.kind === "levelindicator" ||
-          (el.kind === "progress" && el.subkind === "bar")) {
-        writeBoundedFill(node, val, el);
-      } else {
-        writeNodeValue(node, val, r.format, r.label_map, r.class_map);
-      }
-      // Optional sibling-path that drives the element's text content
-      // independently of `path`. Used for state-driven labels — lamp
-      // button names ("ThAr"/"Ne"/...) and the var-quartz indicator
-      // text ("Var.Q"/"Cal") that the Cocoa controller swaps at
-      // runtime from the per-telescope XML resource. The web SPA
-      // expects the WSServer to publish these in the topic snapshot.
-      if (r.label_path) {
-        const labelVal = pluck(data, r.label_path);
-        if (labelVal != null) {
-          if (node.tagName === "BUTTON" || node.tagName === "OUTPUT" ||
-              node.tagName === "SPAN")  node.textContent = String(labelVal);
-        }
-      }
-    });
-  }
-
-  // Conditional visibility: subscribe to a topic path and hide the
-  // element when its value matches the supplied predicate. Mirrors the
-  // Cocoa setHidden: calls in DCUcontroller (e.g. var-quartz
-  // controls hidden when varLamp_Name is "-"). Predicate forms:
-  //   { equals: <value> }   hide when path === value
-  //   { absent: true }      hide when path is null/undefined
-  if (b.hidden_if) {
-    const h = b.hidden_if;
-    subscribeTracked(h.topic, (data) => {
-      const val = pluck(data, h.path);
-      let hide = false;
-      if ("equals" in h) hide = (val === h.equals);
-      else if (h.absent === true) hide = (val == null);
-      node.classList.toggle("wf-hidden", hide);
-    });
-  }
-
-  // Conditional enable: subscribe to a topic path (or several) and
-  // toggle the control's `disabled` attribute. Single-condition form
-  // is { topic, path, equals|not_equals|absent|present }. Multi-
-  // condition form is { all: [<cond>, ...] } — every condition must
-  // hold for the control to be enabled. Used for cross-topic
-  // interlocks (DCU FFS / Mcal brake gating, where drop_ffs needs
-  // mcal.brake==true AND mcal.position=="out" AND neither side
-  // currently moving).
-  if (b.enabled_if) {
-    const e = b.enabled_if;
-    const evalCond = (c) => {
-      const data = topic(c.topic).get();
-      if (data == null) return false;
-      const val = pluck(data, c.path);
-      if      ("equals"     in c) return  _eqLoose(val, c.equals);
-      else if ("not_equals" in c) return !_eqLoose(val, c.not_equals);
-      else if ( c.absent === true) return (val == null);
-      else if ( c.present === true) return (val != null);
-      return true;
-    };
-    if (Array.isArray(e.all)) {
-      const recompute = () => { node.disabled = !e.all.every(evalCond); };
-      const seen = new Set();
-      for (const c of e.all) {
-        if (typeof c.topic === "string" && !seen.has(c.topic)) {
-          seen.add(c.topic);
-          subscribeTracked(c.topic, recompute);
-        }
-      }
-    } else {
-      subscribeTracked(e.topic, () => { node.disabled = !evalCond(e); });
-    }
-  }
-};
-
 // Loose equality used by enabled_if so YAML boolean predicates still
 // hit when the server sent the value as a JSON int / JSON string
 // (NSJSONSerialization turns @(BOOL_expr) into 1/0 rather than
@@ -608,52 +309,310 @@ const _eqLoose = (a, b) => {
   return false;
 };
 
-// ---------------- go ----------------
+// ---------------- per-instance entry point ----------------
 
-const showPlaceholder = (text, hint) => {
-  const root = document.getElementById("window-view");
-  if (!root) return;
-  root.innerHTML = "";
-  const div = document.createElement("div");
-  div.className = "placeholder";
-  const p = document.createElement("p");
-  p.textContent = text;
-  div.appendChild(p);
-  if (hint) {
-    const h = document.createElement("p");
-    h.className = "hint muted";
-    h.textContent = hint;
-    div.appendChild(h);
+export const mountRenderer = (hostEl, layout) => {
+  if (!hostEl) throw new Error("mountRenderer: hostEl required");
+
+  // Subscribe handles produced during this render. Without retaining
+  // the unsubscribe callbacks, a tab destroy / app switch would leak
+  // each subscriber — they'd keep firing into detached DOM, growing
+  // the topic-store subscriber set unbounded. destroy() drains the
+  // list before clearing the host.
+  const unsubs = [];
+  const subscribeTracked = (topicName, cb) => {
+    unsubs.push(topic(topicName).subscribe(cb));
+  };
+
+  // --- closures over hostEl + subscribeTracked ---
+
+  const readBoundState = (node, el) => {
+    // Most-recent read-binding topic value, if any; else the control's value.
+    const r = el.binding && el.binding.read;
+    if (!r) return readControl(node);
+    const data = topic(r.topic).get();
+    if (data == null) return null;
+    return pluck(data, r.path);
+  };
+
+  const resolveSigil = (sigil, node, el) => {
+    if (sigil === "$value") return readControl(node);
+    if (sigil === "$state") {
+      // For controls that carry their own state (popups, checkboxes,
+      // inputs), the user's current selection is the value to send.
+      // For plain push buttons (no inherent toggle state), fall back to
+      // the read binding's topic value if any. Without this distinction
+      // a popup change would send the *previous* topic value instead of
+      // the option the user just picked.
+      const isPushButton = el.kind === "button" && el.subkind !== "check";
+      if (!isPushButton) return readControl(node);
+      const v = readBoundState(node, el);
+      return v == null ? readControl(node) : v;
+    }
+    if (sigil === "$not_state") {
+      const v = readBoundState(node, el);
+      return !(v == null ? readControl(node) : v);
+    }
+    return sigil;
+  };
+
+  const buildArgs = (writeSpec, node, el) => {
+    const out = {};
+    for (const [k, v] of Object.entries(writeSpec.args || {})) {
+      if (typeof v === "string" && v.startsWith("$")) {
+        out[k] = resolveSigil(v, node, el);
+      } else if (v && typeof v === "object"
+                 && typeof v.topic === "string" && typeof v.path === "string") {
+        // Topic-state lookup: read another outlet's current value via its
+        // topic + path. Used when one control's write needs a sibling's
+        // value — e.g., PFS's set_binning takes both axes, but the user
+        // only twiddled one popup, so the other comes from readout state.
+        const data = topic(v.topic).get();
+        out[k] = data == null ? null : pluck(data, v.path);
+      } else {
+        out[k] = v;
+      }
+    }
+    return out;
+  };
+
+  const applyBinding = (el, node) => {
+    const b = el.binding;
+    if (!b) {
+      // Unbound outlet — flag in dev-mode so layout drift (XIB outlet added
+      // without a bindings.yml entry) is visible at a glance. Outlets in the
+      // bindings.yml ignore_outlets list carry binding: { ignore: true } and
+      // are filtered out by the caller (see below).
+      if (el.outlet) node.classList.add("wf-unbound");
+      return;
+    }
+    if (b.ignore) {
+      // Intentionally unbound (ignore_outlets); don't warn, don't wire.
+      return;
+    }
+
+    if (b.write) {
+      const handler = (event) => {
+        cmd(b.write.cmd, buildArgs(b.write, node, el)).catch(() => {});
+        // Optimistic spinner: an outlet whose write spec names a sibling
+        // outlet via `optimistic_spinner` gets that sibling's `is-moving`
+        // class set immediately on cmd send. Cocoa's WSServer publishes
+        // moving=true via a 1 Hz coalesce, so without this the user sees
+        // "click → silence → spinner appears 1s later" for short moves.
+        // The class is cleared by the spinner's own read binding on the
+        // next state push that resolves the moving flag.
+        //
+        // Scope the selector to this renderer's host so a tab in
+        // display:none doesn't accidentally win the lookup.
+        const sp = b.write.optimistic_spinner;
+        if (sp) {
+          const target = hostEl.querySelector(
+            `[data-outlet="${CSS.escape(sp)}"]`
+          );
+          if (target) target.classList.add("is-moving");
+        }
+      };
+      if (el.kind === "button") {
+        if (el.subkind === "check") node.addEventListener("change", handler);
+        else                        node.addEventListener("click",  handler);
+      }
+      else if (el.kind === "popup") node.addEventListener("change", handler);
+      else if (el.kind === "textfield" && el.subkind === "input") {
+        node.addEventListener("change", handler);            // commit on blur / Enter
+      }
+    }
+
+    if (b.read) {
+      const r = b.read;
+      subscribeTracked(r.topic, (data) => {
+        // Dynamic options must run first — populateOptions may rewrite
+        // the select's children, and writeNodeValue below sets
+        // node.value, which only sticks if the matching <option> exists.
+        // Used for popups whose option list is runtime data shipped on
+        // the topic (PFS drop_slit / drop_cell / drop_hart loaded from
+        // slits.xml / iodinecell.xml / hartmann.xml at windowDidLoad).
+        if (r.options_path) {
+          const opts = pluck(data, r.options_path);
+          if (Array.isArray(opts) && opts.length > 0) {
+            const sig = JSON.stringify(opts);
+            if (node.dataset.lastOptsSig !== sig) {
+              populateOptions(node, opts, el.subkind === "pulldown",
+                              el.title_default);
+              node.dataset.lastOptsSig = sig;
+            }
+          }
+        }
+
+        const val = pluck(data, r.path);
+        // Bounded-fill widgets (determinate progress bar, level indicator)
+        // take a dedicated writer because their value is a numeric ratio
+        // against el.bounds, not a label/text/class swap.
+        if (el.kind === "levelindicator" ||
+            (el.kind === "progress" && el.subkind === "bar")) {
+          writeBoundedFill(node, val, el);
+        } else {
+          writeNodeValue(node, val, r.format, r.label_map, r.class_map);
+        }
+        // Optional sibling-path that drives the element's text content
+        // independently of `path`. Used for state-driven labels — lamp
+        // button names ("ThAr"/"Ne"/...) and the var-quartz indicator
+        // text ("Var.Q"/"Cal") that the Cocoa controller swaps at
+        // runtime from the per-telescope XML resource. The web SPA
+        // expects the WSServer to publish these in the topic snapshot.
+        if (r.label_path) {
+          const labelVal = pluck(data, r.label_path);
+          if (labelVal != null) {
+            if (node.tagName === "BUTTON" || node.tagName === "OUTPUT" ||
+                node.tagName === "SPAN")  node.textContent = String(labelVal);
+          }
+        }
+      });
+    }
+
+    // Conditional visibility: subscribe to a topic path and hide the
+    // element when its value matches the supplied predicate. Mirrors the
+    // Cocoa setHidden: calls in DCUcontroller (e.g. var-quartz
+    // controls hidden when varLamp_Name is "-"). Predicate forms:
+    //   { equals: <value> }   hide when path === value
+    //   { absent: true }      hide when path is null/undefined
+    if (b.hidden_if) {
+      const h = b.hidden_if;
+      subscribeTracked(h.topic, (data) => {
+        const val = pluck(data, h.path);
+        let hide = false;
+        if ("equals" in h) hide = (val === h.equals);
+        else if (h.absent === true) hide = (val == null);
+        node.classList.toggle("wf-hidden", hide);
+      });
+    }
+
+    // Conditional enable: subscribe to a topic path (or several) and
+    // toggle the control's `disabled` attribute. Single-condition form
+    // is { topic, path, equals|not_equals|absent|present }. Multi-
+    // condition form is { all: [<cond>, ...] } — every condition must
+    // hold for the control to be enabled. Used for cross-topic
+    // interlocks (DCU FFS / Mcal brake gating, where drop_ffs needs
+    // mcal.brake==true AND mcal.position=="out" AND neither side
+    // currently moving).
+    if (b.enabled_if) {
+      const e = b.enabled_if;
+      const evalCond = (c) => {
+        const data = topic(c.topic).get();
+        if (data == null) return false;
+        const val = pluck(data, c.path);
+        if      ("equals"     in c) return  _eqLoose(val, c.equals);
+        else if ("not_equals" in c) return !_eqLoose(val, c.not_equals);
+        else if ( c.absent === true) return (val == null);
+        else if ( c.present === true) return (val != null);
+        return true;
+      };
+      if (Array.isArray(e.all)) {
+        const recompute = () => { node.disabled = !e.all.every(evalCond); };
+        const seen = new Set();
+        for (const c of e.all) {
+          if (typeof c.topic === "string" && !seen.has(c.topic)) {
+            seen.add(c.topic);
+            subscribeTracked(c.topic, recompute);
+          }
+        }
+      } else {
+        subscribeTracked(e.topic, () => { node.disabled = !evalCond(e); });
+      }
+    }
+  };
+
+  const renderEl = (el, childrenOf, yShift) => {
+    const node = createNode(el);
+    const extraY = (yShift && yShift.get(el.id)) || 0;
+    positionAbs(node, el.frame, extraY);
+    node.dataset.outlet = el.outlet || "";
+    node.dataset.id = el.id;
+
+    // Only top-level shifts apply to box wrappers themselves; children
+    // are positioned relative to their parent box and ride along with
+    // the shift automatically, so we don't propagate yShift into the
+    // recursion.
+    for (const child of (childrenOf.get(el.id) || [])) {
+      // yShift is intentionally null at the recursive call — only the
+      // top-level boxes get the inter-box-gap shift; children are
+      // positioned relative to their parent and ride along automatically.
+      node.appendChild(renderEl(child, childrenOf, null));
+    }
+
+    applyBinding(el, node);
+    return node;
+  };
+
+  // --- build DOM into hostEl ---
+
+  hostEl.innerHTML = "";
+
+  // Inflate inter-box gaps when sibling boxes-with-titles sit too
+  // close. The .wf-legend pokes 8 px above its box (CSS top:-8px) to
+  // mimic Cocoa's notched-border title look; if the previous box's
+  // bottom is closer than that, the legend overlaps the previous
+  // box's last row of content. PFS stacks its top-level boxes with
+  // ~2 px gaps; ADC/DCU have ~20 px gaps already and get the no-op
+  // path below.
+  // MIN_GAP > LEGEND_PROTRUSION (currently 8px in style.css's .wf-legend
+  // top:-8px) so the protruding label has clear space above its own box.
+  const MIN_GAP = 12;
+  const yShift = new Map();   // element id → cumulative y shift to apply
+  const topTitledBoxes = layout.elements
+    .filter(e => e.parent_id === null && e.kind === "box" && e.title)
+    .sort((a, b) => a.frame.y - b.frame.y);
+  let totalShift = 0;
+  for (let i = 1; i < topTitledBoxes.length; i++) {
+    const prev = topTitledBoxes[i - 1];
+    const cur  = topTitledBoxes[i];
+    const prevBottom = prev.frame.y + prev.frame.h + (yShift.get(prev.id) || 0);
+    const curTop     = cur.frame.y + totalShift;
+    const gap = curTop - prevBottom;
+    if (gap < MIN_GAP) {
+      const add = MIN_GAP - gap;
+      totalShift += add;
+    }
+    if (totalShift > 0) yShift.set(cur.id, totalShift);
   }
-  root.appendChild(div);
+
+  // Wrapper absorbs the scaled dimensions so neighbours (header, log) flow
+  // around the scaled frame instead of overlapping it. The wrap's box
+  // dimensions are scale × natural frame size; the frame inside is
+  // transformed but keeps its natural width/height for absolute children.
+  const wrap = document.createElement("div");
+  wrap.className = "window-scale-wrap";
+  wrap.style.setProperty("--frame-w", `${layout.window.width}px`);
+  wrap.style.setProperty("--frame-h", `${layout.window.height + totalShift}px`);
+  hostEl.appendChild(wrap);
+
+  const frame = document.createElement("div");
+  frame.className = "window-frame";
+  frame.style.width  = `${layout.window.width}px`;
+  frame.style.height = `${layout.window.height + totalShift}px`;
+  if (layout.window.title) frame.dataset.title = layout.window.title;
+  wrap.appendChild(frame);
+
+  // Bucket elements by parent_id for tree reconstruction.
+  const childrenOf = new Map();
+  for (const el of layout.elements) {
+    const list = childrenOf.get(el.parent_id) ?? [];
+    list.push(el);
+    childrenOf.set(el.parent_id, list);
+  }
+
+  for (const el of (childrenOf.get(null) || [])) {
+    frame.appendChild(renderEl(el, childrenOf, yShift));
+  }
+
+  // --- destroy handle ---
+
+  return {
+    destroy() {
+      for (const u of unsubs) {
+        try { u(); } catch (e) { console.error("renderer: unsub failed", e); }
+      }
+      unsubs.length = 0;
+      hostEl.innerHTML = "";
+    },
+  };
 };
-
-const loadLayoutFor = (app) => {
-  const url = `./generated/${String(app).toLowerCase()}.layout.json`;
-  fetch(url)
-    .then((r) => {
-      if (!r.ok) throw new Error(`${r.status} ${r.statusText}`);
-      return r.json();
-    })
-    .then(renderWindow)
-    .catch((e) => {
-      console.error(`renderer: failed to load ${url}:`, e);
-      showPlaceholder(
-        `Layout not available for app "${app}".`,
-        `${url}: ${e.message}`
-      );
-    });
-};
-
-// Initial state: nothing to render until the WS hello announces an app.
-showPlaceholder(
-  "Waiting for WebSocket hello…",
-  "The Window view populates once the instrument app announces its identity over the control WS."
-);
-
-onHello((msg) => {
-  const app = msg && msg.app;
-  if (!app || app === currentApp) return;
-  currentApp = app;
-  loadLayoutFor(app);
-});

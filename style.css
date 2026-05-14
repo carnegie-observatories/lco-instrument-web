@@ -199,6 +199,43 @@ ol#log[data-min-level="error"] li[data-level="warn"]                        { di
   padding: 2px 6px; font: inherit;
 }
 
+/* Sub-tab strip — window-host.js builds this inside #window-view
+   from the per-app manifest. Sits above the per-tab renderer hosts.
+   Single-window apps (ADC, DCU today) still get a strip with one tab;
+   the goal is for additional XIBs (PFS calibration, target list, …)
+   to drop in as new tabs without SPA code changes. */
+.subtab-strip {
+  display: flex;
+  gap: 0;
+  padding: 8px var(--gap) 0;
+  border-bottom: 1px solid var(--bg-3);
+  flex-wrap: wrap;
+}
+.subtab {
+  background: var(--bg-2);
+  color: var(--fg);
+  border: 1px solid var(--bg-3);
+  border-bottom: 0;
+  border-radius: 4px 4px 0 0;
+  padding: 5px 12px;
+  margin-right: 2px;
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+  position: relative;
+  top: 1px;          /* overlap the strip's border-bottom on the active tab */
+}
+.subtab:hover { background: var(--bg-3); }
+.subtab.is-active {
+  background: var(--bg);
+  border-color: var(--bg-3);
+  border-bottom-color: var(--bg);
+  color: var(--accent);
+}
+.subtab-pane {
+  /* Empty container; renderer.js fills it with .window-scale-wrap. */
+}
+
 /* View toggle */
 .view-toggle { display: flex; gap: 0; }
 .view-toggle button {
