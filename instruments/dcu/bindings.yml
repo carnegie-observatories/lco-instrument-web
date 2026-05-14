@@ -97,6 +97,19 @@ outlets:
       # 1 Hz state coalesce; show the spinner on cmd-send so the operator
       # has feedback even before the first state push.
       optimistic_spinner: prog_screen
+    # Cross-topic interlock — matches DCUcontroller.m updateFFS line
+    # 1064-1069. FFS can only be deployed/retracted when:
+    #   - FFS itself isn't currently moving,
+    #   - MCal is fully retracted (position == "out"),
+    #   - MCal isn't moving,
+    #   - MCal brake is engaged (closed).
+    # Drop the popup to disabled when any of these fail so the SPA
+    # mirrors Cocoa's setEnabled:NO behavior.
+    enabled_if:
+      all:
+        - { topic: ffs,  path: position, not_equals: moving }
+        - { topic: mcal, path: position, equals: out }
+        - { topic: mcal, path: brake,    equals: true }
 
   drop_mcal:
     options:
@@ -110,6 +123,12 @@ outlets:
       cmd: set_mcal_position
       args: { pos: $state }
       optimistic_spinner: prog_mcal
+    # Mirror of drop_ffs's interlock — updateMcal line 1103-1108.
+    enabled_if:
+      all:
+        - { topic: mcal, path: position, not_equals: moving }
+        - { topic: ffs,  path: position, equals: out }
+        - { topic: ffs,  path: brake,    equals: true }
 
   popup_quartz:
     options:

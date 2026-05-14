@@ -252,6 +252,10 @@ ol#log .ts { color: var(--muted); margin-right: 8px; }
   background: transparent;
 }
 .window-frame .wf-legend {
+  /* Title pokes 8 px above the box's top edge so it sits on the
+     border line — Cocoa's notched-NSBox look. The overlap-with-the-
+     box-above problem on PFS is handled in renderWindow by inflating
+     inter-box gaps so legends always have room to protrude. */
   position: absolute;
   top: -8px; left: 10px;
   background: #ececec;
@@ -339,6 +343,40 @@ ol#log .ts { color: var(--muted); margin-right: 8px; }
   accent-color: #4a8aff;
 }
 
+/* Disabled state for every interactive form control. The explicit
+   light-theme rules above (background, color, cursor) mask the
+   browser's default disabled paint, so a binding clause that flips
+   node.disabled = true (enabled_if, or future similar) needs these
+   rules to actually render as visibly greyed out. opacity:1 keeps the
+   colour-swap visible on Safari/WebKit, which otherwise paints
+   disabled form controls at half opacity. */
+.window-frame button.wf-button:disabled,
+.window-frame button.wf-button:disabled:hover,
+.window-frame button.wf-button:disabled:active {
+  background: linear-gradient(#ededed, #d8d8d8);
+  color: #a8a8a8;
+  border-color: #b8b8b8;
+  cursor: not-allowed;
+}
+.window-frame select.wf-popup:disabled {
+  background-color: #ededed;
+  color: #a8a8a8;
+  border-color: #b8b8b8;
+  cursor: not-allowed;
+  opacity: 1;
+}
+.window-frame input.wf-input:disabled {
+  background: #ededed;
+  color: #a8a8a8;
+  border-color: #b8b8b8;
+  cursor: not-allowed;
+  opacity: 1;
+}
+.window-frame input.wf-checkbox:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
 /* Decorative labels. */
 .window-frame .wf-label {
   font-size: 12px;
@@ -396,27 +434,40 @@ ol#log .ts { color: var(--muted); margin-right: 8px; }
 .window-frame .wf-indicator.wf-radio.is-warn::before { background: #f5c44a; border-color: #b08a18; }
 .window-frame .wf-indicator.wf-radio.is-err::before  { background: #ff6f6f; border-color: #b03030; }
 
-/* State-icon (former NSImageView): square indicator that shows a glyph via CSS. */
+/* State-icon (former NSImageView): renders state as a centered text
+   label inside the XIB frame. The label text comes from the binding's
+   label_map; the class (is-open / is-closed / is-moving / is-err) is
+   applied alongside so callers can opt into per-state colour styling
+   without rewriting the text logic. */
 .window-frame .wf-imageview {
-  display: inline-block;
-  background: transparent;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: #e8e8e8;
+  border: 1px solid #999;
+  border-radius: 3px;
+  font-weight: 600;
+  font-size: 13px;
+  letter-spacing: 0.5px;
+  color: #333;
+  box-sizing: border-box;
 }
-.window-frame .wf-imageview.is-on  {
-  background: radial-gradient(circle at 50% 45%, #6cd66c 0 35%, transparent 38%);
-}
-.window-frame .wf-imageview.is-warn {
-  background: linear-gradient(45deg, transparent 45%, #f5c44a 45% 55%, transparent 55%);
-}
+.window-frame .wf-imageview.is-on,
+.window-frame .wf-imageview.is-open    { background: #cdebcd; color: #1d5a1d; border-color: #2e7a2e; }
+.window-frame .wf-imageview.is-closed  { background: #d8d8d8; color: #444;    border-color: #888; }
+.window-frame .wf-imageview.is-moving  { background: #f5e6b3; color: #6b5a18; border-color: #b08a18; }
+.window-frame .wf-imageview.is-warn,
+.window-frame .wf-imageview.is-err     { background: #fbcccc; color: #7a1d1d; border-color: #c44; }
 
 /* Spinners (NSProgressIndicator indeterminate). Hidden until topic flips moving=true. */
-.window-frame .wf-progress {
+.window-frame .wf-progress.wf-spinner {
   display: inline-block;
   border: 2px solid transparent;
   border-radius: 50%;
   visibility: hidden;
   box-sizing: border-box;
 }
-.window-frame .wf-progress.is-moving {
+.window-frame .wf-progress.wf-spinner.is-moving {
   visibility: visible;
   border-top-color: #555;
   border-right-color: #555;
@@ -425,6 +476,46 @@ ol#log .ts { color: var(--muted); margin-right: 8px; }
   animation: wf-spin 0.8s linear infinite;
 }
 @keyframes wf-spin { to { transform: rotate(360deg); } }
+
+/* Determinate progress bars (NSProgressIndicator style="bar"). Fill
+   width is set inline as a percentage from state by writeBoundedFill;
+   bounds come from the IR's `bounds` field. New for PFS (prog_exposure
+   / prog_readout) — ADC/DCU have only spinners. */
+.window-frame .wf-progress.wf-bar {
+  background: #d8d8d8;
+  border: 1px solid #888;
+  border-radius: 2px;
+  overflow: hidden;
+  box-sizing: border-box;
+}
+.window-frame .wf-progress.wf-bar .wf-bar-fill {
+  height: 100%;
+  width: 0%;
+  background: linear-gradient(#5aa5e8, #3a78c8);
+  transition: width 0.2s ease-out;
+}
+
+/* NSLevelIndicator (continuousCapacity). Threshold values (warning,
+   critical) baked into el.bounds at extract time; the renderer toggles
+   is-warn / is-crit on the wrapper so the fill colour follows the
+   value across the green → yellow → red bands. New for PFS
+   (level_disk1 / level_disk2). */
+.window-frame .wf-levelindicator {
+  background: #d8d8d8;
+  border: 1px solid #888;
+  border-radius: 2px;
+  overflow: hidden;
+  box-sizing: border-box;
+  position: relative;
+}
+.window-frame .wf-levelindicator .wf-level-fill {
+  height: 100%;
+  width: 0%;
+  background: #4caf50;
+  transition: width 0.2s ease-out, background 0.2s linear;
+}
+.window-frame .wf-levelindicator.is-warn .wf-level-fill { background: #f5c44a; }
+.window-frame .wf-levelindicator.is-crit .wf-level-fill { background: #ff6f6f; }
 
 /* NSBox separator — a thin horizontal/vertical rule. */
 .window-frame .wf-separator {

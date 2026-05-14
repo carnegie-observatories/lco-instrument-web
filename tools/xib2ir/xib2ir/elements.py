@@ -59,6 +59,9 @@ def classify(el: ET.Element, outlet: str | None) -> tuple[str, str | None]:
             return ("progress", "spinner")
         return ("progress", "bar")
 
+    if tag == "levelIndicator":
+        return ("levelindicator", None)
+
     if tag == "colorWell":
         return ("indicator", "swatch")
 
@@ -91,6 +94,62 @@ def extract_title(el: ET.Element) -> str | None:
             if t is not None:
                 stripped = t.rstrip()
                 return stripped if stripped else None
+    return None
+
+
+def _coerce_num(s: str) -> float | int:
+    """Numeric strings round-trip as int when integral, else float — keeps the
+    IR free of stray ``.0`` suffixes on whole-number bounds like ``max=100``."""
+    try:
+        f = float(s)
+        i = int(f)
+        return i if i == f else f
+    except ValueError:
+        return s  # leave non-numeric attributes as-is
+
+
+def extract_bounds(el: ET.Element) -> dict | None:
+    """Numeric range / threshold values for determinate progress bars and
+    level indicators.
+
+    Returns ``None`` (so the caller omits the field entirely) for elements
+    with no meaningful bounds — indeterminate progress spinners and everything
+    that isn't a progress / level indicator. That keeps the schema *opt-in*:
+    pre-PFS XIBs (ADC, DCU) only contain spinning progress indicators, so
+    their committed IR JSON is unaffected by these additions.
+
+      progress (style != "spinning")  →  {min, max}
+      levelIndicator                  →  {min, max, warning, critical, style}
+    """
+    if el.tag == "progressIndicator":
+        if el.get("style") == "spinning":
+            return None
+        out = {}
+        for attr, key in [("minValue", "min"), ("maxValue", "max")]:
+            v = el.get(attr)
+            if v is not None:
+                out[key] = _coerce_num(v)
+        return out or None
+
+    if el.tag == "levelIndicator":
+        cell = el.find("./levelIndicatorCell")
+        if cell is None:
+            return None
+        out = {}
+        for attr, key in [
+            ("minValue", "min"),
+            ("maxValue", "max"),
+            ("warningValue", "warning"),
+            ("criticalValue", "critical"),
+        ]:
+            v = cell.get(attr)
+            if v is not None:
+                out[key] = _coerce_num(v)
+        style = cell.get("levelIndicatorStyle")
+        if style is not None:
+            out["style"] = style
+        return out or None
+
     return None
 
 

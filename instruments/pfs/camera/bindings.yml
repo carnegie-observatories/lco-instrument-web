@@ -1,0 +1,299 @@
+# PFS camera-window bindings.
+#
+# Outlet → (read, write, options, enabled_if, ...) per the Step 0 audit
+# (pfs/docs/ws-migration-step0-pfs-camera.md). Topic shapes come from
+# InstrumentService.{h,m}; command names from InstrumentRouter.m's
+# dispatch table. Sub-panel outlets (panel_dewar / panel_window / etc.)
+# and other-window outlets are out of scope for this PR — they live in
+# separate XIB windows and would be bound by their own per-window
+# bindings files in follow-on phases.
+
+ignore_outlets: []
+
+outlets:
+
+  # ---------------- Exposure parameters ----------------
+  #
+  # Disable rules mirror CameraController.m enableCCD: (line 683-704):
+  #   popup_exptype / popup_readmode / popup_binx / popup_biny /
+  #   popup_speed: disabled while running (loop_doing on Cocoa side).
+  #   popup_expmode: also disabled when type is bias or dark.
+  #   edit_exptime: also disabled when type is bias OR mode is counts.
+  #   edit_counts:  enabled only when mode is counts.
+  #   edit_nloops:  disabled while running.
+  # 'running' on the wire is exposure.running (true while loop_doing
+  # || snap_doing); slightly stricter than Cocoa's per-control
+  # !loop_doing-vs-!snap_doing distinctions but operationally equivalent
+  # — the operator can't reasonably edit any of these mid-exposure.
+
+  popup_exptype:
+    options:
+      Object: object
+      Bias:   bias
+      Dark:   dark
+      Flat:   flat
+      Quartz: quartz
+      ThAr:   thar
+    read:  { topic: exposure, path: type }
+    write: { cmd: set_exposure_type, args: { type: $state } }
+    enabled_if:
+      all:
+        - { topic: exposure, path: running, equals: false }
+
+  popup_expmode:
+    options:
+      Time:   time
+      Counts: counts
+    read:  { topic: exposure, path: mode }
+    write: { cmd: set_exposure_mode, args: { mode: $state } }
+    enabled_if:
+      all:
+        - { topic: exposure, path: running, equals: false }
+        - { topic: exposure, path: type, not_equals: bias }
+        - { topic: exposure, path: type, not_equals: dark }
+
+  popup_readmode:
+    options:
+      Full:   full
+      Window: window
+    read:  { topic: readout, path: readmode }
+    write: { cmd: set_read_mode, args: { mode: $state } }
+    enabled_if:
+      all:
+        - { topic: exposure, path: running, equals: false }
+
+  # set_binning takes both axes simultaneously. The user only twiddles
+  # one popup at a time, so the other axis's current value is pulled
+  # from the readout topic via the topic-path arg form (renderer
+  # buildArgs).
+  popup_binx:
+    read:  { topic: readout, path: binx }
+    write:
+      cmd: set_binning
+      args:
+        bx: $state
+        by: { topic: readout, path: biny }
+    enabled_if:
+      all:
+        - { topic: exposure, path: running, equals: false }
+
+  popup_biny:
+    read:  { topic: readout, path: biny }
+    write:
+      cmd: set_binning
+      args:
+        bx: { topic: readout, path: binx }
+        by: $state
+    enabled_if:
+      all:
+        - { topic: exposure, path: running, equals: false }
+
+  popup_speed:
+    options:
+      Normal: normal
+      Turbo:  turbo
+    read:  { topic: readout, path: speed }
+    write: { cmd: set_readout_speed, args: { speed: $state } }
+    enabled_if:
+      all:
+        - { topic: exposure, path: running, equals: false }
+
+  edit_exptime:
+    read:  { topic: exposure, path: exptime, format: "%.0f" }
+    write: { cmd: set_exptime, args: { seconds: $value } }
+    enabled_if:
+      all:
+        - { topic: exposure, path: running, equals: false }
+        - { topic: exposure, path: type, not_equals: bias }
+        - { topic: exposure, path: mode, equals: time }
+
+  edit_nloops:
+    read:  { topic: exposure, path: nloops }
+    write: { cmd: set_nloops, args: { n: $value } }
+    enabled_if:
+      all:
+        - { topic: exposure, path: running, equals: false }
+
+  edit_counts:
+    read:  { topic: exposure, path: counts, format: "%.0f" }
+    write: { cmd: set_target_counts, args: { counts: $value } }
+    enabled_if:
+      all:
+        - { topic: exposure, path: running, equals: false }
+        - { topic: exposure, path: mode, equals: counts }
+
+  # ---------------- Exposure readouts ----------------
+
+  edit_runtime:
+    read: { topic: exposure, path: runtime, format: "%.1f" }
+
+  edit_estimate:
+    # Classified as `label` by xib2ir (no border / state attrs). The
+    # renderer still applies read bindings to labels — sets textContent.
+    read: { topic: exposure, path: estimate, format: "%.1f" }
+
+  edit_loop:
+    read: { topic: exposure, path: loop }
+
+  edit_file:
+    # XIB has this as a readout (editable toggled programmatically by
+    # action_file:). Read-only on the SPA today — a write path is
+    # deferred until svc_setRunNumber: lands on CameraController.
+    read: { topic: exposure, path: id }
+
+  prog_exposure:
+    # Determinate bar. exposure.progress is the server-derived 0–100
+    # value introduced in the plan § New widget/binding types B; the
+    # renderer's writeBoundedFill consumes it together with bounds
+    # extracted from the XIB (max=100).
+    read: { topic: exposure, path: progress }
+
+  prog_readout:
+    read: { topic: readout, path: progress }
+
+  # ---------------- Exposure control buttons ----------------
+  #
+  # Mutually-exclusive cluster — enabled_if drives the disabled
+  # attribute from exposure.running. See the audit's Button-state
+  # matrix; the SPA simplifies the richer Cocoa gates (loop_doing /
+  # readout_doing / snap_doing) to a single `exposure.running`
+  # predicate. The InstrumentService is the authority on the
+  # finer-grained rules and returns Busy if a write arrives in a state
+  # where Cocoa would reject the action.
+
+  but_start:
+    write: { cmd: start_exposure }
+    enabled_if: { topic: exposure, path: running, equals: false }
+
+  but_snap:
+    write: { cmd: snap_exposure }
+    enabled_if: { topic: exposure, path: running, equals: false }
+
+  but_pause:
+    write: { cmd: pause_exposure }
+    enabled_if: { topic: exposure, path: running, equals: true }
+
+  but_stop:
+    write: { cmd: stop_exposure }
+    enabled_if: { topic: exposure, path: running, equals: true }
+
+  # ---------------- Free-text inputs ----------------
+
+  edit_object:
+    write: { cmd: set_object_name, args: { name: $value } }
+
+  edit_comment:
+    write: { cmd: set_comment, args: { comment: $value } }
+
+  # ---------------- Shutter / disk indicators ----------------
+
+  view_shutter:
+    read:
+      topic: shutter
+      path:  state
+      # Renders as a centered text label inside the XIB frame
+      # (cocoa-side it's an NSImageView; the SPA's wf-imageview rule
+      # styles the span as a coloured label). class_map drives the
+      # per-state colour, label_map provides the displayed string.
+      class_map: { open: is-open, closed: is-closed,
+                   moving: is-moving, err: is-err }
+      label_map: { open: OPEN, closed: CLOSED, moving: "…", err: ERR }
+
+  level_disk1:
+    read: { topic: disk, path: disk1_pct }
+
+  level_disk2:
+    read: { topic: disk, path: disk2_pct }
+
+  # ---------------- Photon counters (PMT) ----------------
+
+  edit_prate:
+    read: { topic: photons, path: rate, format: "%.2f" }
+
+  edit_ptotal:
+    read: { topic: photons, path: total, format: "%.0f" }
+
+  # ---------------- PFS mechanisms (PLC-backed) ----------------
+
+  popup_lamp:
+    options:
+      "off":  "off"
+      Quartz: quartz
+      ThAr:   thar
+    read:  { topic: mechanics, path: lamp.position }
+    write: { cmd: set_lamp, args: { which: $state } }
+
+  popup_diffuser:
+    options:
+      out:  out
+      "In": in
+    read:  { topic: mechanics, path: diffuser.position }
+    write: { cmd: set_diffuser, args: { position: $state } }
+
+  popup_mirror:
+    options:
+      out:  out
+      "In": in
+    read:  { topic: mechanics, path: mirror.position }
+    write: { cmd: set_mirror, args: { position: $state } }
+
+  popup_gshutter:
+    options:
+      Closed: closed
+      Open:   open
+    read:  { topic: mechanics, path: gshutter.position }
+    write: { cmd: set_gshutter, args: { position: $state } }
+
+  # set_pmt takes a JSON-bool-ish wire arg. Map the popup options to
+  # "true"/"false" strings so NSString.boolValue handles them
+  # correctly on the server side; label_map on the read flips the
+  # state's "on"/"off" enum back to the same wire-shape strings so the
+  # popup tracks state changes correctly.
+  popup_pmt:
+    options:
+      "off":  "false"
+      "On":   "true"
+    read:
+      topic:     mechanics
+      path:      pmt.position
+      label_map: { "off": "false", "on": "true" }
+    # NB: 'on' must be quoted — YAML 1.1 parses unquoted on/off/yes/no
+    # as booleans, which would silently turn this into args: {true: …}
+    # and the server's args[@"on"] read would come back nil.
+    write: { cmd: set_pmt, args: { "on": $state } }
+
+  # drop_slit / drop_cell / drop_hart — option lists are runtime-
+  # populated from slits.xml / iodinecell.xml / hartmann.xml at
+  # CameraController.windowDidLoad. The mechanics topic snapshot ships
+  # {slit,cell,hart}_options arrays of {name, encoder}; the renderer
+  # rebuilds the <select> children on each state push that changes the
+  # option set (options_path).
+  drop_slit:
+    read:
+      topic: mechanics
+      path:  slit.position
+      options_path: slit_options
+    write: { cmd: move_slit, args: { encoder: $state } }
+
+  drop_cell:
+    read:
+      topic: mechanics
+      path:  cell.position
+      options_path: cell_options
+    write: { cmd: move_cell, args: { encoder: $state } }
+
+  drop_hart:
+    read:
+      topic: mechanics
+      path:  hart.position
+      options_path: hart_options
+    write: { cmd: move_hart, args: { encoder: $state } }
+
+  # ---------------- Focus / iodine cell temp ----------------
+
+  edit_focus:
+    read:  { topic: focus, path: value }
+    write: { cmd: set_focus, args: { um: $value } }
+
+  edit_itemp:
+    read: { topic: mechanics, path: iodine_temp, format: "%.1f" }
