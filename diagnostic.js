@@ -114,15 +114,19 @@ const formatLogTs = (iso) => {
 
 const appendServerLogEntry = (entry) => {
   if (!entry) return;
-  const level = (entry.level || "info").toLowerCase();
+  // Defensive coercion: a future intermediary (rsyslog proxy etc.) or
+  // a buggy emitter could ship `level` as an integer, `ts` as a Date,
+  // etc. We never want a stringifying error to take out the pane.
+  const level = String(entry.level ?? "info").toLowerCase();
+  const ts    = typeof entry.ts === "string" ? entry.ts : "";
+  const src   = entry.src == null ? "" : String(entry.src);
+  const msg   = entry.msg == null ? "" : String(entry.msg);
   const li = el("li", { class: `log-server log-level-${level}`,
                         "data-kind": "server",
                         "data-level": level });
-  li.appendChild(el("span", { class: "ts", text: formatLogTs(entry.ts) }));
-  if (entry.src) {
-    li.appendChild(el("span", { class: "src", text: `[${entry.src}]` }));
-  }
-  li.appendChild(document.createTextNode(" " + (entry.msg || "")));
+  li.appendChild(el("span", { class: "ts", text: formatLogTs(ts) }));
+  if (src) li.appendChild(el("span", { class: "src", text: `[${src}]` }));
+  li.appendChild(document.createTextNode(" " + msg));
   insertLogEntry(li);
 };
 
@@ -210,6 +214,13 @@ onState((msg) => {
     // Ring-buffer replay on subscribe. Entries are oldest-first; we
     // insert each at the TOP of the list so the newest one ends up
     // visually at the top after the loop completes.
+    //
+    // Auto-reconnect (ws.js) will re-fire onHello → resubscribe →
+    // server resends the full ring. To avoid duplicating the previous
+    // replay's contents into the pane, drop the existing server rows
+    // first. SPA-internal rows (data-kind="spa") survive — they're
+    // transport debug and not redelivered by the server.
+    for (const n of logEl.querySelectorAll('li[data-kind="server"]')) n.remove();
     const entries = (msg.data && Array.isArray(msg.data.entries)) ? msg.data.entries : [];
     for (const e of entries) appendServerLogEntry(e);
     return;
