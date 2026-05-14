@@ -10,6 +10,13 @@ import {
   onHello, onState, onEvent, onAck, onSend, onConn, onLog,
 } from "./ws.js";
 
+// Reserved topic — see ws-ui-conversion-plan.md § Streamed log topic.
+// Subscribe is implicit (advertised in hello.topics), but the diagnostic
+// pane treats the topic specially: state frames carry a ring-buffer
+// replay ({entries: [...]}) and live updates arrive as event frames.
+const LOGS_TOPIC = "logs";
+const LOG_MAX_DOM_ENTRIES = 500;
+
 // ---------------- per-app registry ----------------
 
 const APP_REGISTRY = {
@@ -73,19 +80,79 @@ onConn(setConn);
 
 const logEl = $("log");
 $("log-clear").addEventListener("click", () => { logEl.innerHTML = ""; });
+
+// SPA-internal entries (sent frames, transport-layer messages) keep the
+// old shape: simple `<li class="send|ok|err|evt">` with a leading ts.
 const log = (cls, ...parts) => {
   const ts = new Date().toLocaleTimeString();
-  const li = el("li", { class: cls });
+  const li = el("li", { class: cls, "data-kind": "spa" });
   li.appendChild(el("span", { class: "ts", text: ts }));
   li.appendChild(document.createTextNode(parts.map(p =>
     typeof p === "string" ? p : JSON.stringify(p)
   ).join(" ")));
-  logEl.insertBefore(li, logEl.firstChild);
-  while (logEl.children.length > 200) logEl.removeChild(logEl.lastChild);
+  insertLogEntry(li);
 };
 
 onSend(frame => log("send", "→", frame));
 onLog((level, ...parts) => log(level, ...parts));
+
+// Server log entries arrive via the `logs` topic. Replay (state frame
+// with {entries: [...]}) populates the pane on subscribe; live updates
+// (event frames) append a single entry each.
+//
+// Render format: `<HH:MM:SS> [SRC] msg` with the entire <li> carrying
+// `data-level="info|warn|…"` so the level filter can hide rows via
+// a single CSS rule on the parent <ol>.
+const formatLogTs = (iso) => {
+  if (!iso) return "";
+  // Server emits ISO-8601 UTC with ms. For dense scanning, drop the
+  // date prefix and milliseconds; keep just HH:MM:SS to match the
+  // SPA-internal entries.
+  const m = /T(\d{2}:\d{2}:\d{2})/.exec(iso);
+  return m ? m[1] : iso;
+};
+
+const appendServerLogEntry = (entry) => {
+  if (!entry) return;
+  // Defensive coercion: a future intermediary (rsyslog proxy etc.) or
+  // a buggy emitter could ship `level` as an integer, `ts` as a Date,
+  // etc. We never want a stringifying error to take out the pane.
+  const level = String(entry.level ?? "info").toLowerCase();
+  const ts    = typeof entry.ts === "string" ? entry.ts : "";
+  const src   = entry.src == null ? "" : String(entry.src);
+  const msg   = entry.msg == null ? "" : String(entry.msg);
+  const li = el("li", { class: `log-server log-level-${level}`,
+                        "data-kind": "server",
+                        "data-level": level });
+  li.appendChild(el("span", { class: "ts", text: formatLogTs(ts) }));
+  if (src) li.appendChild(el("span", { class: "src", text: `[${src}]` }));
+  li.appendChild(document.createTextNode(" " + msg));
+  insertLogEntry(li);
+};
+
+// Newest-on-top to match the existing SPA-internal entry behaviour.
+// Cap DOM size at LOG_MAX_DOM_ENTRIES so a long-running session can't
+// blow up memory with thousands of <li>s.
+const insertLogEntry = (li) => {
+  logEl.insertBefore(li, logEl.firstChild);
+  while (logEl.children.length > LOG_MAX_DOM_ENTRIES) {
+    logEl.removeChild(logEl.lastChild);
+  }
+};
+
+// Level filter — selecting `warn+` hides any <li data-level> below
+// the threshold. SPA-internal entries (data-kind="spa") are always
+// shown; they're transport-debug, not graded log severity. The
+// thresholding is done in CSS (style.css ol#log[data-min-level=…])
+// so this side just stamps the chosen min onto the <ol>.
+const applyLevelFilter = (min) => {
+  logEl.setAttribute("data-min-level", min);
+};
+const levelSelect = $("log-level");
+if (levelSelect) {
+  levelSelect.addEventListener("change", () => applyLevelFilter(levelSelect.value));
+  applyLevelFilter(levelSelect.value || "debug");
+}
 
 // ---------------- topic UI ----------------
 
@@ -96,6 +163,9 @@ const buildTopics = (topics) => {
   root.innerHTML = "";
   topicNodes.clear();
   for (const t of topics) {
+    // `logs` has its own pane (#log) and a different schema; skip the
+    // generic key/value renderer.
+    if (t === LOGS_TOPIC) continue;
     const body = el("div", { class: "kv", text: "(no data yet)" });
     const sec = el("div", { class: "topic" },
       el("div", { class: "topic-head" },
@@ -140,6 +210,21 @@ const renderObject = (obj) => {
 };
 
 onState((msg) => {
+  if (msg.topic === LOGS_TOPIC) {
+    // Ring-buffer replay on subscribe. Entries are oldest-first; we
+    // insert each at the TOP of the list so the newest one ends up
+    // visually at the top after the loop completes.
+    //
+    // Auto-reconnect (ws.js) will re-fire onHello → resubscribe →
+    // server resends the full ring. To avoid duplicating the previous
+    // replay's contents into the pane, drop the existing server rows
+    // first. SPA-internal rows (data-kind="spa") survive — they're
+    // transport debug and not redelivered by the server.
+    for (const n of logEl.querySelectorAll('li[data-kind="server"]')) n.remove();
+    const entries = (msg.data && Array.isArray(msg.data.entries)) ? msg.data.entries : [];
+    for (const e of entries) appendServerLogEntry(e);
+    return;
+  }
   const node = topicNodes.get(msg.topic);
   if (!node) return;
   node.body.innerHTML = "";
@@ -238,7 +323,17 @@ onHello((msg) => {
   if (msg.topics && msg.topics.length) subscribe(...msg.topics);
 });
 
-onEvent((msg) => log("evt", "event", msg.name, msg.data || {}));
+onEvent((msg) => {
+  if (msg.topic === LOGS_TOPIC) {
+    appendServerLogEntry(msg.data);
+    return;
+  }
+  // Lifecycle events (PFS exposure_started, exposure_complete, …) keep
+  // the legacy compact rendering — these are rare and structurally
+  // distinct from log entries, so they live alongside in the same pane
+  // as data-kind="spa" SPA-internal rows.
+  log("evt", "event", msg.name || msg.topic, msg.data || {});
+});
 
 onAck((msg) => {
   if (msg.ok) log("ok", "✓", msg.id, msg.result || {});

@@ -54,7 +54,16 @@
   <section id="log-pane">
     <div class="log-head">
       <h2>Log</h2>
-      <button id="log-clear">clear</button>
+      <div class="log-controls">
+        <label class="muted" for="log-level">level</label>
+        <select id="log-level">
+          <option value="debug">debug+</option>
+          <option value="info" selected>info+</option>
+          <option value="warn">warn+</option>
+          <option value="error">error</option>
+        </select>
+        <button id="log-clear">clear</button>
+      </div>
     </div>
     <ol id="log"></ol>
   </section>
