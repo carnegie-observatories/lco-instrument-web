@@ -10,10 +10,33 @@ import { topic, cmd, onHello } from "./ws.js";
 
 let currentApp = null;
 
+// Subscribe handles produced during the current render. The renderer
+// installs many topic subscribers via applyBinding; without retaining
+// the unsubscribe callbacks, a re-render (different hello / different
+// app) would leak each one — they'd keep firing into detached DOM,
+// growing the topic-store subscriber set unbounded over the
+// application's lifetime. renderWindow runs `_clearRenderedSubs`
+// before laying out the new layout.
+let renderedUnsubs = [];
+const subscribeTracked = (topicName, cb) => {
+  const unsub = topic(topicName).subscribe(cb);
+  renderedUnsubs.push(unsub);
+};
+const _clearRenderedSubs = () => {
+  for (const unsub of renderedUnsubs) {
+    try { unsub(); } catch (e) { console.error("renderer: unsub failed", e); }
+  }
+  renderedUnsubs.length = 0;
+};
+
 // ---------------- IR → DOM ----------------
 
 const renderWindow = (layout) => {
   const root = document.getElementById("window-view");
+  // Drop any subscribers from a prior render BEFORE clearing the DOM,
+  // so stale callbacks can't fire one last time into nodes about to be
+  // detached.
+  _clearRenderedSubs();
   root.innerHTML = "";
 
   // Inflate inter-box gaps when sibling boxes-with-titles sit too
@@ -23,7 +46,8 @@ const renderWindow = (layout) => {
   // box's last row of content. PFS stacks its top-level boxes with
   // ~2 px gaps; ADC/DCU have ~20 px gaps already and get the no-op
   // path below.
-  const LEGEND_PROTRUSION = 8;
+  // MIN_GAP > LEGEND_PROTRUSION (currently 8px in style.css's .wf-legend
+  // top:-8px) so the protruding label has clear space above its own box.
   const MIN_GAP = 12;
   const yShift = new Map();   // element id → cumulative y shift to apply
   const topTitledBoxes = layout.elements
@@ -85,7 +109,10 @@ const renderEl = (el, childrenOf, yShift) => {
   // the shift automatically, so we don't propagate yShift into the
   // recursion.
   for (const child of (childrenOf.get(el.id) || [])) {
-    node.appendChild(renderEl(child, childrenOf));
+    // yShift is intentionally null at the recursive call — only the
+    // top-level boxes get the inter-box-gap shift; children are
+    // positioned relative to their parent and ride along automatically.
+    node.appendChild(renderEl(child, childrenOf, null));
   }
 
   applyBinding(el, node);
@@ -399,6 +426,12 @@ const writeNodeValue = (node, val, fmt, label_map, class_map) => {
 
   if (node.tagName === "OUTPUT")  node.textContent = display ?? "";
   else if (node.tagName === "BUTTON") node.textContent = display ?? "";
+  // LOAD-BEARING: for SELECT we write `display` (post-label_map) into
+  // node.value, NOT textContent. Some bindings.yml entries
+  // (e.g. PFS popup_pmt) rely on this — they use label_map to remap
+  // the incoming wire value (e.g. mechanics.pmt.position: "on") to
+  // the option value (e.g. "true"). If you change this to textContent,
+  // popup_pmt's read binding stops selecting the right option.
   else if (node.tagName === "SELECT") node.value = (display ?? "");
   else if (node.tagName === "INPUT") {
     if (node.type === "checkbox") { node.checked = !!val; return; }
@@ -455,7 +488,7 @@ const applyBinding = (el, node) => {
 
   if (b.read) {
     const r = b.read;
-    topic(r.topic).subscribe((data) => {
+    subscribeTracked(r.topic, (data) => {
       // Dynamic options must run first — populateOptions may rewrite
       // the select's children, and writeNodeValue below sets
       // node.value, which only sticks if the matching <option> exists.
@@ -508,7 +541,7 @@ const applyBinding = (el, node) => {
   //   { absent: true }      hide when path is null/undefined
   if (b.hidden_if) {
     const h = b.hidden_if;
-    topic(h.topic).subscribe((data) => {
+    subscribeTracked(h.topic, (data) => {
       const val = pluck(data, h.path);
       let hide = false;
       if ("equals" in h) hide = (val === h.equals);
@@ -543,26 +576,35 @@ const applyBinding = (el, node) => {
       for (const c of e.all) {
         if (typeof c.topic === "string" && !seen.has(c.topic)) {
           seen.add(c.topic);
-          topic(c.topic).subscribe(recompute);
+          subscribeTracked(c.topic, recompute);
         }
       }
     } else {
-      topic(e.topic).subscribe(() => { node.disabled = !evalCond(e); });
+      subscribeTracked(e.topic, () => { node.disabled = !evalCond(e); });
     }
   }
 };
 
 // Loose equality used by enabled_if so YAML boolean predicates still
-// hit when the server sent the value as a JSON int (NSJSONSerialization
-// turns @(BOOL_expr) into 1/0 rather than true/false unless the call
-// site uses ?@YES:@NO explicitly — defensive on the renderer side
-// too).
+// hit when the server sent the value as a JSON int / JSON string
+// (NSJSONSerialization turns @(BOOL_expr) into 1/0 rather than
+// true/false unless the call site uses ?@YES:@NO; older custom
+// stacks ship bools as the literal strings "true"/"false"/"1"/"0").
+// Mirrors the candidate set used by class_map in writeNodeValue.
 const _eqLoose = (a, b) => {
   if (a === b) return true;
+  // Bool ↔ int aliases.
   if (a === true  && b === 1) return true;
-  if (a === 1     && b === true) return true;
+  if (b === true  && a === 1) return true;
   if (a === false && b === 0) return true;
-  if (a === 0     && b === false) return true;
+  if (b === false && a === 0) return true;
+  // Bool ↔ string aliases (defensive against non-NSJSON-style encoders).
+  const trueish  = (v) => v === "true"  || v === "1";
+  const falseish = (v) => v === "false" || v === "0";
+  if (a === true  && trueish(b))  return true;
+  if (b === true  && trueish(a))  return true;
+  if (a === false && falseish(b)) return true;
+  if (b === false && falseish(a)) return true;
   return false;
 };
 
