@@ -168,6 +168,36 @@ ol#log li.ok   { color: var(--ok); }
 ol#log li.err  { color: var(--err); }
 ol#log li.evt  { color: var(--warn); }
 ol#log .ts { color: var(--muted); margin-right: 8px; }
+ol#log .src { color: var(--muted); margin-right: 6px; font-weight: 500; }
+
+/* Server log entries (`logs` topic). Per-level colouring is muted on
+   info/debug (the bulk of traffic) and saturated on warn/error so the
+   eye lands on real problems first. */
+ol#log li.log-server                  { color: var(--fg); }
+ol#log li.log-server.log-level-debug  { color: var(--muted); }
+ol#log li.log-server.log-level-info   { color: var(--fg); }
+ol#log li.log-server.log-level-warn   { color: var(--warn); }
+ol#log li.log-server.log-level-error  { color: var(--err); font-weight: 600; }
+
+/* Level filter — applied as `data-min-level` on the <ol>. Hide any
+   data-level row below the selected threshold. SPA-internal rows
+   (data-kind="spa") are unaffected. Each rule below is "if min is at
+   least <L>, hide anything strictly below <L>". */
+ol#log[data-min-level="info"]  li[data-level="debug"]                       { display: none; }
+ol#log[data-min-level="warn"]  li[data-level="debug"],
+ol#log[data-min-level="warn"]  li[data-level="info"]                        { display: none; }
+ol#log[data-min-level="error"] li[data-level="debug"],
+ol#log[data-min-level="error"] li[data-level="info"],
+ol#log[data-min-level="error"] li[data-level="warn"]                        { display: none; }
+
+.log-controls {
+  display: flex; align-items: center; gap: 8px;
+}
+.log-controls select {
+  background: var(--bg-2); color: var(--fg);
+  border: 1px solid var(--bg-3); border-radius: 4px;
+  padding: 2px 6px; font: inherit;
+}
 
 /* View toggle */
 .view-toggle { display: flex; gap: 0; }
