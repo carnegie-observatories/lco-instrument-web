@@ -1,0 +1,79 @@
+# PFS calibration window — see
+# /Users/william/workspace/pfs/docs/ws-migration-step0-pfs-camera.md
+# § Planned follow-on: calibration window. Cocoa-side surface lives
+# on the PFS InstrumentService (calibration topic + calibration_*
+# cmds + calibration_started/_complete events).
+#
+# v1 over WS is read-mostly: the table mirrors the calibration topic's
+# entries[] (which the operator pre-loads via the Cocoa NSOpenPanel)
+# and pushes selection changes back as calibration_select cmds. The
+# three buttons drive execute / stop / reverse. File-load is not
+# wired over WS in v1.
+
+outlets:
+  # The 9-column list. `rows_path` points at the topic's entries[]
+  # array; `current_path` highlights the row mid-run (set by the
+  # GLOBAL_QUEUE loop in svc_executeWithSelection:). `selected_path`
+  # lets a fresh client honour the server-side selection on first
+  # connect — once the local user picks rows we let the local DOM
+  # set win (see renderer.js applyListBinding).
+  #
+  # `column_paths` is positional — entry index N in this list maps
+  # to column index N in the IR (extracted by xib2ir from
+  # callist.xib's <tableColumn> identifier attributes 0..8). The
+  # mapping mirrors the Cocoa enum column_ids in
+  # CalibrationController.m:27.
+  calTable:
+    read:
+      topic: calibration
+      rows_path: entries
+      current_path: current_index
+      selected_path: selected
+      column_paths:
+        - name
+        - exptype
+        - binning
+        - speed
+        - slit
+        - iodine
+        - exptime
+        - nloops
+        - comment
+    write:
+      cmd: calibration_select
+      args: { indices: $selection }
+
+  # Execute the server-side selection. enabled_if gates against
+  # three concurrent failure modes (matching the Cocoa
+  # action_execute:'s notice-and-bail rules at CalibrationController.m
+  # m:202 / m:210): already running, empty selection, camera loop
+  # already active.
+  butExecSel:
+    enabled_if:
+      all:
+        - { topic: calibration, path: running,         equals: false }
+        - { topic: calibration, path: selected.length, not_equals: 0 }
+        - { topic: exposure,    path: running,         equals: false }
+    write:
+      cmd: calibration_execute
+
+  # Stop the in-flight loop. The Cocoa-side flag check happens between
+  # iterations, so the current row's exposure completes before the
+  # stop takes effect (matching the GLOBAL_QUEUE loop's
+  # do { Ysleep } while ([ccd loop_doing]) wait).
+  butStop:
+    enabled_if: { topic: calibration, path: running, equals: true }
+    write:
+      cmd: calibration_stop
+
+  # Reverse-direction checkbox. butReverse has no IBAction in the
+  # XIB; the WS write hops main and sets butReverse.state directly.
+  # Mid-run writes apply to the NEXT run (the executing loop
+  # captures opts at entry).
+  butReverse:
+    read:
+      topic: calibration
+      path: reverse
+    write:
+      cmd: calibration_set_reverse
+      args: { on: $state }

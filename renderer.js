@@ -447,14 +447,23 @@ export const mountRenderer = (hostEl, layout) => {
     node._wfAnchor = null;
 
     const cols = Array.isArray(el.columns) ? el.columns : null;
+    // bindings.yml's read.column_paths is positional — entry i maps
+    // to columns[i]. The IR's columns themselves carry only layout
+    // (id, title, width) per the xib2ir contract; the path-to-record
+    // mapping lives in the binding so the same generated layout can
+    // drive different bindings without re-running the converter.
+    const colPaths = (b.read && Array.isArray(b.read.column_paths))
+                       ? b.read.column_paths : null;
 
     const renderRow = (entry, idx) => {
       const tr = document.createElement("tr");
       tr.dataset.index = String(idx);
       if (cols) {
-        for (const c of cols) {
+        for (let i = 0; i < cols.length; i++) {
+          const c = cols[i];
           const td = document.createElement("td");
-          const v = pluck(entry, c.path || c.id);
+          const path = (colPaths && colPaths[i]) || c.path || c.id;
+          const v = pluck(entry, path);
           td.textContent = formatValue(v, c.format);
           tr.appendChild(td);
         }
