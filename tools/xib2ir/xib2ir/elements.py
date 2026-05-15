@@ -153,6 +153,39 @@ def extract_bounds(el: ET.Element) -> dict | None:
     return None
 
 
+def extract_columns(el: ET.Element) -> list[dict] | None:
+    """Pull a tableView's column descriptors from <tableColumns><tableColumn>.
+
+    Returns a list of ``{id, title, width}`` dicts. ``id`` is the XIB's
+    ``identifier`` attribute (typically a small int as string — the
+    CalibrationController uses these as ``enum column_ids`` indices),
+    ``title`` comes from the column's ``<tableHeaderCell title>``, and
+    ``width`` is the XIB's pixel width rounded to int.
+
+    The column→record-field path mapping is NOT extracted here — it
+    lives in bindings.yml as ``read.column_paths`` (positional list).
+    Keeping it out of the IR lets the same xib2ir output drive
+    multiple bindings (e.g. a development fixture vs. the real
+    calibration topic) without re-running the converter.
+    """
+    cols_root = el.find("./tableColumns")
+    if cols_root is None:
+        return None
+    out: list[dict] = []
+    for col in cols_root.findall("./tableColumn"):
+        d: dict = {"id": col.get("identifier", "")}
+        header = col.find("./tableHeaderCell")
+        if header is not None:
+            t = header.get("title")
+            if t is not None:
+                d["title"] = t
+        width = col.get("width")
+        if width is not None:
+            d["width"] = int(round(float(width)))
+        out.append(d)
+    return out or None
+
+
 def extract_popup_options(el: ET.Element) -> list[dict] | None:
     """Pull a popup's option list from <popUpButtonCell><menu><items><menuItem>.
 

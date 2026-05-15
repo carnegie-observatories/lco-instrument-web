@@ -189,6 +189,41 @@ def walk(
         h = float(rect.get("height", 0))
         ir_y = coords.flip_y(parent_h, y, h, inset_dy)
 
+        # <scrollView> wrapping a <tableView> collapses into one
+        # `list` element in the IR: visible frame from the scrollView
+        # (what occupies space in the parent), outlet/id/columns from
+        # the inner tableView (what the controller actually wires).
+        # The scrollView/clipView nesting is a Cocoa rendering detail
+        # the SPA renderer doesn't need to know about — the wrapper
+        # div positions absolutely and scrolls its contents. PFS's
+        # callist.xib is the first consumer.
+        if child.tag == "scrollView":
+            table = child.find(".//tableView")
+            if table is not None:
+                t_outlet = outlets.get(table.get("id"))
+                ir: dict = {
+                    "id": table.get("id"),
+                    "parent_id": parent_id,
+                    "kind": "list",
+                    "subkind": "multi-select",
+                }
+                if t_outlet:
+                    ir["outlet"] = t_outlet
+                ir["frame"] = {
+                    "x": int(round(x)),
+                    "y": int(round(ir_y)),
+                    "w": int(round(w)),
+                    "h": int(round(h)),
+                }
+                cols = elements.extract_columns(table)
+                if cols:
+                    ir["columns"] = cols
+                ir["header"] = table.find("./tableHeaderView") is not None or \
+                               table.get("headerView") is not None
+                ir["binding"] = None
+                out.append(ir)
+                continue
+
         outlet = outlets.get(child.get("id"))
         kind, subkind = elements.classify(child, outlet)
 
