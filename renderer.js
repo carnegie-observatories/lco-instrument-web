@@ -168,6 +168,43 @@ const createNode = (el) => {
       span.className = "wf-imageview";
       return span;
     }
+    case "list": {
+      // List/table: scrollable column of records, optionally rendered
+      // as a multi-column <table> when `el.columns` is declared.
+      // First consumer: PFS calTable in callist.xib (9 columns,
+      // multi-select). See ws-migration-step0-pfs-camera.md
+      // § Planned follow-on: calibration window.
+      //
+      // Topology: wrapper div (absolute-positioned by positionAbs)
+      // → <table> with sticky <thead> (when header && columns) and
+      // <tbody>. Rows are added/removed by the read-binding
+      // subscriber; this only sets up the empty scaffold.
+      const wrap = document.createElement("div");
+      wrap.className = `wf-list wf-${el.subkind || "multi-select"}`;
+      const table = document.createElement("table");
+      table.className = "wf-list-table";
+      if (el.header !== false && Array.isArray(el.columns) && el.columns.length) {
+        const thead = document.createElement("thead");
+        const tr = document.createElement("tr");
+        for (const c of el.columns) {
+          const th = document.createElement("th");
+          th.textContent = c.title || c.id || "";
+          th.dataset.col = c.id || "";
+          if (c.width) th.style.width = `${c.width}px`;
+          tr.appendChild(th);
+        }
+        thead.appendChild(tr);
+        table.appendChild(thead);
+      }
+      const tbody = document.createElement("tbody");
+      table.appendChild(tbody);
+      wrap.appendChild(table);
+      const empty = document.createElement("div");
+      empty.className = "wf-list-empty";
+      empty.textContent = el.empty_text || "no entries";
+      wrap.appendChild(empty);
+      return wrap;
+    }
     default: {
       const div = document.createElement("div");
       div.className = "wf-unknown";
@@ -353,6 +390,16 @@ export const mountRenderer = (hostEl, layout) => {
       const v = readBoundState(node, el);
       return !(v == null ? readControl(node) : v);
     }
+    if (sigil === "$selection") {
+      // List/table selection — the wrapper carries an internal
+      // Set<int> on a non-enumerable property. Returns a plain
+      // sorted array for the wire. Defined only on kind: list;
+      // other widgets return null (and the renderer doesn't bind
+      // $selection on them in practice).
+      if (el.kind !== "list") return null;
+      const sel = node._wfSelection;
+      return sel ? [...sel].sort((a, b) => a - b) : [];
+    }
     return sigil;
   };
 
@@ -376,7 +423,154 @@ export const mountRenderer = (hostEl, layout) => {
     return out;
   };
 
+  const applyListBinding = (el, node) => {
+    // List/table widget — different shape from the generic read/write
+    // path: `read` returns an array of records via `rows_path`, and
+    // the optional `current_path` highlights one row. `write` fires
+    // on selection change (debounced) rather than on click. Bound
+    // sigil $selection resolves to the current row-index set.
+    const b = el.binding;
+    if (!b) {
+      if (el.outlet) node.classList.add("wf-unbound");
+      return;
+    }
+    if (b.ignore) return;
+    const tbody = node.querySelector("tbody");
+    const empty = node.querySelector(".wf-list-empty");
+    if (!tbody || !empty) return;
+    // Selection state lives on the wrapper as a non-enumerable Set<int>
+    // so $selection in resolveSigil can read it; the DOM is the source
+    // of truth for "what classes are on which row" via .is-selected.
+    node._wfSelection = new Set();
+    // Last anchor for shift-range — index of the most recent
+    // single-click selection. Reset on row-count change or clear.
+    node._wfAnchor = null;
+
+    const cols = Array.isArray(el.columns) ? el.columns : null;
+
+    const renderRow = (entry, idx) => {
+      const tr = document.createElement("tr");
+      tr.dataset.index = String(idx);
+      if (cols) {
+        for (const c of cols) {
+          const td = document.createElement("td");
+          const v = pluck(entry, c.path || c.id);
+          td.textContent = formatValue(v, c.format);
+          tr.appendChild(td);
+        }
+      } else {
+        const td = document.createElement("td");
+        td.textContent = formatValue(entry);
+        tr.appendChild(td);
+      }
+      return tr;
+    };
+
+    // Hash of the entries array — when this matches the last seen
+    // signature, the read-subscriber skips a tbody rebuild (the
+    // current_index flip can fire without rebuilding all rows).
+    const entriesSig = (rows) => JSON.stringify(rows);
+
+    let pendingFire = null;
+    const fireSelectionChange = () => {
+      if (pendingFire) clearTimeout(pendingFire);
+      // 50 ms debounce so a Shift-range-click via click→mouseup
+      // chain produces one cmd, not one per intermediate row. Same
+      // value the plan calls out.
+      pendingFire = setTimeout(() => {
+        pendingFire = null;
+        if (b.write) {
+          cmd(b.write.cmd, buildArgs(b.write, node, el)).catch(() => {});
+        }
+      }, 50);
+    };
+
+    const setSelected = (indices) => {
+      node._wfSelection = new Set(indices);
+      for (const tr of tbody.querySelectorAll("tr")) {
+        const idx = parseInt(tr.dataset.index, 10);
+        tr.classList.toggle("is-selected", node._wfSelection.has(idx));
+      }
+    };
+
+    // Selection handlers — applied to tbody (event delegation so a
+    // rebuild doesn't need to re-attach per-row listeners).
+    tbody.addEventListener("mousedown", (ev) => {
+      const tr = ev.target.closest("tr[data-index]");
+      if (!tr) return;
+      const idx = parseInt(tr.dataset.index, 10);
+      const isMulti = el.subkind !== "single-select" &&
+                      el.subkind !== "readonly";
+      if (el.subkind === "readonly") return;
+
+      if (isMulti && (ev.metaKey || ev.ctrlKey)) {
+        // Toggle this row.
+        if (node._wfSelection.has(idx)) node._wfSelection.delete(idx);
+        else                            node._wfSelection.add(idx);
+        node._wfAnchor = idx;
+      } else if (isMulti && ev.shiftKey && node._wfAnchor != null) {
+        // Range from anchor to idx (inclusive). Replaces selection.
+        const a = Math.min(node._wfAnchor, idx);
+        const b2 = Math.max(node._wfAnchor, idx);
+        node._wfSelection = new Set();
+        for (let i = a; i <= b2; i++) node._wfSelection.add(i);
+      } else {
+        // Plain click — replace selection with this row.
+        node._wfSelection = new Set([idx]);
+        node._wfAnchor = idx;
+      }
+      // Repaint .is-selected classes.
+      for (const row of tbody.querySelectorAll("tr")) {
+        const i = parseInt(row.dataset.index, 10);
+        row.classList.toggle("is-selected", node._wfSelection.has(i));
+      }
+      fireSelectionChange();
+    });
+
+    // Read binding: rebuild rows when entries[] signature changes,
+    // always re-apply current_index highlight.
+    if (b.read) {
+      const r = b.read;
+      subscribeTracked(r.topic, (data) => {
+        const rows = pluck(data, r.rows_path) || [];
+        const sig = entriesSig(rows);
+        if (node.dataset.lastRowsSig !== sig) {
+          tbody.innerHTML = "";
+          for (let i = 0; i < rows.length; i++) {
+            tbody.appendChild(renderRow(rows[i], i));
+          }
+          node.dataset.lastRowsSig = sig;
+          // Row count or content changed — selection indices may no
+          // longer be meaningful. Clear and notify the server so the
+          // selected[] in the topic resets too.
+          if (node._wfSelection && node._wfSelection.size > 0) {
+            node._wfSelection = new Set();
+            node._wfAnchor = null;
+            fireSelectionChange();
+          }
+          empty.style.display = (rows.length === 0) ? "" : "none";
+        }
+        if (r.current_path) {
+          const cur = pluck(data, r.current_path);
+          for (const tr of tbody.querySelectorAll("tr")) {
+            const idx = parseInt(tr.dataset.index, 10);
+            tr.classList.toggle("is-running", idx === cur);
+          }
+        }
+        // Honour a server-side selection if the SPA hasn't picked one
+        // locally yet (first connect, or after a tab switch). Once the
+        // local user picks rows we let the local set win.
+        if (Array.isArray(r.selected_path ? pluck(data, r.selected_path) : null)
+            && (!node._wfSelection || node._wfSelection.size === 0)) {
+          const remote = pluck(data, r.selected_path);
+          if (remote.length) setSelected(remote);
+        }
+      });
+    }
+  };
+
   const applyBinding = (el, node) => {
+    if (el.kind === "list") return applyListBinding(el, node);
     const b = el.binding;
     if (!b) {
       // Unbound outlet — flag in dev-mode so layout drift (XIB outlet added
