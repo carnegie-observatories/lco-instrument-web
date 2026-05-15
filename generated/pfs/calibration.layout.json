@@ -173,7 +173,7 @@
         "write": {
           "cmd": "calibration_set_reverse",
           "args": {
-            "true": "$state"
+            "on": "$state"
           }
         },
         "read": {
