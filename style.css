@@ -204,11 +204,17 @@ ol#log[data-min-level="error"] li[data-level="warn"]                        { di
    selection). First consumer: PFS calTable in callist.xib. The
    wrapper is positioned absolutely by renderer.js positionAbs; the
    inner table is constrained to the wrapper's frame and scrolls
-   inside it. */
+   inside it.
+
+   Light palette: the widget renders inside .window-frame (background
+   #ececec — Cocoa-card look), so the table itself is white with
+   muted-grey separators and a macOS-style blue selection. Dark-mode
+   readout would override at the .window-frame level. */
 .wf-list {
-  background: var(--bg-2);
-  border: 1px solid var(--bg-3);
-  border-radius: 4px;
+  background: #ffffff;
+  color: #1a1a1a;
+  border: 1px solid #888;
+  border-radius: 2px;
   overflow: auto;          /* H+V scroll on overflow */
   font-size: 12px;
 }
@@ -218,22 +224,22 @@ ol#log[data-min-level="error"] li[data-level="warn"]                        { di
   font-family: var(--mono);
 }
 .wf-list-table thead th {
-  background: var(--bg-3);
-  color: var(--muted);
+  background: #e8e8e8;
+  color: #444;
   text-transform: uppercase;
   letter-spacing: 0.06em;
   font-size: 10px;
   font-weight: 600;
   text-align: left;
   padding: 4px 8px;
-  border-bottom: 1px solid var(--bg);
+  border-bottom: 1px solid #888;
   position: sticky;
   top: 0;
   z-index: 1;              /* over scrolled rows */
 }
 .wf-list-table tbody td {
   padding: 3px 8px;
-  border-bottom: 1px solid var(--bg-3);
+  border-bottom: 1px solid #e8e8e8;
   white-space: nowrap;
   text-overflow: ellipsis;
   overflow: hidden;
@@ -243,24 +249,26 @@ ol#log[data-min-level="error"] li[data-level="warn"]                        { di
   cursor: pointer;
   user-select: none;
 }
-.wf-list-table tbody tr:hover { background: var(--bg-3); }
+.wf-list-table tbody tr:hover { background: #f4f4f4; }
 .wf-list-table tbody tr.is-selected {
-  background: rgba(93, 177, 255, 0.18);   /* --accent at low alpha */
-  color: var(--accent);
+  /* macOS NSTableView focused-selection blue tint. */
+  background: #d0e3ff;
+  color: #003a8a;
 }
 .wf-list-table tbody tr.is-running {
-  background: rgba(245, 196, 74, 0.18);   /* --warn at low alpha */
+  /* Warm amber for "row currently driving the camera". */
+  background: #fff3cd;
   font-weight: 600;
 }
 .wf-list-table tbody tr.is-selected.is-running {
-  background: linear-gradient(
-    rgba(245, 196, 74, 0.30),
-    rgba(93, 177, 255, 0.30));
+  /* Both — favour the running cue; left-border accent shows selection. */
+  background: #fff3cd;
+  box-shadow: inset 3px 0 0 #1a73e8;
 }
 .wf-list-empty {
   padding: 18px 12px;
   text-align: center;
-  color: var(--muted);
+  color: #888;
   font-style: italic;
 }
 
