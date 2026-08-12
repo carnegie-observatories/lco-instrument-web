@@ -352,17 +352,22 @@ to Super Administrators — have one create it.
    (The dashboard shows *Edit*; API error messages call the same
    permission "Access: Apps and Policies Write" — they are the
    same grant.)
-4. **Account Resources**: *Include* → the specific account that
-   owns the `chimera.observer` zone. Never "All accounts".
-5. **Client IP Address Filtering**: *Is in* → the observatory's
+
+   There is no account-selection step: an account-owned token is
+   scoped to the account it's created under, by construction.
+   (The "Account Resources — Include" selector you may know from
+   the *user*-token builder doesn't exist here — that selector
+   only appears for user tokens, where one person can belong to
+   several accounts.)
+4. **Client IP Address Filtering**: *Is in* → the observatory's
    egress IP range. A leaked token is then useless off-site.
-6. **TTL**: set an expiry — one year at most. Policy syncs are
+5. **TTL**: set an expiry — one year at most. Policy syncs are
    rare; re-creating the token on a calendar reminder is cheap,
    an immortal credential is not.
-7. **Continue to summary** → confirm it reads
-   *"<your account> — Access: Apps and Policies:Edit"* and nothing
-   more → **Create Token**.
-8. **Copy the secret immediately** — it is shown exactly once.
+6. **Continue to summary** → confirm it lists exactly one
+   permission, *Access: Apps and Policies: Edit*, on this account
+   → **Create Token**.
+7. **Copy the secret immediately** — it is shown exactly once.
    Store it in the observatory password manager (never in the
    repo, never in shell history — `export` it from the manager at
    sync time), then:
