@@ -95,18 +95,28 @@ def sync_telescope(name: str, cfg: dict, account: str, session: str,
         "domain": domain,
         "self_hosted_domains": [domain],
         "session_duration": session,
-    }
-    policy_body = {
-        "name": f"{name} operators",
-        "decision": "allow",
-        "include": rules,
-        "exclude": [],
-        "require": [],
+        # Policy is embedded in the application payload. The separate
+        # /access/apps/{id}/policies endpoints require an additional
+        # token permission ("Access: Policies") and return
+        # auth.forbidden under the app-scoped "Access: Apps and
+        # Policies Edit" grant; the inline form needs only that one
+        # grant and replaces the app's whole policy list per sync —
+        # which is exactly the YAML-is-source-of-truth semantics we
+        # want.
+        "policies": [
+            {
+                "name": f"{name} operators",
+                "decision": "allow",
+                "include": rules,
+                "exclude": [],
+                "require": [],
+            }
+        ],
     }
 
     if dry_run:
         print(f"--- {name} ({domain}) ---")
-        print(json.dumps({"app": app_body, "policy": policy_body}, indent=2))
+        print(json.dumps({"app": app_body}, indent=2))
         return
 
     apps = api("GET", f"/accounts/{account}/access/apps", token)
@@ -115,27 +125,10 @@ def sync_telescope(name: str, cfg: dict, account: str, session: str,
     if existing:
         app = api("PUT", f"/accounts/{account}/access/apps/{existing['id']}",
                   token, app_body)
-        print(f"{name}: updated app {app['id']}")
+        print(f"{name}: updated app {app['id']} ({len(rules)} rule(s))")
     else:
         app = api("POST", f"/accounts/{account}/access/apps", token, app_body)
-        print(f"{name}: created app {app['id']}")
-
-    policies = api("GET",
-                   f"/accounts/{account}/access/apps/{app['id']}/policies",
-                   token)
-    existing_policy = next(
-        (p for p in policies if p.get("name") == policy_body["name"]), None)
-
-    if existing_policy:
-        api("PUT",
-            f"/accounts/{account}/access/apps/{app['id']}/policies/{existing_policy['id']}",
-            token, policy_body)
-        print(f"{name}: updated policy ({len(rules)} rule(s))")
-    else:
-        api("POST",
-            f"/accounts/{account}/access/apps/{app['id']}/policies",
-            token, policy_body)
-        print(f"{name}: created policy ({len(rules)} rule(s))")
+        print(f"{name}: created app {app['id']} ({len(rules)} rule(s))")
 
 
 def main() -> None:
