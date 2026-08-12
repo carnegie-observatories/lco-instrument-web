@@ -3,7 +3,7 @@
 // the position-faithful main-window view (renderer.js — future phase).
 //
 // Usage: open in browser with ?host=&port= query params, e.g.
-//        index.html?host=localhost&port=52403
+//        app.html?host=localhost&port=52403
 
 import {
   url, connect, cmd, subscribe,

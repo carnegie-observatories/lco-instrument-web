@@ -2,73 +2,89 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>LCO Instrument</title>
+  <title>LCO Instruments</title>
+  <link rel="icon" type="image/svg+xml" href="favicon.svg">
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
   <header>
     <div class="brand">
-      <a href="landing.html" class="brand-back muted" title="Back to instrument chooser">←</a>
-      <strong id="app-name">—</strong>
-      <span class="muted" id="app-version"></span>
-    </div>
-    <div class="view-toggle">
-      <button data-view="window">Window</button>
-      <button data-view="diagnostic">Diagnostic</button>
-    </div>
-    <div class="ui-scale" title="UI scale (Window view)">
-      <span class="muted">scale</span>
-      <input id="ui-scale" type="range" min="1" max="3" step="0.1" value="1.5">
-      <span class="muted" id="ui-scale-readout">1.5×</span>
-    </div>
-    <div class="conn">
-      <span id="conn-dot" class="dot"></span>
-      <span id="conn-state">connecting…</span>
-      <span class="muted" id="conn-url"></span>
+      <strong>LCO Instruments</strong>
+      <span class="muted">control surface</span>
     </div>
   </header>
 
-  <div id="window-view">
-    <div class="placeholder">
-      <p>Main window view — not yet built.</p>
-      <p class="hint muted">The position-faithful main expose window will land here in a later phase. Use the Diagnostic view in the meantime.</p>
-    </div>
-  </div>
+  <main class="landing">
+    <p class="landing-hint muted">
+      Pick an instrument to open its control surface. Each card opens
+      the SPA against that instrument's WebSocket server
+      (port <code>50001 + PROJECT_ID×100 + 2</code>). Assumes the
+      instrument host is reachable — over the observatory VPN, or via
+      a Cloudflare-Access-fronted tunnel; see
+      <a href="https://github.com/carnegie-observatories/lco-ansible/blob/main/docs/plans/security-models.md">
+      security-models.md</a> for either deployment.
+    </p>
 
-  <div id="diagnostic-view">
-    <main>
-      <section id="topics-pane">
-        <h2>Topics</h2>
-        <div id="topics"></div>
-      </section>
+    <section class="instrument-grid">
+      <a class="instrument-card" href="app.html?host=localhost&port=52403" data-app="adc">
+        <h2>ADC</h2>
+        <div class="instrument-port">port 52403</div>
+        <p class="muted">Atmospheric Dispersion Compensator — lens A/B encoders,
+          insertion, telescope readback, run/pause.</p>
+      </a>
 
-      <section id="commands-pane">
-        <h2>Commands</h2>
-        <div id="commands"></div>
-      </section>
-    </main>
-  </div>
+      <a class="instrument-card" href="app.html?host=localhost&port=51703" data-app="dcu">
+        <h2>DCU</h2>
+        <div class="instrument-port">port 51703</div>
+        <p class="muted">Diffuser Calibration Unit — FFS and MCal drops with
+          brake interlocks, 8 lamps, quartz level readout.</p>
+      </a>
 
-  <!-- Log pane lives outside the view wrappers so it stays visible in
-       both Window and Diagnostic views — useful for protocol debugging
-       while operating the instrument. -->
-  <section id="log-pane">
-    <div class="log-head">
-      <h2>Log</h2>
-      <div class="log-controls">
-        <label class="muted" for="log-level">level</label>
-        <select id="log-level">
-          <option value="debug">debug+</option>
-          <option value="info" selected>info+</option>
-          <option value="warn">warn+</option>
-          <option value="error">error</option>
-        </select>
-        <button id="log-clear">clear</button>
-      </div>
-    </div>
-    <ol id="log"></ol>
-  </section>
+      <a class="instrument-card" href="app.html?host=localhost&port=51603" data-app="pfs">
+        <h2>PFS</h2>
+        <div class="instrument-port">port 51603</div>
+        <p class="muted">Planet Finder Spectrograph — Camera window
+          (exposure + mechanics + PMT + focus) and Calibration list.</p>
+      </a>
+    </section>
 
-  <script type="module" src="app.js"></script>
+    <details class="advanced">
+      <summary>Advanced — connect to a custom host/port</summary>
+      <form id="custom-form">
+        <label>host <input name="host" value="localhost" required></label>
+        <label>port <input name="port" type="number" placeholder="52403" min="1" max="65535" required></label>
+        <button type="submit">Open</button>
+      </form>
+      <p class="muted small">
+        For remote sessions via Cloudflare Tunnel, use the tunnel
+        hostname (e.g. <code>pfs.instruments.observatory.example.com</code>)
+        as host and leave port empty — the SPA will select
+        <code>wss://</code> automatically when the host has no
+        port suffix.
+      </p>
+    </details>
+  </main>
+
+  <script>
+    // Handle the custom-connect form. Prefer localStorage-remembered
+    // last host if present.
+    (function () {
+      const form = document.getElementById("custom-form");
+      if (!form) return;
+      try {
+        const lastHost = localStorage.getItem("lco_last_host");
+        if (lastHost) form.elements.host.value = lastHost;
+      } catch (e) { /* private mode */ }
+      form.addEventListener("submit", (ev) => {
+        ev.preventDefault();
+        const host = form.elements.host.value.trim() || "localhost";
+        const port = form.elements.port.value.trim();
+        if (!port) return;
+        try { localStorage.setItem("lco_last_host", host); } catch (e) { /* ignore */ }
+        const q = new URLSearchParams({ host, port });
+        window.location.href = `app.html?${q.toString()}`;
+      });
+    })();
+  </script>
 </body>
 </html>
