@@ -12,6 +12,22 @@ from http.server import HTTPServer, SimpleHTTPRequestHandler
 from pathlib import Path
 
 
+class NoStoreHandler(SimpleHTTPRequestHandler):
+    """Static handler that forbids caching at every layer.
+
+    Without cache headers, Cloudflare's edge caches .js/.css by
+    default (~2 h TTL) while leaving .html uncached — so after a
+    deploy, browsers get fresh HTML importing stale JS. Observed
+    live: a stale ws.js produced wss://localhost/ws against the
+    new index.html. The SPA is a few hundred KB; correctness on a
+    telescope control surface beats cache hits.
+    """
+
+    def end_headers(self):
+        self.send_header("Cache-Control", "no-store")
+        super().end_headers()
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("-p", "--port", type=int, default=8080,
@@ -25,7 +41,7 @@ def main() -> None:
     print(f"Serving {args.dir} on http://localhost:{args.port}/")
     print( "The root URL is the instrument chooser; direct SPA links use")
     print( "app.html?host=localhost&port=52403 (ADC) / 51703 (DCU) / 51603 (PFS).")
-    HTTPServer(addr, SimpleHTTPRequestHandler).serve_forever()
+    HTTPServer(addr, NoStoreHandler).serve_forever()
 
 
 if __name__ == "__main__":
