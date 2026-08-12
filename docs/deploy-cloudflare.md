@@ -56,13 +56,28 @@ a production telescope. See § Test telescope walkthrough.
 - A Cloudflare account with the `chimera.observer` zone. The free
   plan includes Zero Trust for up to 50 users.
 - An identity provider configured under **Zero Trust → Settings →
-  Authentication**: the **Google Workspace** IdP for
-  `@carnegiescience.edu` accounts, so logins inherit Workspace's
-  MFA enforcement. Once it's configured, **disable the default
-  One-time PIN login method** (Zero Trust → Settings →
-  Authentication → login methods) — email OTP bypasses MFA and
-  authenticates anyone who can read a mailbox, which is a weaker
-  factor than the policy deserves.
+  Authentication**: the **Google** IdP (generic Google OAuth).
+  Carnegie accounts are Google accounts, so operators sign in with
+  their `@carnegiescience.edu` Google login and inherit whatever
+  MFA Carnegie's Workspace enforces at Google's door; the Access
+  policy still gates entry to allowed addresses. Setup:
+  1. In [Google Cloud Console](https://console.cloud.google.com),
+     create a project → **OAuth consent screen** (External) →
+     **Credentials → OAuth client ID** (*Web application*) with the
+     authorized redirect URI
+     `https://<team>.cloudflareaccess.com/cdn-cgi/access/callback`.
+  2. In Zero Trust → **Settings → Authentication → Login methods →
+     Add new → Google**, paste the client ID + secret, save, and
+     use the built-in **Test**.
+  3. **Delete the default One-time PIN login method** — email OTP
+     bypasses MFA and authenticates anyone who can read a mailbox,
+     which is a weaker factor than the policy deserves.
+
+  (The dedicated **Google Workspace** IdP adds group-based policies
+  and tenant enforcement but requires admin consent on Carnegie's
+  Workspace tenant — adopt it if/when Carnegie IT grants that;
+  the generic Google IdP is the strictest option available without
+  tenant admin.)
 - The instrument Mac running the Cocoa app (WS port per the
   formula `50001 + PROJECT_ID×100 + 2`) and, on the telescope's
   gateway Mac, the SPA static server (`python3 server.py`,
