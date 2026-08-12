@@ -140,6 +140,72 @@ First-login flow, as the operator experiences it:
 3. Land on the instrument chooser; the session lasts 24 h, after
    which the Google round-trip repeats.
 
+### Granting access — one user
+
+A visiting astronomer, `jane.doe@partner-university.edu`, needs
+Clay for an observing run. Her address must be a Google-hosted
+account (Gmail or a Google-Workspace organisation) — the Google
+IdP is the only login method.
+
+1. Edit [`deploy/access-policies.yml`](../deploy/access-policies.yml),
+   adding the exact address to that telescope's list — and only
+   that telescope's:
+
+   ```yaml
+   telescopes:
+     clay:
+       domain: clay.chimera.observer
+       allowed:
+         - "*@carnegiescience.edu"
+         - "jane.doe@partner-university.edu"   # Clay only
+   ```
+
+2. Sync the one telescope:
+
+   ```sh
+   uv run python deploy/sync-access-policies.py --telescope clay
+   # → clay: updated app <id> (2 rule(s))
+   ```
+
+3. Verify: have her log in — or check the app in Zero Trust →
+   Access controls → Applications shows both rules.
+
+When the run ends, delete the line and re-sync. She can't start
+new sessions immediately; an active session survives up to the
+24 h TTL — to cut it now, also Zero Trust → My Team → Users →
+Revoke.
+
+### Granting access — a whole domain
+
+A partner institution, `lco.cl`, gets standing access to Swope.
+Domain grants use the `*@domain` form — the only wildcard shape
+Cloudflare Access supports (the sync script rejects anything
+partial like `astro*@lco.cl` or `*@*.cl`):
+
+```yaml
+telescopes:
+  swope:
+    domain: swope.chimera.observer
+    allowed:
+      - "*@carnegiescience.edu"
+      - "*@lco.cl"
+```
+
+```sh
+uv run python deploy/sync-access-policies.py --telescope swope
+```
+
+A domain grant admits **every** address at that domain, present
+and future — appropriate for a partner institution that manages
+its own accounts, wrong for "a few people at X" (list those
+addresses individually instead). The domain must be Google-hosted
+for its users to pass the Google IdP.
+
+Entries are per-telescope by design: granting `clay` says nothing
+about `baade` or `swope`. Review every change to
+`access-policies.yml` like code — each line is a person or an
+institution that can command a telescope.
+
 ## Per-telescope setup
 
 All commands run on the telescope's gateway Mac (or the single
