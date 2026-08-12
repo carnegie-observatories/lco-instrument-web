@@ -19,7 +19,7 @@
 # telescope down to nobody — the sync script refuses to push an
 # empty policy unless --allow-lockout is given.
 
-account_id: "YOUR_CLOUDFLARE_ACCOUNT_ID"     # Zero Trust account
+account_id: "2a906eabd142753a2aec93f19f2f9f6a"   # Zero Trust account (chimera.observer)
 session_duration: "24h"
 
 telescopes:
