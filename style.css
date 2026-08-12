@@ -691,3 +691,104 @@ ol#log[data-min-level="error"] li[data-level="warn"]                        { di
 .window-frame .wf-unbound {
   box-shadow: 0 0 0 1px #d33, inset 0 0 0 1px rgba(221, 51, 51, 0.4);
 }
+
+/* ---------------- Landing page ----------------
+   Renders in landing.html — an instrument chooser served as an
+   alternative entry point to the SPA. Deliberately minimal — the
+   real work is in the per-instrument SPA. */
+main.landing {
+  max-width: 900px;
+  margin: 32px auto;
+  padding: 0 var(--gap);
+}
+.landing-hint {
+  font-size: 13px;
+  line-height: 1.5;
+  margin: 0 0 24px;
+}
+.landing-hint a { color: var(--accent); }
+
+.instrument-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 12px;
+  margin-bottom: 32px;
+}
+.instrument-card {
+  display: block;
+  background: var(--bg-2);
+  border: 1px solid var(--bg-3);
+  border-radius: 6px;
+  padding: 16px 18px;
+  color: inherit;
+  text-decoration: none;
+  transition: border-color 120ms, transform 80ms;
+}
+.instrument-card:hover {
+  border-color: var(--accent);
+  transform: translateY(-1px);
+}
+.instrument-card:active { transform: translateY(0); }
+.instrument-card h2 {
+  margin: 0;
+  font-size: 20px;
+  letter-spacing: 0.02em;
+  color: var(--accent);
+}
+.instrument-card .instrument-port {
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--muted);
+  margin: 2px 0 8px;
+}
+.instrument-card p {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.advanced { margin-top: 8px; }
+.advanced summary {
+  cursor: pointer;
+  color: var(--muted);
+  font-size: 13px;
+  padding: 4px 0;
+}
+.advanced form {
+  display: flex;
+  gap: 8px;
+  align-items: flex-end;
+  margin-top: 8px;
+  flex-wrap: wrap;
+}
+.advanced label {
+  display: flex;
+  flex-direction: column;
+  font-size: 11px;
+  color: var(--muted);
+  gap: 3px;
+}
+.advanced input {
+  background: var(--bg);
+  color: var(--fg);
+  border: 1px solid var(--bg-3);
+  border-radius: 3px;
+  padding: 4px 8px;
+  font-family: var(--mono);
+  font-size: 12px;
+  min-width: 140px;
+}
+.advanced button {
+  padding: 6px 14px;
+}
+.advanced .small { font-size: 11px; margin-top: 8px; }
+
+/* Back-to-landing arrow beside the app name in the SPA header. */
+.brand .brand-back {
+  color: var(--muted);
+  text-decoration: none;
+  margin-right: 8px;
+  font-size: 18px;
+  line-height: 1;
+}
+.brand .brand-back:hover { color: var(--accent); }
