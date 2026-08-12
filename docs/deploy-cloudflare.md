@@ -44,10 +44,13 @@ a production telescope. See § Test telescope walkthrough.
 - A Cloudflare account with the `chimera.observer` zone. The free
   plan includes Zero Trust for up to 50 users.
 - An identity provider configured under **Zero Trust → Settings →
-  Authentication**. For `@carnegiescience.edu` accounts on Google
-  Workspace, add the *Google Workspace* IdP; the zero-setup
-  fallback is **One-time PIN over email** (works with any address
-  the policy allows).
+  Authentication**: the **Google Workspace** IdP for
+  `@carnegiescience.edu` accounts, so logins inherit Workspace's
+  MFA enforcement. Once it's configured, **disable the default
+  One-time PIN login method** (Zero Trust → Settings →
+  Authentication → login methods) — email OTP bypasses MFA and
+  authenticates anyone who can read a mailbox, which is a weaker
+  factor than the policy deserves.
 - The instrument Mac running the Cocoa app (WS port per the
   formula `50001 + PROJECT_ID×100 + 2`) and, on the telescope's
   gateway Mac, the SPA static server (`python3 server.py`,
@@ -111,9 +114,12 @@ ingress:
 ```
 
 If an instrument's Cocoa app runs on a *different* Mac than the
-gateway, point its `/ws` rule at that host instead of localhost
-(`service: http://pfs-mac.local:51603`) — the LAN hop stays inside
-the observatory network.
+gateway, run a `cloudflared` replica **on that Mac** with the
+instrument's `/ws` rules pointing at `localhost` — do not proxy
+the WS across the LAN in cleartext from the gateway
+(`service: http://pfs-mac.local:51603`). Replicas of the same
+tunnel share the hostname; each Mac only fronts its own local
+ports, and instrument traffic never crosses the LAN unencrypted.
 
 Rules match top-to-bottom; the catch-all must be last. WebSocket
 upgrade is proxied automatically — no special flag. Validate:
@@ -256,9 +262,9 @@ automatically on HTTPS, and the SPA connects
 
 ```sh
 cloudflared tunnel delete sbs-telescope   # after stopping it
-# then remove the two DNS records in the dashboard, and either
-# delete the sbs Access app in Zero Trust → Applications or leave
-# it (harmless once the tunnel is gone — nothing resolves).
+# then remove the two DNS records in the dashboard, and delete the
+# sbs Access app in Zero Trust → Applications. No orphans: every
+# artifact of the test is gone when the test is.
 ```
 
 ## Access policy as configuration
@@ -326,18 +332,12 @@ environment variable — created as follows.
 
 ### Creating the API token
 
-There are two token flavours; either works for the sync script:
-
-- **Account-owned token** (recommended for the observatory — it
-  survives any individual leaving): dashboard →
-  **Manage Account → Account API Tokens**. This menu is only
-  visible to Super Administrators.
-- **User-owned token** (fine for a personal test / SBS):
-  <https://dash.cloudflare.com/profile/api-tokens>, i.e. click
-  your avatar (top-right) → **My Profile** → **API Tokens** in the
-  left sidebar.
-
-From whichever token page:
+Use an **account-owned token** — it belongs to the observatory's
+Cloudflare account, not to any individual, so it survives staff
+turnover and is centrally revocable. (User-owned tokens exist but
+are not used here.) Account tokens live at dashboard →
+**Manage Account → Account API Tokens**; the menu is only visible
+to Super Administrators — have one create it.
 
 1. **Create Token** → scroll past the templates to
    **Create Custom Token** → **Get started** (there is no
@@ -345,27 +345,27 @@ From whichever token page:
    path, not a template).
 2. **Token name**: something greppable, e.g.
    `access-policy-sync (chimera.observer)`.
-3. **Permissions** — one row:
+3. **Permissions** — exactly one row, nothing else:
    - first dropdown: **Account**
    - second dropdown: **Access: Apps and Policies**
    - third dropdown: **Edit**
    (The dashboard shows *Edit*; API error messages call the same
    permission "Access: Apps and Policies Write" — they are the
    same grant.)
-4. **Account Resources**: *Include* → the account that owns the
-   `chimera.observer` zone. Don't leave it on "All accounts" if
-   the token owner belongs to more than one.
-5. **Client IP Address Filtering** *(optional but recommended)*:
-   *Is in* → the observatory's egress IP range, so a leaked token
-   is useless off-site.
-6. **TTL** *(optional)*: an expiry forces periodic rotation;
-   policy syncs are rare enough that re-creating the token
-   annually is no burden.
+4. **Account Resources**: *Include* → the specific account that
+   owns the `chimera.observer` zone. Never "All accounts".
+5. **Client IP Address Filtering**: *Is in* → the observatory's
+   egress IP range. A leaked token is then useless off-site.
+6. **TTL**: set an expiry — one year at most. Policy syncs are
+   rare; re-creating the token on a calendar reminder is cheap,
+   an immortal credential is not.
 7. **Continue to summary** → confirm it reads
-   *"All accounts — Access: Apps and Policies:Edit"* (or your
-   selected account) → **Create Token**.
+   *"<your account> — Access: Apps and Policies:Edit"* and nothing
+   more → **Create Token**.
 8. **Copy the secret immediately** — it is shown exactly once.
-   Store it in the observatory password manager, then:
+   Store it in the observatory password manager (never in the
+   repo, never in shell history — `export` it from the manager at
+   sync time), then:
 
    ```sh
    export CLOUDFLARE_API_TOKEN=<the-secret>
