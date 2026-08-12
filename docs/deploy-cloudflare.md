@@ -321,9 +321,62 @@ rebuilt from the YAML every run. An empty `allowed:` list is
 refused (it would lock everyone out) unless `--allow-lockout` is
 passed.
 
-Requires `pip install pyyaml` and a `CLOUDFLARE_API_TOKEN` with
-**Access: Apps and Policies Write** (create at **Cloudflare
-dashboard → My Profile → API Tokens**).
+The script needs `pip install pyyaml` and a `CLOUDFLARE_API_TOKEN`
+environment variable — created as follows.
+
+### Creating the API token
+
+There are two token flavours; either works for the sync script:
+
+- **Account-owned token** (recommended for the observatory — it
+  survives any individual leaving): dashboard →
+  **Manage Account → Account API Tokens**. This menu is only
+  visible to Super Administrators.
+- **User-owned token** (fine for a personal test / SBS):
+  <https://dash.cloudflare.com/profile/api-tokens>, i.e. click
+  your avatar (top-right) → **My Profile** → **API Tokens** in the
+  left sidebar.
+
+From whichever token page:
+
+1. **Create Token** → scroll past the templates to
+   **Create Custom Token** → **Get started** (there is no
+   ready-made Access template — the custom builder is the right
+   path, not a template).
+2. **Token name**: something greppable, e.g.
+   `access-policy-sync (chimera.observer)`.
+3. **Permissions** — one row:
+   - first dropdown: **Account**
+   - second dropdown: **Access: Apps and Policies**
+   - third dropdown: **Edit**
+   (The dashboard shows *Edit*; API error messages call the same
+   permission "Access: Apps and Policies Write" — they are the
+   same grant.)
+4. **Account Resources**: *Include* → the account that owns the
+   `chimera.observer` zone. Don't leave it on "All accounts" if
+   the token owner belongs to more than one.
+5. **Client IP Address Filtering** *(optional but recommended)*:
+   *Is in* → the observatory's egress IP range, so a leaked token
+   is useless off-site.
+6. **TTL** *(optional)*: an expiry forces periodic rotation;
+   policy syncs are rare enough that re-creating the token
+   annually is no burden.
+7. **Continue to summary** → confirm it reads
+   *"All accounts — Access: Apps and Policies:Edit"* (or your
+   selected account) → **Create Token**.
+8. **Copy the secret immediately** — it is shown exactly once.
+   Store it in the observatory password manager, then:
+
+   ```sh
+   export CLOUDFLARE_API_TOKEN=<the-secret>
+   python3 deploy/sync-access-policies.py --dry-run   # verify it works
+   ```
+
+The token can *only* manage Access applications and policies — it
+cannot touch DNS, tunnels, or billing. Tunnel and DNS operations in
+this guide authenticate separately via `cloudflared tunnel login`
+(browser-interactive, no long-lived secret on disk beyond the
+tunnel credential file).
 
 **Treat the YAML as the source of truth.** Dashboard edits to
 these applications will be overwritten by the next sync. Review
