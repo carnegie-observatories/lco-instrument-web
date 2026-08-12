@@ -52,15 +52,14 @@
       <summary>Advanced — connect to a custom host/port</summary>
       <form id="custom-form">
         <label>host <input name="host" value="localhost" required></label>
-        <label>port <input name="port" type="number" placeholder="52403 (blank for tunnel)" min="1" max="65535"></label>
+        <label>port <input name="port" type="number" placeholder="52403" min="1" max="65535"></label>
+        <label>ws path <input name="ws_path" placeholder="/adc/ws (tunnel)"></label>
         <button type="submit">Open</button>
       </form>
       <p class="muted small">
-        For remote sessions via Cloudflare Tunnel, use the tunnel
-        hostname (e.g. <code>pfs.instruments.observatory.example.com</code>)
-        as host and leave port empty — the SPA will select
-        <code>wss://</code> automatically when the host has no
-        port suffix.
+        Direct (VPN / LAN): host + port. Cloudflare Tunnel: leave
+        port blank and set the ws path (e.g. <code>/adc/ws</code>);
+        host defaults to this page's hostname.
       </p>
     </details>
   </main>
@@ -68,21 +67,23 @@
   <script>
     // Tunnel-aware instrument cards. When this page is served over
     // HTTPS — i.e., via a telescope's Cloudflare hostname such as
-    // clay.chimera.observer — rewrite each card to the instrument's
-    // subdomain on the same telescope (adc.clay.chimera.observer …).
-    // ws.js then connects wss://<subdomain>/ws (host given, no port).
-    // On plain HTTP (observatory LAN / local dev) the static
+    // sbs.chimera.observer — rewrite each card to path-mode:
+    // app.html?ws_path=/<app>/ws. ws.js connects
+    // wss://<page-host>/<app>/ws; the tunnel's ingress rule maps the
+    // path to the instrument's local WS port. Paths, not subdomains:
+    // Cloudflare Universal SSL covers *.chimera.observer one level
+    // deep only, so <app>.<telescope>.chimera.observer has no TLS
+    // cert. On plain HTTP (observatory LAN / local dev) the static
     // host+port hrefs stand. Adding an instrument = one new card +
-    // its tunnel ingress rules; Access already covers *.<telescope>.
+    // one tunnel ingress rule; Access already covers the hostname.
     (function () {
       if (window.location.protocol !== "https:") return;
-      const telescopeHost = window.location.hostname;
       for (const card of document.querySelectorAll(".instrument-card[data-app]")) {
         const app = card.dataset.app;
-        const host = `${app}.${telescopeHost}`;
-        card.href = `app.html?host=${encodeURIComponent(host)}`;
+        const wsPath = `/${app}/ws`;
+        card.href = `app.html?ws_path=${encodeURIComponent(wsPath)}`;
         const portEl = card.querySelector(".instrument-port");
-        if (portEl) portEl.textContent = host;
+        if (portEl) portEl.textContent = wsPath;
       }
     })();
 
@@ -99,10 +100,11 @@
         ev.preventDefault();
         const host = form.elements.host.value.trim() || "localhost";
         const port = form.elements.port.value.trim();
+        const wsPath = form.elements.ws_path.value.trim();
         try { localStorage.setItem("lco_last_host", host); } catch (e) { /* ignore */ }
-        // Blank port → tunnel mode: ws.js connects wss://<host>/ws
-        // when the page is served over HTTPS.
-        const q = new URLSearchParams(port ? { host, port } : { host });
+        const q = new URLSearchParams({ host });
+        if (port) q.set("port", port);
+        if (wsPath) q.set("ws_path", wsPath);
         window.location.href = `app.html?${q.toString()}`;
       });
     })();

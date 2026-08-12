@@ -87,10 +87,13 @@ def sync_telescope(name: str, cfg: dict, account: str, session: str,
     app_body = {
         "name": f"{name} telescope control",
         "type": "self_hosted",
-        # Apex serves the SPA + landing; the wildcard covers per-
-        # instrument subdomains (pfs.clay..., dcu.clay...).
+        # One hostname per telescope. Instruments are PATHS on this
+        # hostname (/adc/ws, /pfs/ws, ...) — not subdomains, because
+        # Cloudflare Universal SSL only covers *.chimera.observer one
+        # level deep. A single Access app on the apex therefore
+        # covers every instrument, current and future.
         "domain": domain,
-        "self_hosted_domains": [domain, f"*.{domain}"],
+        "self_hosted_domains": [domain],
         "session_duration": session,
     }
     policy_body = {

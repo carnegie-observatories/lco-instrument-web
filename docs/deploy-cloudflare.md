@@ -14,27 +14,39 @@ its WS port on localhost.
 
 ## Domain layout
 
-One domain per telescope, on the `chimera.observer` zone:
+One hostname per telescope on the `chimera.observer` zone;
+**instruments are paths on that hostname**:
 
-| Telescope | Apex (landing + SPA) | Instrument hostnames |
+| Telescope | Hostname | Instrument WS endpoints |
 |---|---|---|
-| Clay  | `clay.chimera.observer`  | `pfs.clay.chimera.observer`, `dcu.clay.chimera.observer`, `adc.clay.chimera.observer`, … |
-| Baade | `baade.chimera.observer` | `dcu.baade.chimera.observer`, … |
-| Swope | `swope.chimera.observer` | `swope.swope.chimera.observer`, … |
-| SBS *(test)* | `sbs.chimera.observer` | `adc.sbs.chimera.observer`, … |
+| Clay  | `clay.chimera.observer`  | `/pfs/ws`, `/dcu/ws`, `/adc/ws`, … |
+| Baade | `baade.chimera.observer` | `/dcu/ws`, … |
+| Swope | `swope.chimera.observer` | `/swope/ws`, … |
+| SBS *(test)* | `sbs.chimera.observer` | `/adc/ws`, … |
+
+**Why paths and not per-instrument subdomains**: Cloudflare's
+Universal SSL certificate covers `chimera.observer` and
+`*.chimera.observer` **one level deep only**. A second-level name
+like `adc.sbs.chimera.observer` gets no TLS certificate — the
+browser's `wss://` handshake fails before Cloudflare even routes
+the request (observed live: `sslv3 alert handshake failure`).
+Multi-level wildcard certs require Advanced Certificate Manager
+($10/mo/zone); paths cost nothing and keep every instrument under
+the telescope's single, certificate-covered hostname.
 
 A **test telescope** (SBS) uses the same machinery end-to-end —
-tunnel, wildcard DNS, Access application — against a development
-Mac instead of a summit machine. Use it to rehearse a deployment
+tunnel, DNS, Access application — against a development Mac
+instead of a summit machine. Use it to rehearse a deployment
 change, onboard a new instrument, or demo the SPA without touching
 a production telescope. See § Test telescope walkthrough.
 
-- The **apex** serves the SPA static files (landing page + app).
-- Each **instrument subdomain** carries that instrument's WebSocket
-  at `/ws` (and, later, its image-transfer HTTP endpoint).
-- One **Access application per telescope**, covering the apex and
-  `*.<telescope-domain>` — so one allowed-email list governs every
-  instrument on that telescope. The lists live in
+- The hostname's root serves the SPA static files (landing page + app).
+- Each instrument's WebSocket rides `/<app>/ws` on the same
+  hostname (image-transfer endpoints will follow the same pattern,
+  `/<app>/fits/...`).
+- One **Access application per telescope**, on the one hostname —
+  a single allowed-email list governs every instrument on that
+  telescope, current and future. The lists live in
   [`deploy/access-policies.yml`](../deploy/access-policies.yml) and
   are pushed by [`deploy/sync-access-policies.py`](../deploy/sync-access-policies.py)
   (see § Access policy as configuration).
@@ -78,45 +90,40 @@ cloudflared tunnel create clay-telescope
 
 ### 3. Write `~/.cloudflared/config.yml`
 
-One tunnel carries the apex plus every instrument subdomain:
+One tunnel, one hostname; one path rule per instrument:
 
 ```yaml
 tunnel: <UUID>
 credentials-file: /Users/<you>/.cloudflared/<UUID>.json
 
 ingress:
-  # --- instrument WebSockets: /ws on each instrument subdomain ---
-  - hostname: pfs.clay.chimera.observer
-    path: ^/ws$
+  # --- instrument WebSockets: /<app>/ws → local WS port ---
+  - hostname: clay.chimera.observer
+    path: ^/pfs/ws$
     service: http://localhost:51603
-  - hostname: dcu.clay.chimera.observer
-    path: ^/ws$
+  - hostname: clay.chimera.observer
+    path: ^/dcu/ws$
     service: http://localhost:51703
-  - hostname: adc.clay.chimera.observer
-    path: ^/ws$
+  - hostname: clay.chimera.observer
+    path: ^/adc/ws$
     service: http://localhost:52403
 
-  # --- SPA static files: apex and instrument subdomains alike ---
-  # (the SPA is the same files everywhere; serving it on the
-  # instrument hostnames lets an operator bookmark
-  # https://pfs.clay.chimera.observer/ directly)
+  # --- everything else on the hostname → SPA static files ---
   - hostname: clay.chimera.observer
-    service: http://localhost:8080
-  - hostname: pfs.clay.chimera.observer
-    service: http://localhost:8080
-  - hostname: dcu.clay.chimera.observer
-    service: http://localhost:8080
-  - hostname: adc.clay.chimera.observer
     service: http://localhost:8080
 
   # Required catch-all.
   - service: http_status:404
 ```
 
+The Cocoa WSServer accepts the upgrade regardless of the request
+path, so `/pfs/ws` forwarded verbatim to `localhost:51603` works
+without app-side changes.
+
 If an instrument's Cocoa app runs on a *different* Mac than the
-gateway, run a `cloudflared` replica **on that Mac** with the
-instrument's `/ws` rules pointing at `localhost` — do not proxy
-the WS across the LAN in cleartext from the gateway
+gateway, run a `cloudflared` replica **on that Mac** carrying that
+instrument's path rule against `localhost` — do not proxy the WS
+across the LAN in cleartext from the gateway
 (`service: http://pfs-mac.local:51603`). Replicas of the same
 tunnel share the hostname; each Mac only fronts its own local
 ports, and instrument traffic never crosses the LAN unencrypted.
@@ -126,23 +133,19 @@ upgrade is proxied automatically — no special flag. Validate:
 
 ```sh
 cloudflared tunnel ingress validate
-cloudflared tunnel ingress rule https://pfs.clay.chimera.observer/ws
+cloudflared tunnel ingress rule https://clay.chimera.observer/pfs/ws
 ```
 
 ### 4. Route DNS
 
-One-time setup — the apex plus a **wildcard record** covering every
-current and future instrument subdomain:
+One-time setup — a single record per telescope:
 
 ```sh
 cloudflared tunnel route dns clay-telescope clay.chimera.observer
-cloudflared tunnel route dns clay-telescope '*.clay.chimera.observer'
 ```
 
-(If the wildcard route is rejected by your cloudflared version,
-create the record manually in the Cloudflare DNS dashboard: proxied
-CNAME `*.clay` → `<UUID>.cfargotunnel.com`.) With the wildcard in
-place, adding an instrument later needs **no DNS change**.
+No wildcard, no per-instrument records — instruments are paths, so
+DNS never changes after this step.
 
 ### 5. Apply the Access policy
 
@@ -171,11 +174,11 @@ Installs a launchd job so the tunnel survives reboots. Logs go to
 
 Operators open `https://clay.chimera.observer/`, pass the Access
 login (any `@carnegiescience.edu` address by default), and land on
-the instrument chooser. Instrument cards on a tunnel deployment
-should link with host-only queries —
-`app.html?host=pfs.clay.chimera.observer` — which the SPA resolves
-to `wss://pfs.clay.chimera.observer/ws` automatically (HTTPS page +
-no port ⇒ tunnel mode).
+the instrument chooser. On an HTTPS page the cards rewrite
+themselves to path-mode automatically —
+`app.html?ws_path=/pfs/ws` — and the SPA connects
+`wss://clay.chimera.observer/pfs/ws` (host defaults to the page's
+own hostname).
 
 ## Adding an instrument later
 
@@ -183,9 +186,10 @@ The per-instrument Cloudflare overhead is deliberately minimal:
 
 | Piece | Change |
 |---|---|
-| Access policy | **none** — the telescope's app already covers `*.<telescope-domain>` |
-| DNS           | **none** — the wildcard record from step 4 already resolves it |
-| `config.yml`  | two ingress rules (the `/ws` port mapping + the static-file rule) and a tunnel restart |
+| Access policy | **none** — the telescope's app covers the hostname, and every instrument is a path on it |
+| DNS           | **none** — one record per telescope, ever |
+| TLS           | **none** — the hostname is already covered by Universal SSL |
+| `config.yml`  | **one ingress rule** (`path: ^/<app>/ws$` → local port) and a tunnel restart |
 | SPA           | one landing-page card (repo change, not Cloudflare) |
 
 The `config.yml` mapping is the irreducible piece — something has to
@@ -214,20 +218,17 @@ cat > ~/.cloudflared/config.yml <<'EOF'
 tunnel: <UUID>
 credentials-file: /Users/<you>/.cloudflared/<UUID>.json
 ingress:
-  - hostname: adc.sbs.chimera.observer
-    path: ^/ws$
+  - hostname: sbs.chimera.observer
+    path: ^/adc/ws$
     service: http://localhost:52403
   - hostname: sbs.chimera.observer
-    service: http://localhost:8080
-  - hostname: adc.sbs.chimera.observer
     service: http://localhost:8080
   - service: http_status:404
 EOF
 cloudflared tunnel ingress validate
 
-# 4. DNS — apex + one-time wildcard
+# 4. DNS — one record, one time
 cloudflared tunnel route dns sbs-telescope sbs.chimera.observer
-cloudflared tunnel route dns sbs-telescope '*.sbs.chimera.observer'
 
 # 5. Access policy (sbs entry ships in deploy/access-policies.yml)
 export CLOUDFLARE_API_TOKEN=...
@@ -241,17 +242,16 @@ cloudflared tunnel run sbs-telescope     # foreground for a test box;
 
 Then, with the instrument app + `python3 server.py` running:
 open `https://sbs.chimera.observer/`, log in with a
-`@carnegiescience.edu` address, and click the ADC card — the
-landing page rewrites it to `adc.sbs.chimera.observer`
-automatically on HTTPS, and the SPA connects
-`wss://adc.sbs.chimera.observer/ws`.
+`@carnegiescience.edu` address, and click the ADC card — on HTTPS
+the landing page rewrites it to path-mode automatically and the
+SPA connects `wss://sbs.chimera.observer/adc/ws`.
 
 **Verification checklist:**
 
 - [ ] Access login page appears before any content (step 5 ran
       before the hostname was shared).
 - [ ] A non-allowed email is refused.
-- [ ] Landing page renders; ADC card shows the subdomain.
+- [ ] Landing page renders; ADC card shows `/adc/ws`.
 - [ ] SPA connects — `hello` arrives, topics populate in the
       Diagnostic view, log pane streams.
 - [ ] A command round-trips (`ack` in the log pane).
@@ -262,7 +262,7 @@ automatically on HTTPS, and the SPA connects
 
 ```sh
 cloudflared tunnel delete sbs-telescope   # after stopping it
-# then remove the two DNS records in the dashboard, and delete the
+# then remove the DNS record in the dashboard, and delete the
 # sbs Access app in Zero Trust → Applications. No orphans: every
 # artifact of the test is gone when the test is.
 ```

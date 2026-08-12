@@ -6,23 +6,29 @@
 // commands by id.
 
 // Connect-string resolution. Two deployment shapes:
-//   Direct (VPN / LAN):        app.html?host=obs1&port=51603
+//   Direct (VPN / LAN):         app.html?host=obs1&port=51603
 //     → ws://obs1:51603/
-//   Cloudflare Tunnel + Access: app.html?host=pfs.obs.example.com
-//     (no port; page served over https)
-//     → wss://pfs.obs.example.com/ws
-// The scheme follows the page protocol (https → wss). The port-less
-// form appends the /ws path that the tunnel's ingress rule routes to
-// the instrument's WS port; see docs/deploy-cloudflare.md.
+//   Cloudflare Tunnel + Access: app.html?ws_path=/adc/ws
+//     (page served over https from the telescope hostname, e.g.
+//      sbs.chimera.observer; host defaults to the page host)
+//     → wss://sbs.chimera.observer/adc/ws
+// The scheme follows the page protocol (https → wss). Instruments are
+// PATHS on the telescope hostname, not subdomains — Cloudflare's
+// Universal SSL certificate covers *.chimera.observer one level deep
+// only, so adc.sbs.chimera.observer has no TLS cert and the WSS
+// handshake fails before routing. The tunnel's ingress maps
+// /<app>/ws to the instrument's local WS port; see
+// docs/deploy-cloudflare.md.
 const params = new URLSearchParams(window.location.search);
-const host = params.get("host") || "localhost";
+const host = params.get("host") || window.location.hostname || "localhost";
 const portStr = params.get("port");
+const wsPath = params.get("ws_path");
 const isHttps = window.location.protocol === "https:";
 const scheme = isHttps ? "wss:" : "ws:";
 export const url = portStr
-  ? `${scheme}//${host}:${parseInt(portStr, 10)}/`
-  : isHttps
-    ? `${scheme}//${host}/ws`                       // tunnel mode
+  ? `${scheme}//${host}:${parseInt(portStr, 10)}${wsPath || "/"}`
+  : wsPath
+    ? `${scheme}//${host}${wsPath}`                 // tunnel mode
     : `${scheme}//${host}:52403/`;                  // legacy local-dev default (ADC)
 
 let ws = null;
