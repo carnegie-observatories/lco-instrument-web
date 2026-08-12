@@ -1,3 +1,9 @@
-.secrets
-*.egg-info/
+.DS_Store
+__pycache__/
+*.pyc
+.idea/
+.vscode/
 .history/
+.venv/
+*.egg-info/
+.secrets
