@@ -55,8 +55,7 @@ a production telescope. See § Test telescope walkthrough.
 
 - A Cloudflare account with the `chimera.observer` zone. The free
   plan includes Zero Trust for up to 50 users.
-- An identity provider configured under **Zero Trust → Settings →
-  Authentication**: the **Google** IdP (generic Google OAuth).
+- An identity provider: the **Google** IdP (generic Google OAuth).
   Carnegie accounts are Google accounts, so operators sign in with
   their `@carnegiescience.edu` Google login and inherit whatever
   MFA Carnegie's Workspace enforces at Google's door; the Access
@@ -66,12 +65,18 @@ a production telescope. See § Test telescope walkthrough.
      **Credentials → OAuth client ID** (*Web application*) with the
      authorized redirect URI
      `https://<team>.cloudflareaccess.com/cdn-cgi/access/callback`.
-  2. In Zero Trust → **Settings → Authentication → Login methods →
-     Add new → Google**, paste the client ID + secret, save, and
-     use the built-in **Test**.
-  3. **Delete the default One-time PIN login method** — email OTP
-     bypasses MFA and authenticates anyone who can read a mailbox,
-     which is a weaker factor than the policy deserves.
+  2. In the Cloudflare dashboard: **Zero Trust → Integrations →
+     Identity providers** → *Your identity providers* card →
+     **Add new identity provider** → **Google** → paste the client
+     ID + secret → **Save**. Verify with the **Test** button next
+     to the new entry on the same page.
+  3. **Remove every other login method** on that page, leaving
+     Google as the only one. New Zero Trust orgs ship with the
+     **Cloudflare identity provider** as the default (sign-in with
+     a Cloudflare account — observatory operators don't have
+     those), and older orgs may carry **One-time PIN** (email OTP
+     bypasses MFA and authenticates anyone who can read a
+     mailbox). Neither belongs on a telescope control surface.
 
   (The dedicated **Google Workspace** IdP adds group-based policies
   and tenant enforcement but requires admin consent on Carnegie's
