@@ -11,8 +11,13 @@ dev server.
 ## Quick start
 
 ```sh
-python3 server.py            # serves on http://localhost:8080/
+uv sync                      # once — creates .venv with pyyaml + xib2ir
+python3 server.py            # serves on http://localhost:8080/ (stdlib only)
 ```
+
+The static server is stdlib-only; the [uv](https://docs.astral.sh/uv/)
+environment is for the Python tooling (`xib2ir`, the Access policy
+sync) — run those with `uv run …`.
 
 Open <http://localhost:8080/> — the landing page lists the known
 instruments (ADC 52403, DCU 51703, PFS 51603) and opens the SPA
@@ -58,12 +63,14 @@ Layout JSON is generated from the Cocoa app's XIB plus a bindings
 YAML, then committed. After changing either:
 
 ```sh
-cd tools/xib2ir
-python3 -m xib2ir extract <path-to>.xib \
+uv run xib2ir extract <path-to>.xib \
     --window <xib-window-id> --app <app> \
-    --bindings ../../instruments/<app>/<window>/bindings.yml \
-    -o ../../generated/<app>/<window>.layout.json
+    --bindings instruments/<app>/<window>/bindings.yml \
+    -o generated/<app>/<window>.layout.json
 ```
+
+(`xib2ir` is installed into the uv environment as a workspace
+member — run from the repo root, no `cd tools/xib2ir` needed.)
 
 See [tools/xib2ir/README.md](tools/xib2ir/README.md) for the
 per-instrument invocations and the lint (drift-check) mode.

@@ -152,7 +152,7 @@ list is reviewable and versioned:
 
 ```sh
 export CLOUDFLARE_API_TOKEN=...   # "Access: Apps and Policies Write"
-python3 deploy/sync-access-policies.py --telescope clay
+uv run python deploy/sync-access-policies.py --telescope clay
 ```
 
 Until this step the tunnel is publicly reachable — run the sync
@@ -231,7 +231,7 @@ cloudflared tunnel route dns sbs-telescope '*.sbs.chimera.observer'
 
 # 5. Access policy (sbs entry ships in deploy/access-policies.yml)
 export CLOUDFLARE_API_TOKEN=...
-python3 deploy/sync-access-policies.py --telescope sbs
+uv run python deploy/sync-access-policies.py --telescope sbs
 
 # 6. run
 cloudflared tunnel run sbs-telescope     # foreground for a test box;
@@ -314,9 +314,9 @@ only:
 Then re-run the sync:
 
 ```sh
-python3 deploy/sync-access-policies.py                 # all telescopes
-python3 deploy/sync-access-policies.py --telescope clay
-python3 deploy/sync-access-policies.py --dry-run       # print API payloads only
+uv run python deploy/sync-access-policies.py                 # all telescopes
+uv run python deploy/sync-access-policies.py --telescope clay
+uv run python deploy/sync-access-policies.py --dry-run       # print API payloads only
 ```
 
 The script is idempotent — it finds each telescope's Access
@@ -327,8 +327,10 @@ rebuilt from the YAML every run. An empty `allowed:` list is
 refused (it would lock everyone out) unless `--allow-lockout` is
 passed.
 
-The script needs `pip install pyyaml` and a `CLOUDFLARE_API_TOKEN`
-environment variable — created as follows.
+The script runs in the repo's [uv](https://docs.astral.sh/uv/)
+environment (`uv sync` once, then `uv run python
+deploy/sync-access-policies.py …`) and needs a
+`CLOUDFLARE_API_TOKEN` environment variable — created as follows.
 
 ### Creating the API token
 
@@ -374,7 +376,7 @@ to Super Administrators — have one create it.
 
    ```sh
    export CLOUDFLARE_API_TOKEN=<the-secret>
-   python3 deploy/sync-access-policies.py --dry-run   # verify it works
+   uv run python deploy/sync-access-policies.py --dry-run   # verify it works
    ```
 
 The token can *only* manage Access applications and policies — it
