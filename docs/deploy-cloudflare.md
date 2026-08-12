@@ -118,14 +118,18 @@ cloudflared tunnel ingress rule https://pfs.clay.chimera.observer/ws
 
 ### 4. Route DNS
 
-One route per hostname the config serves:
+One-time setup — the apex plus a **wildcard record** covering every
+current and future instrument subdomain:
 
 ```sh
 cloudflared tunnel route dns clay-telescope clay.chimera.observer
-cloudflared tunnel route dns clay-telescope pfs.clay.chimera.observer
-cloudflared tunnel route dns clay-telescope dcu.clay.chimera.observer
-cloudflared tunnel route dns clay-telescope adc.clay.chimera.observer
+cloudflared tunnel route dns clay-telescope '*.clay.chimera.observer'
 ```
+
+(If the wildcard route is rejected by your cloudflared version,
+create the record manually in the Cloudflare DNS dashboard: proxied
+CNAME `*.clay` → `<UUID>.cfargotunnel.com`.) With the wildcard in
+place, adding an instrument later needs **no DNS change**.
 
 ### 5. Apply the Access policy
 
@@ -159,6 +163,23 @@ should link with host-only queries —
 `app.html?host=pfs.clay.chimera.observer` — which the SPA resolves
 to `wss://pfs.clay.chimera.observer/ws` automatically (HTTPS page +
 no port ⇒ tunnel mode).
+
+## Adding an instrument later
+
+The per-instrument Cloudflare overhead is deliberately minimal:
+
+| Piece | Change |
+|---|---|
+| Access policy | **none** — the telescope's app already covers `*.<telescope-domain>` |
+| DNS           | **none** — the wildcard record from step 4 already resolves it |
+| `config.yml`  | two ingress rules (the `/ws` port mapping + the static-file rule) and a tunnel restart |
+| SPA           | one landing-page card (repo change, not Cloudflare) |
+
+The `config.yml` mapping is the irreducible piece — something has to
+know "pfs → local port 51603", and cloudflared's ingress table is
+the safest place for it (the alternative, proxying WebSockets
+through the Python static server, would put hand-rolled proxy code
+in the control path for no gain).
 
 ## Access policy as configuration
 

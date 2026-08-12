@@ -66,6 +66,26 @@
   </main>
 
   <script>
+    // Tunnel-aware instrument cards. When this page is served over
+    // HTTPS — i.e., via a telescope's Cloudflare hostname such as
+    // clay.chimera.observer — rewrite each card to the instrument's
+    // subdomain on the same telescope (adc.clay.chimera.observer …).
+    // ws.js then connects wss://<subdomain>/ws (host given, no port).
+    // On plain HTTP (observatory LAN / local dev) the static
+    // host+port hrefs stand. Adding an instrument = one new card +
+    // its tunnel ingress rules; Access already covers *.<telescope>.
+    (function () {
+      if (window.location.protocol !== "https:") return;
+      const telescopeHost = window.location.hostname;
+      for (const card of document.querySelectorAll(".instrument-card[data-app]")) {
+        const app = card.dataset.app;
+        const host = `${app}.${telescopeHost}`;
+        card.href = `app.html?host=${encodeURIComponent(host)}`;
+        const portEl = card.querySelector(".instrument-port");
+        if (portEl) portEl.textContent = host;
+      }
+    })();
+
     // Handle the custom-connect form. Prefer localStorage-remembered
     // last host if present.
     (function () {
