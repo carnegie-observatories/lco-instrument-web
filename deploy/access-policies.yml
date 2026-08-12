@@ -1,0 +1,48 @@
+# Cloudflare Access policy — who may control each telescope.
+#
+# Synced to Cloudflare by deploy/sync-access-policies.py; edits here
+# do nothing until the sync runs. One Access application per
+# telescope, covering the apex + every instrument subdomain
+# (*.<telescope domain>), so a single allowed-list governs every
+# instrument on that telescope.
+#
+# Allowed-entry forms:
+#   "*@carnegiescience.edu"   whole-domain wildcard → Access
+#                             "Emails ending in" rule. This is the
+#                             ONLY wildcard form Cloudflare Access
+#                             supports — patterns like "will*@x.edu"
+#                             or "*@*.edu" are rejected by the sync
+#                             script.
+#   "operator@example.org"    exact address → Access "Email" rule.
+#
+# Entries are additive (logical OR). An empty list locks the
+# telescope down to nobody — the sync script refuses to push an
+# empty policy unless --allow-lockout is given.
+
+account_id: "YOUR_CLOUDFLARE_ACCOUNT_ID"     # Zero Trust account
+session_duration: "24h"
+
+telescopes:
+  clay:
+    domain: clay.chimera.observer
+    allowed:
+      - "*@carnegiescience.edu"
+
+  baade:
+    domain: baade.chimera.observer
+    allowed:
+      - "*@carnegiescience.edu"
+
+  swope:
+    domain: swope.chimera.observer
+    allowed:
+      - "*@carnegiescience.edu"
+
+# Per-telescope extras go straight into the same list, e.g.:
+#
+#   clay:
+#     domain: clay.chimera.observer
+#     allowed:
+#       - "*@carnegiescience.edu"
+#       - "visiting.astronomer@partner-university.edu"
+#       - "*@lco.cl"

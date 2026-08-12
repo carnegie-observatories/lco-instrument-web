@@ -8,87 +8,138 @@ with the VPN model is in
 
 How it works: `cloudflared` runs on the instrument Mac and opens an
 **outbound-only** TLS connection to Cloudflare. Cloudflare Access
-authenticates every request against your IdP before it is forwarded
+authenticates every request against the IdP before it is forwarded
 down the tunnel. The Cocoa app is untouched — the tunnel connects to
 its WS port on localhost.
 
+## Domain layout
+
+One domain per telescope, on the `chimera.observer` zone:
+
+| Telescope | Apex (landing + SPA) | Instrument hostnames |
+|---|---|---|
+| Clay  | `clay.chimera.observer`  | `pfs.clay.chimera.observer`, `dcu.clay.chimera.observer`, `adc.clay.chimera.observer`, … |
+| Baade | `baade.chimera.observer` | `dcu.baade.chimera.observer`, … |
+| Swope | `swope.chimera.observer` | `swope.swope.chimera.observer`, … |
+
+- The **apex** serves the SPA static files (landing page + app).
+- Each **instrument subdomain** carries that instrument's WebSocket
+  at `/ws` (and, later, its image-transfer HTTP endpoint).
+- One **Access application per telescope**, covering the apex and
+  `*.<telescope-domain>` — so one allowed-email list governs every
+  instrument on that telescope. The lists live in
+  [`deploy/access-policies.yml`](../deploy/access-policies.yml) and
+  are pushed by [`deploy/sync-access-policies.py`](../deploy/sync-access-policies.py)
+  (see § Access policy as configuration).
+
 ## Prerequisites
 
-- A Cloudflare account. The free plan includes Zero Trust for up to
-  50 users.
-- A domain (or delegated subdomain) on Cloudflare DNS.
+- A Cloudflare account with the `chimera.observer` zone. The free
+  plan includes Zero Trust for up to 50 users.
 - An identity provider configured under **Zero Trust → Settings →
-  Authentication**. Google Workspace, Okta, Azure AD — or the
-  zero-setup option, **One-time PIN over email**.
+  Authentication**. For `@carnegiescience.edu` accounts on Google
+  Workspace, add the *Google Workspace* IdP; the zero-setup
+  fallback is **One-time PIN over email** (works with any address
+  the policy allows).
 - The instrument Mac running the Cocoa app (WS port per the
-  formula `50001 + PROJECT_ID×100 + 2`) and the SPA static server
-  (`python3 server.py`, default port 8080).
+  formula `50001 + PROJECT_ID×100 + 2`) and, on the telescope's
+  gateway Mac, the SPA static server (`python3 server.py`,
+  default port 8080).
 
-## Per-instrument setup
+## Per-telescope setup
 
-All commands run on the instrument Mac. Example uses PFS
-(WS port 51603) and the hostname `pfs.obs.example.com` — substitute
-your own.
+All commands run on the telescope's gateway Mac (or the single
+instrument Mac if it hosts everything). Example uses Clay; swap
+names for Baade / Swope.
 
 ### 1. Install and authenticate cloudflared
 
 ```sh
 brew install cloudflared
-cloudflared tunnel login        # opens a browser; pick your zone
+cloudflared tunnel login        # opens a browser; pick chimera.observer
 ```
 
 ### 2. Create the tunnel
 
 ```sh
-cloudflared tunnel create pfs-instrument
+cloudflared tunnel create clay-telescope
 # prints a tunnel UUID; credentials land in ~/.cloudflared/<UUID>.json
 ```
 
 ### 3. Write `~/.cloudflared/config.yml`
+
+One tunnel carries the apex plus every instrument subdomain:
 
 ```yaml
 tunnel: <UUID>
 credentials-file: /Users/<you>/.cloudflared/<UUID>.json
 
 ingress:
-  # WebSocket control surface. Path-based split: /ws → Cocoa app.
-  - hostname: pfs.obs.example.com
+  # --- instrument WebSockets: /ws on each instrument subdomain ---
+  - hostname: pfs.clay.chimera.observer
     path: ^/ws$
     service: http://localhost:51603
-  # Everything else → SPA static files.
-  - hostname: pfs.obs.example.com
+  - hostname: dcu.clay.chimera.observer
+    path: ^/ws$
+    service: http://localhost:51703
+  - hostname: adc.clay.chimera.observer
+    path: ^/ws$
+    service: http://localhost:52403
+
+  # --- SPA static files: apex and instrument subdomains alike ---
+  # (the SPA is the same files everywhere; serving it on the
+  # instrument hostnames lets an operator bookmark
+  # https://pfs.clay.chimera.observer/ directly)
+  - hostname: clay.chimera.observer
     service: http://localhost:8080
+  - hostname: pfs.clay.chimera.observer
+    service: http://localhost:8080
+  - hostname: dcu.clay.chimera.observer
+    service: http://localhost:8080
+  - hostname: adc.clay.chimera.observer
+    service: http://localhost:8080
+
   # Required catch-all.
   - service: http_status:404
 ```
 
+If an instrument's Cocoa app runs on a *different* Mac than the
+gateway, point its `/ws` rule at that host instead of localhost
+(`service: http://pfs-mac.local:51603`) — the LAN hop stays inside
+the observatory network.
+
 Rules match top-to-bottom; the catch-all must be last. WebSocket
-upgrade is proxied automatically — no special flag. Validate with:
+upgrade is proxied automatically — no special flag. Validate:
 
 ```sh
 cloudflared tunnel ingress validate
-cloudflared tunnel ingress rule https://pfs.obs.example.com/ws
+cloudflared tunnel ingress rule https://pfs.clay.chimera.observer/ws
 ```
 
 ### 4. Route DNS
 
+One route per hostname the config serves:
+
 ```sh
-cloudflared tunnel route dns pfs-instrument pfs.obs.example.com
-# creates the proxied CNAME → <UUID>.cfargotunnel.com
+cloudflared tunnel route dns clay-telescope clay.chimera.observer
+cloudflared tunnel route dns clay-telescope pfs.clay.chimera.observer
+cloudflared tunnel route dns clay-telescope dcu.clay.chimera.observer
+cloudflared tunnel route dns clay-telescope adc.clay.chimera.observer
 ```
 
-### 5. Protect it with Access
+### 5. Apply the Access policy
 
-In **Zero Trust → Access → Applications**:
+Do **not** hand-create the Access application in the dashboard —
+it's generated from configuration (next section) so the allowed
+list is reviewable and versioned:
 
-1. **Add an application** → *Self-hosted*.
-2. Domain: `pfs.obs.example.com`.
-3. Session duration: 24 h is a sensible default.
-4. Policy — e.g. *Allow* → *Emails ending in* `@obs.example.com`,
-   or an IdP group.
+```sh
+export CLOUDFLARE_API_TOKEN=...   # "Access: Apps and Policies Write"
+python3 deploy/sync-access-policies.py --telescope clay
+```
 
-Until this step the tunnel is publicly reachable — do it before
-sharing the hostname.
+Until this step the tunnel is publicly reachable — run the sync
+before sharing any hostname.
 
 ### 6. Run as a service
 
@@ -101,19 +152,82 @@ Installs a launchd job so the tunnel survives reboots. Logs go to
 
 ### 7. Connect
 
-Operators open `https://pfs.obs.example.com/`, pass the Access
-login, land on the instrument chooser. In the chooser's
-**Advanced** section, enter `pfs.obs.example.com` as host and leave
-port empty — the SPA switches to `wss://<host>/ws` automatically
-when the page is served over HTTPS and no port is given.
+Operators open `https://clay.chimera.observer/`, pass the Access
+login (any `@carnegiescience.edu` address by default), and land on
+the instrument chooser. Instrument cards on a tunnel deployment
+should link with host-only queries —
+`app.html?host=pfs.clay.chimera.observer` — which the SPA resolves
+to `wss://pfs.clay.chimera.observer/ws` automatically (HTTPS page +
+no port ⇒ tunnel mode).
 
-## Multiple instruments
+## Access policy as configuration
 
-One tunnel can carry several hostnames — add ingress rule pairs
-(`adc.obs.example.com` → 52403 + its static server, etc.) and a
-`cloudflared tunnel route dns` per hostname, then one Access app
-per hostname. Or run one tunnel per instrument Mac; both layouts
-are supported, pick whichever matches how the Macs are distributed.
+Who may control each telescope lives in
+[`deploy/access-policies.yml`](../deploy/access-policies.yml):
+
+```yaml
+account_id: "YOUR_CLOUDFLARE_ACCOUNT_ID"
+session_duration: "24h"
+
+telescopes:
+  clay:
+    domain: clay.chimera.observer
+    allowed:
+      - "*@carnegiescience.edu"
+  baade:
+    domain: baade.chimera.observer
+    allowed:
+      - "*@carnegiescience.edu"
+  swope:
+    domain: swope.chimera.observer
+    allowed:
+      - "*@carnegiescience.edu"
+```
+
+Two entry forms:
+
+- `*@domain.tld` — whole-domain wildcard, maps to an Access
+  *Emails ending in* rule. **This is the only wildcard Cloudflare
+  Access supports** — `will*@x.edu` or `*@*.edu` are rejected by
+  the sync script with an explanatory error.
+- `person@example.org` — exact address, maps to an Access *Email*
+  rule.
+
+Entries are OR-ed. To grant a visiting astronomer access to Clay
+only:
+
+```yaml
+  clay:
+    domain: clay.chimera.observer
+    allowed:
+      - "*@carnegiescience.edu"
+      - "visiting.astronomer@partner-university.edu"
+```
+
+Then re-run the sync:
+
+```sh
+python3 deploy/sync-access-policies.py                 # all telescopes
+python3 deploy/sync-access-policies.py --telescope clay
+python3 deploy/sync-access-policies.py --dry-run       # print API payloads only
+```
+
+The script is idempotent — it finds each telescope's Access
+application by domain and updates it in place, or creates it on
+first run. One application per telescope covering
+`<domain>` + `*.<domain>`; one *Allow* policy per application,
+rebuilt from the YAML every run. An empty `allowed:` list is
+refused (it would lock everyone out) unless `--allow-lockout` is
+passed.
+
+Requires `pip install pyyaml` and a `CLOUDFLARE_API_TOKEN` with
+**Access: Apps and Policies Write** (create at **Cloudflare
+dashboard → My Profile → API Tokens**).
+
+**Treat the YAML as the source of truth.** Dashboard edits to
+these applications will be overwritten by the next sync. Review
+changes to `access-policies.yml` like code — each entry is a
+person who can command a telescope.
 
 ## Failure modes
 
