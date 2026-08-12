@@ -88,6 +88,58 @@ a production telescope. See § Test telescope walkthrough.
   gateway Mac, the SPA static server (`python3 server.py`,
   default port 8080).
 
+## One-time account configuration
+
+Account-level setup, performed once by the Cloudflare account owner
+before the first telescope deploys. All four items were discovered
+the hard way against a live deployment — the order matters:
+
+1. **Enable Zero Trust.** Open
+   [one.dash.cloudflare.com](https://one.dash.cloudflare.com) and
+   complete the onboarding: pick a **team name** (it becomes the
+   login domain operators see — `<team>.cloudflareaccess.com` —
+   choose deliberately; the auto-generated names are ugly) and the
+   **Free** plan. Until this runs, every Access API call fails with
+   `access.api.error.not_enabled`, no matter how correct the token
+   is.
+2. **Configure the Google IdP** and remove all other login methods
+   (see Prerequisites above for the click-path). Skipping the
+   removal leaves the Cloudflare-account login as the default —
+   operators without Cloudflare accounts hit a door they can never
+   open.
+3. **Create the API token** (see § Creating the API token) and
+   store it in the observatory password manager. On the deploy Mac,
+   put it in a `.secrets` file (`CLOUDFLARE_API_TOKEN=…`) that is
+   git-ignored — the repo's `.gitignore` already covers it.
+4. **Fill in `deploy/access-policies.yml`**: the real `account_id`
+   (dashboard → account home → copy Account ID) and each
+   telescope's allowed-email list.
+
+## Operator accounts
+
+What a person needs to control a telescope remotely:
+
+- A Google-hosted account whose address the telescope's
+  `allowed:` list matches — for Carnegie staff, the
+  `@carnegiescience.edu` account; nothing to install, no
+  Cloudflare account, no VPN client.
+- Their address covered in
+  [`deploy/access-policies.yml`](../deploy/access-policies.yml) —
+  either by the `*@carnegiescience.edu` wildcard or an explicit
+  entry — followed by a policy sync. Grants and revocations are
+  both YAML edits + sync; revocation takes effect at next login
+  (active sessions persist up to the 24 h TTL — for immediate
+  revocation, also use Zero Trust → My Team → Users → Revoke).
+
+First-login flow, as the operator experiences it:
+
+1. Browse to the telescope URL (e.g. `https://sbs.chimera.observer/`).
+2. Cloudflare Access presents the team's login page → **Sign in
+   with Google** → pick the Carnegie account (Workspace MFA applies
+   here if Carnegie enforces it).
+3. Land on the instrument chooser; the session lasts 24 h, after
+   which the Google round-trip repeats.
+
 ## Per-telescope setup
 
 All commands run on the telescope's gateway Mac (or the single
@@ -409,6 +461,21 @@ tunnel credential file).
 these applications will be overwritten by the next sync. Review
 changes to `access-policies.yml` like code — each entry is a
 person who can command a telescope.
+
+## Troubleshooting
+
+Symptoms seen on real deployments, worst-first:
+
+| Symptom | Cause | Fix |
+|---|---|---|
+| Site loads with **no login page** | Access application not applied — the tunnel is up but the policy sync never ran | Run `uv run python deploy/sync-access-policies.py --telescope <t>`; verify with `curl -sI https://<host>/` → expect `302` to `<team>.cloudflareaccess.com` |
+| API calls fail `access.api.error.not_enabled` | Zero Trust never onboarded on the account | One-time account configuration, step 1 |
+| Login page only offers **Cloudflare account** sign-in | The default Cloudflare IdP is still active and Google isn't (or isn't the only) login method | Zero Trust → Integrations → Identity providers: add Google, remove the rest |
+| Sync fails `403` on `/access/apps` with a correct-looking token | Token permission is one of the near-namesakes (`Access: Apps`, `Access: Policies`) instead of the combined grant | Token needs exactly **Access: Apps and Policies → Edit** |
+| Browser console: `WebSocket connection to 'wss://localhost/ws' failed` (or any stale behaviour that survives a force-reload) | Cloudflare's **edge** cached old `.js` (~2 h default TTL; `.html` is not cached, so the page looks current while its modules are stale) | Zone → Caching → Configuration → **Purge Everything**. `server.py` now sends `Cache-Control: no-store`, so this can only recur if the SPA is served by something else without that header |
+| `wss://` fails TLS: `sslv3 alert handshake failure` | A multi-level hostname (`adc.sbs.chimera.observer`) crept back in — Universal SSL covers one label only | Instruments are paths (`/adc/ws`), never sub-subdomains |
+| HTTP `530` from the site | Tunnel not running / not serving that hostname | `cloudflared tunnel run <name>` (or check the launchd service); `cloudflared tunnel ingress validate` |
+| WS connects on one instrument but not another | Missing `path: ^/<app>/ws$` ingress rule for that instrument, or its Cocoa app isn't running | Add the rule + restart the tunnel; check `lsof -nP -iTCP:<port> -sTCP:LISTEN` on the instrument Mac |
 
 ## Failure modes
 
