@@ -38,6 +38,15 @@ telescopes:
     allowed:
       - "*@carnegiescience.edu"
 
+  # Test telescope — a development Mac standing in for a summit
+  # machine. Same machinery end-to-end; see the deploy doc's
+  # "Test telescope walkthrough". Tear down the tunnel when the
+  # test is over.
+  sbs:
+    domain: sbs.chimera.observer
+    allowed:
+      - "*@carnegiescience.edu"
+
 # Per-telescope extras go straight into the same list, e.g.:
 #
 #   clay:

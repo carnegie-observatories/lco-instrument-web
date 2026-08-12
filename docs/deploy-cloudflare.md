@@ -21,6 +21,13 @@ One domain per telescope, on the `chimera.observer` zone:
 | Clay  | `clay.chimera.observer`  | `pfs.clay.chimera.observer`, `dcu.clay.chimera.observer`, `adc.clay.chimera.observer`, … |
 | Baade | `baade.chimera.observer` | `dcu.baade.chimera.observer`, … |
 | Swope | `swope.chimera.observer` | `swope.swope.chimera.observer`, … |
+| SBS *(test)* | `sbs.chimera.observer` | `adc.sbs.chimera.observer`, … |
+
+A **test telescope** (SBS) uses the same machinery end-to-end —
+tunnel, wildcard DNS, Access application — against a development
+Mac instead of a summit machine. Use it to rehearse a deployment
+change, onboard a new instrument, or demo the SPA without touching
+a production telescope. See § Test telescope walkthrough.
 
 - The **apex** serves the SPA static files (landing page + app).
 - Each **instrument subdomain** carries that instrument's WebSocket
@@ -180,6 +187,79 @@ know "pfs → local port 51603", and cloudflared's ingress table is
 the safest place for it (the alternative, proxying WebSockets
 through the Python static server, would put hand-rolled proxy code
 in the control path for no gain).
+
+## Test telescope walkthrough (SBS)
+
+A complete worked example against a development Mac — the same
+seven steps as a production telescope, condensed. Useful for
+rehearsing changes and verifying the pipeline before touching Clay
+/ Baade / Swope. Assumes an instrument app running locally (any of
+ADC / DCU / PFS in simulator or bench mode) and the SPA static
+server on port 8080.
+
+```sh
+# 1-2. tunnel
+brew install cloudflared
+cloudflared tunnel login
+cloudflared tunnel create sbs-telescope
+
+# 3. ~/.cloudflared/config.yml — one instrument (ADC on 52403) to start
+cat > ~/.cloudflared/config.yml <<'EOF'
+tunnel: <UUID>
+credentials-file: /Users/<you>/.cloudflared/<UUID>.json
+ingress:
+  - hostname: adc.sbs.chimera.observer
+    path: ^/ws$
+    service: http://localhost:52403
+  - hostname: sbs.chimera.observer
+    service: http://localhost:8080
+  - hostname: adc.sbs.chimera.observer
+    service: http://localhost:8080
+  - service: http_status:404
+EOF
+cloudflared tunnel ingress validate
+
+# 4. DNS — apex + one-time wildcard
+cloudflared tunnel route dns sbs-telescope sbs.chimera.observer
+cloudflared tunnel route dns sbs-telescope '*.sbs.chimera.observer'
+
+# 5. Access policy (sbs entry ships in deploy/access-policies.yml)
+export CLOUDFLARE_API_TOKEN=...
+python3 deploy/sync-access-policies.py --telescope sbs
+
+# 6. run
+cloudflared tunnel run sbs-telescope     # foreground for a test box;
+                                         # `sudo cloudflared service install`
+                                         # if it should persist
+```
+
+Then, with the instrument app + `python3 server.py` running:
+open `https://sbs.chimera.observer/`, log in with a
+`@carnegiescience.edu` address, and click the ADC card — the
+landing page rewrites it to `adc.sbs.chimera.observer`
+automatically on HTTPS, and the SPA connects
+`wss://adc.sbs.chimera.observer/ws`.
+
+**Verification checklist:**
+
+- [ ] Access login page appears before any content (step 5 ran
+      before the hostname was shared).
+- [ ] A non-allowed email is refused.
+- [ ] Landing page renders; ADC card shows the subdomain.
+- [ ] SPA connects — `hello` arrives, topics populate in the
+      Diagnostic view, log pane streams.
+- [ ] A command round-trips (`ack` in the log pane).
+- [ ] Kill `cloudflared`, restart it — SPA auto-reconnects within
+      a few seconds.
+
+**Tear-down** (a test telescope shouldn't outlive its test):
+
+```sh
+cloudflared tunnel delete sbs-telescope   # after stopping it
+# then remove the two DNS records in the dashboard, and either
+# delete the sbs Access app in Zero Trust → Applications or leave
+# it (harmless once the tunnel is gone — nothing resolves).
+```
 
 ## Access policy as configuration
 
