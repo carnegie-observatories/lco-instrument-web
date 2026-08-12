@@ -52,7 +52,7 @@
       <summary>Advanced — connect to a custom host/port</summary>
       <form id="custom-form">
         <label>host <input name="host" value="localhost" required></label>
-        <label>port <input name="port" type="number" placeholder="52403" min="1" max="65535" required></label>
+        <label>port <input name="port" type="number" placeholder="52403 (blank for tunnel)" min="1" max="65535"></label>
         <button type="submit">Open</button>
       </form>
       <p class="muted small">
@@ -79,9 +79,10 @@
         ev.preventDefault();
         const host = form.elements.host.value.trim() || "localhost";
         const port = form.elements.port.value.trim();
-        if (!port) return;
         try { localStorage.setItem("lco_last_host", host); } catch (e) { /* ignore */ }
-        const q = new URLSearchParams({ host, port });
+        // Blank port → tunnel mode: ws.js connects wss://<host>/ws
+        // when the page is served over HTTPS.
+        const q = new URLSearchParams(port ? { host, port } : { host });
         window.location.href = `app.html?${q.toString()}`;
       });
     })();

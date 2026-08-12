@@ -5,10 +5,25 @@
 // (hello / state / event / ack), client subscribes to topics and dispatches
 // commands by id.
 
+// Connect-string resolution. Two deployment shapes:
+//   Direct (VPN / LAN):        app.html?host=obs1&port=51603
+//     → ws://obs1:51603/
+//   Cloudflare Tunnel + Access: app.html?host=pfs.obs.example.com
+//     (no port; page served over https)
+//     → wss://pfs.obs.example.com/ws
+// The scheme follows the page protocol (https → wss). The port-less
+// form appends the /ws path that the tunnel's ingress rule routes to
+// the instrument's WS port; see docs/deploy-cloudflare.md.
 const params = new URLSearchParams(window.location.search);
 const host = params.get("host") || "localhost";
-const port = parseInt(params.get("port") || "52403", 10);
-export const url = `ws://${host}:${port}/`;
+const portStr = params.get("port");
+const isHttps = window.location.protocol === "https:";
+const scheme = isHttps ? "wss:" : "ws:";
+export const url = portStr
+  ? `${scheme}//${host}:${parseInt(portStr, 10)}/`
+  : isHttps
+    ? `${scheme}//${host}/ws`                       // tunnel mode
+    : `${scheme}//${host}:52403/`;                  // legacy local-dev default (ADC)
 
 let ws = null;
 let reconnectTimer = null;
