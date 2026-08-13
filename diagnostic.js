@@ -151,7 +151,7 @@ const applyLevelFilter = (min) => {
 const levelSelect = $("log-level");
 if (levelSelect) {
   levelSelect.addEventListener("change", () => applyLevelFilter(levelSelect.value));
-  applyLevelFilter(levelSelect.value || "debug");
+  applyLevelFilter(levelSelect.value || "warn");
 }
 
 // ---------------- topic UI ----------------
