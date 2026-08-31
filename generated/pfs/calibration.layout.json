@@ -1,0 +1,187 @@
+{
+  "_generator": "xib2ir@0.1.0",
+  "app": "pfs",
+  "window_id": "mE9-C4-tSf",
+  "window": {
+    "title": "Calibrations",
+    "width": 772,
+    "height": 231
+  },
+  "elements": [
+    {
+      "id": "Dys-jX-es3",
+      "parent_id": null,
+      "kind": "list",
+      "subkind": "multi-select",
+      "outlet": "calTable",
+      "frame": {
+        "x": 20,
+        "y": 20,
+        "w": 732,
+        "h": 166
+      },
+      "columns": [
+        {
+          "id": "0",
+          "title": "Name",
+          "width": 90
+        },
+        {
+          "id": "1",
+          "title": "ExpType",
+          "width": 75
+        },
+        {
+          "id": "2",
+          "title": "Binning",
+          "width": 50
+        },
+        {
+          "id": "3",
+          "title": "Speed",
+          "width": 55
+        },
+        {
+          "id": "4",
+          "title": "Slit",
+          "width": 80
+        },
+        {
+          "id": "5",
+          "title": "Iodine",
+          "width": 70
+        },
+        {
+          "id": "6",
+          "title": "ExpTime",
+          "width": 70
+        },
+        {
+          "id": "7",
+          "title": "Loops",
+          "width": 45
+        },
+        {
+          "id": "8",
+          "title": "Comment",
+          "width": 153
+        }
+      ],
+      "header": true,
+      "binding": {
+        "write": {
+          "cmd": "calibration_select",
+          "args": {
+            "indices": "$selection"
+          }
+        },
+        "read": {
+          "topic": "calibration",
+          "rows_path": "entries",
+          "current_path": "current_index",
+          "selected_path": "selected",
+          "column_paths": [
+            "name",
+            "exptype",
+            "binning",
+            "speed",
+            "slit",
+            "iodine",
+            "exptime",
+            "nloops",
+            "comment"
+          ]
+        }
+      }
+    },
+    {
+      "id": "cpY-ue-gzX",
+      "parent_id": null,
+      "kind": "button",
+      "subkind": "push",
+      "outlet": "butExecSel",
+      "frame": {
+        "x": 595,
+        "y": 193,
+        "w": 111,
+        "h": 19
+      },
+      "title_default": "Execute Selected",
+      "binding": {
+        "write": {
+          "cmd": "calibration_execute"
+        },
+        "enabled_if": {
+          "all": [
+            {
+              "topic": "calibration",
+              "path": "running",
+              "equals": false
+            },
+            {
+              "topic": "calibration",
+              "path": "selected.length",
+              "not_equals": 0
+            },
+            {
+              "topic": "exposure",
+              "path": "running",
+              "equals": false
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "zZt-6j-Njm",
+      "parent_id": null,
+      "kind": "button",
+      "subkind": "push",
+      "outlet": "butStop",
+      "frame": {
+        "x": 58,
+        "y": 194,
+        "w": 81,
+        "h": 19
+      },
+      "title_default": "Stop",
+      "binding": {
+        "write": {
+          "cmd": "calibration_stop"
+        },
+        "enabled_if": {
+          "topic": "calibration",
+          "path": "running",
+          "equals": true
+        }
+      }
+    },
+    {
+      "id": "u2b-o5-bHF",
+      "parent_id": null,
+      "kind": "button",
+      "subkind": "check",
+      "outlet": "butReverse",
+      "frame": {
+        "x": 514,
+        "y": 193,
+        "w": 70,
+        "h": 18
+      },
+      "title_default": "Reverse",
+      "binding": {
+        "write": {
+          "cmd": "calibration_set_reverse",
+          "args": {
+            "true": "$state"
+          }
+        },
+        "read": {
+          "topic": "calibration",
+          "path": "reverse"
+        }
+      }
+    }
+  ],
+  "warnings": []
+}
