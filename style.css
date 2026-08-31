@@ -204,11 +204,17 @@ ol#log[data-min-level="error"] li[data-level="warn"]                        { di
    selection). First consumer: PFS calTable in callist.xib. The
    wrapper is positioned absolutely by renderer.js positionAbs; the
    inner table is constrained to the wrapper's frame and scrolls
-   inside it. */
+   inside it.
+
+   Light palette: the widget renders inside .window-frame (background
+   #ececec — Cocoa-card look), so the table itself is white with
+   muted-grey separators and a macOS-style blue selection. Dark-mode
+   readout would override at the .window-frame level. */
 .wf-list {
-  background: var(--bg-2);
-  border: 1px solid var(--bg-3);
-  border-radius: 4px;
+  background: #ffffff;
+  color: #1a1a1a;
+  border: 1px solid #888;
+  border-radius: 2px;
   overflow: auto;          /* H+V scroll on overflow */
   font-size: 12px;
 }
@@ -218,22 +224,22 @@ ol#log[data-min-level="error"] li[data-level="warn"]                        { di
   font-family: var(--mono);
 }
 .wf-list-table thead th {
-  background: var(--bg-3);
-  color: var(--muted);
+  background: #e8e8e8;
+  color: #444;
   text-transform: uppercase;
   letter-spacing: 0.06em;
   font-size: 10px;
   font-weight: 600;
   text-align: left;
   padding: 4px 8px;
-  border-bottom: 1px solid var(--bg);
+  border-bottom: 1px solid #888;
   position: sticky;
   top: 0;
   z-index: 1;              /* over scrolled rows */
 }
 .wf-list-table tbody td {
   padding: 3px 8px;
-  border-bottom: 1px solid var(--bg-3);
+  border-bottom: 1px solid #e8e8e8;
   white-space: nowrap;
   text-overflow: ellipsis;
   overflow: hidden;
@@ -243,24 +249,26 @@ ol#log[data-min-level="error"] li[data-level="warn"]                        { di
   cursor: pointer;
   user-select: none;
 }
-.wf-list-table tbody tr:hover { background: var(--bg-3); }
+.wf-list-table tbody tr:hover { background: #f4f4f4; }
 .wf-list-table tbody tr.is-selected {
-  background: rgba(93, 177, 255, 0.18);   /* --accent at low alpha */
-  color: var(--accent);
+  /* macOS NSTableView focused-selection blue tint. */
+  background: #d0e3ff;
+  color: #003a8a;
 }
 .wf-list-table tbody tr.is-running {
-  background: rgba(245, 196, 74, 0.18);   /* --warn at low alpha */
+  /* Warm amber for "row currently driving the camera". */
+  background: #fff3cd;
   font-weight: 600;
 }
 .wf-list-table tbody tr.is-selected.is-running {
-  background: linear-gradient(
-    rgba(245, 196, 74, 0.30),
-    rgba(93, 177, 255, 0.30));
+  /* Both — favour the running cue; left-border accent shows selection. */
+  background: #fff3cd;
+  box-shadow: inset 3px 0 0 #1a73e8;
 }
 .wf-list-empty {
   padding: 18px 12px;
   text-align: center;
-  color: var(--muted);
+  color: #888;
   font-style: italic;
 }
 
@@ -299,6 +307,16 @@ ol#log[data-min-level="error"] li[data-level="warn"]                        { di
 }
 .subtab-pane {
   /* Empty container; renderer.js fills it with .window-scale-wrap. */
+}
+/* Quick Look embed (window-host.js `embed` manifest entries): the iframe is
+   the whole pane. Height leaves room for the app header + subtab strip. */
+.subtab-pane.embed-pane { height: calc(100vh - 96px); }
+.subtab-pane.embed-pane .embed-frame {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border: 0;
+  background: #000;
 }
 
 /* View toggle */
@@ -397,19 +415,26 @@ ol#log[data-min-level="error"] li[data-level="warn"]                        { di
   line-height: 1;
 }
 
-/* Controls share the light theme; override the dark global button rules. */
+/* Controls share the light theme; override the dark global button rules.
+   font-size matches Cocoa's NSButton `cellTitle` metaFont (~11pt) so a
+   title shipped in the XIB at its exact frame width — e.g. PFS calTable
+   "Execute Selected" in 111 px — fits on one line. white-space: nowrap
+   keeps the layout deterministic even when a future title is too long;
+   the text overflows rather than reflowing into a second line that
+   collides with siblings below. */
 .window-frame button.wf-button {
   background: linear-gradient(#fdfdfd, #e6e6e6);
   border: 1px solid #888;
   border-radius: 5px;
   color: #1a1a1a;
-  font-size: 12px;
-  padding: 0 6px;
+  font-size: 11px;
+  padding: 0 4px;
   cursor: pointer;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   line-height: 1;
+  white-space: nowrap;
   box-sizing: border-box;
   font-family: inherit;
 }
@@ -676,3 +701,104 @@ ol#log[data-min-level="error"] li[data-level="warn"]                        { di
 .window-frame .wf-unbound {
   box-shadow: 0 0 0 1px #d33, inset 0 0 0 1px rgba(221, 51, 51, 0.4);
 }
+
+/* ---------------- Landing page ----------------
+   Renders in landing.html — an instrument chooser served as an
+   alternative entry point to the SPA. Deliberately minimal — the
+   real work is in the per-instrument SPA. */
+main.landing {
+  max-width: 900px;
+  margin: 32px auto;
+  padding: 0 var(--gap);
+}
+.landing-hint {
+  font-size: 13px;
+  line-height: 1.5;
+  margin: 0 0 24px;
+}
+.landing-hint a { color: var(--accent); }
+
+.instrument-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 12px;
+  margin-bottom: 32px;
+}
+.instrument-card {
+  display: block;
+  background: var(--bg-2);
+  border: 1px solid var(--bg-3);
+  border-radius: 6px;
+  padding: 16px 18px;
+  color: inherit;
+  text-decoration: none;
+  transition: border-color 120ms, transform 80ms;
+}
+.instrument-card:hover {
+  border-color: var(--accent);
+  transform: translateY(-1px);
+}
+.instrument-card:active { transform: translateY(0); }
+.instrument-card h2 {
+  margin: 0;
+  font-size: 20px;
+  letter-spacing: 0.02em;
+  color: var(--accent);
+}
+.instrument-card .instrument-port {
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--muted);
+  margin: 2px 0 8px;
+}
+.instrument-card p {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.advanced { margin-top: 8px; }
+.advanced summary {
+  cursor: pointer;
+  color: var(--muted);
+  font-size: 13px;
+  padding: 4px 0;
+}
+.advanced form {
+  display: flex;
+  gap: 8px;
+  align-items: flex-end;
+  margin-top: 8px;
+  flex-wrap: wrap;
+}
+.advanced label {
+  display: flex;
+  flex-direction: column;
+  font-size: 11px;
+  color: var(--muted);
+  gap: 3px;
+}
+.advanced input {
+  background: var(--bg);
+  color: var(--fg);
+  border: 1px solid var(--bg-3);
+  border-radius: 3px;
+  padding: 4px 8px;
+  font-family: var(--mono);
+  font-size: 12px;
+  min-width: 140px;
+}
+.advanced button {
+  padding: 6px 14px;
+}
+.advanced .small { font-size: 11px; margin-top: 8px; }
+
+/* Back-to-landing arrow beside the app name in the SPA header. */
+.brand .brand-back {
+  color: var(--muted);
+  text-decoration: none;
+  margin-right: 8px;
+  font-size: 18px;
+  line-height: 1;
+}
+.brand .brand-back:hover { color: var(--accent); }

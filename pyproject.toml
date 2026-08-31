@@ -1,0 +1,17 @@
+[project]
+name = "lco-instrument-web"
+version = "0.1.0"
+description = "Python tooling for the LCO instrument web SPA (static server, xib2ir, Access policy sync)"
+requires-python = ">=3.10"
+dependencies = [
+    "pyyaml>=6.0",
+    "xib2ir",
+    "imageweb",
+]
+
+[tool.uv.sources]
+xib2ir = { workspace = true }
+imageweb = { workspace = true }
+
+[tool.uv.workspace]
+members = ["tools/xib2ir", "imageweb"]

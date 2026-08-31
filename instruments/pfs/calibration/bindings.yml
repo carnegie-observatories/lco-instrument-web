@@ -76,4 +76,8 @@ outlets:
       path: reverse
     write:
       cmd: calibration_set_reverse
-      args: { on: $state }
+      # NOTE: "on" must be quoted — YAML 1.1 parses bare `on:` / `off:`
+      # / `yes:` / `no:` as booleans, so without the quotes the arg
+      # key landed in the IR as `true` and the router's args[@"on"]
+      # lookup found nothing. Same trap we hit on PFS popup_pmt.
+      args: { "on": $state }

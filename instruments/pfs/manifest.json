@@ -2,6 +2,7 @@
   "app": "pfs",
   "windows": [
     { "id": "camera",      "title": "Camera",      "layout": "camera.layout.json",      "default": true },
-    { "id": "calibration", "title": "Calibration", "layout": "calibration.layout.json" }
+    { "id": "calibration", "title": "Calibration", "layout": "calibration.layout.json" },
+    { "id": "quicklook",   "title": "Quick Look",  "embed": "/image/pfs/" }
   ]
 }

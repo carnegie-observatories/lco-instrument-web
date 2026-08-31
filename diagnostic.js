@@ -3,7 +3,7 @@
 // the position-faithful main-window view (renderer.js — future phase).
 //
 // Usage: open in browser with ?host=&port= query params, e.g.
-//        index.html?host=localhost&port=52403
+//        app.html?host=localhost&port=52403
 
 import {
   url, connect, cmd, subscribe,
@@ -105,9 +105,16 @@ onLog((level, ...parts) => log(level, ...parts));
 // a single CSS rule on the parent <ol>.
 const formatLogTs = (iso) => {
   if (!iso) return "";
-  // Server emits ISO-8601 UTC with ms. For dense scanning, drop the
-  // date prefix and milliseconds; keep just HH:MM:SS to match the
-  // SPA-internal entries.
+  // Server emits ISO-8601 UTC with ms. Convert to LOCAL time for
+  // display so server rows line up with the SPA-internal rows
+  // (which use toLocaleTimeString). A previous revision regexed
+  // HH:MM:SS straight out of the ISO string — that showed UTC next
+  // to local timestamps and read as a clock inconsistency
+  // ("00:06:07" beside "5:06:09 PM" for the same instant).
+  const d = new Date(iso);
+  if (!Number.isNaN(d.getTime())) return d.toLocaleTimeString();
+  // Unparseable ts (shouldn't happen with a compliant server):
+  // fall back to the raw HH:MM:SS slice rather than hiding the row.
   const m = /T(\d{2}:\d{2}:\d{2})/.exec(iso);
   return m ? m[1] : iso;
 };
@@ -151,7 +158,7 @@ const applyLevelFilter = (min) => {
 const levelSelect = $("log-level");
 if (levelSelect) {
   levelSelect.addEventListener("change", () => applyLevelFilter(levelSelect.value));
-  applyLevelFilter(levelSelect.value || "debug");
+  applyLevelFilter(levelSelect.value || "warn");
 }
 
 // ---------------- topic UI ----------------
