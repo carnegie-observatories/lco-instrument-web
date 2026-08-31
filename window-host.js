@@ -9,6 +9,19 @@
 //   - Each window's layout JSON lives under `generated/<app>/<id>.json`
 //     (or whatever path the manifest entry's `layout` field resolves
 //     to, relative to the app dir).
+//   - An entry may carry `embed` (a path, e.g. "/image/pfs/") instead
+//     of `layout`: the tab lazy-mounts an iframe on that URL — the
+//     imageweb Quick Look — and posts {quicklook: "active"|"inactive"}
+//     to it on tab switches, so the embedded page opens its frame WS
+//     only while its tab is the active one. Unlike renderer tabs
+//     (kept subscribed while hidden — cheap JSON), the embed's stream
+//     is the expensive part; the iframe itself stays mounted so
+//     zoom/stretch and the last frame survive a tab switch. See
+//     docs/plans/image-viewer-plan.md § The Quick Look tab.
+//   - `?tab=<id>` pins the initial tab per page instance (overrides
+//     the localStorage last-tab, which every instance shares) and is
+//     written back on manual switches, so a browser window parked on
+//     one tab keeps it across reloads.
 //   - Tabs are lazy-mounted on first activation; once mounted, the
 //     host div stays in the DOM with display:none so subsequent
 //     reactivations are instant and the renderer's topic subscriptions
@@ -22,7 +35,7 @@
 // This avoids a special-case branch and lets multi-window apps (PFS,
 // LDSS3 follow-ups) drop in without SPA code changes.
 
-import { onHello } from "./ws.js";
+import { onHello, url as wsUrl } from "./ws.js";
 import { mountRenderer } from "./renderer.js";
 
 const ROOT_ID = "window-view";
@@ -79,6 +92,24 @@ const readLastTab = (app) => {
   catch (e) { return null; }
 };
 
+// The embed URL for an `embed` manifest entry. Behind the tunnel (https)
+// instruments are paths on the page's own hostname, so the path stands as-is;
+// in local/VPN dev the gateway is its own origin on the *instrument* host
+// (it runs beside the Cocoa app), port 8766. Cross-origin the iframe still
+// works — the embedded page falls back to inline decode without
+// crossOriginIsolated; the tunnel path gets the full decode pool.
+const embedUrl = (path) => {
+  if (window.location.protocol === "https:") return path;
+  let host = "127.0.0.1";
+  try { host = new URL(wsUrl).hostname || host; } catch (e) { /* keep default */ }
+  return `http://${host}:8766${path}`;
+};
+
+const postQuicklook = (tab, state) => {
+  try { tab.mount?.iframe?.contentWindow?.postMessage({ quicklook: state }, "*"); }
+  catch (e) { /* iframe gone mid-switch */ }
+};
+
 const writeLastTab = (app, id) => {
   try { localStorage.setItem(LS_KEY(app), id); } catch (e) { /* ignore */ }
 };
@@ -88,6 +119,12 @@ const writeLastTab = (app, id) => {
 const activateTab = (id) => {
   const tab = currentTabs.find(t => t.id === id);
   if (!tab) return;
+
+  // The outgoing tab, if it is an embed, stops transferring.
+  if (activeTabId && activeTabId !== id) {
+    const prev = currentTabs.find(t => t.id === activeTabId);
+    if (prev && prev.embed) postQuicklook(prev, "inactive");
+  }
 
   // Toggle display for all hosts; only the active one is visible.
   for (const t of currentTabs) {
@@ -110,6 +147,30 @@ const activateTab = (id) => {
   }
   activeTabId = id;
   writeLastTab(currentApp, id);
+  // Pin this instance's tab in the URL, so a reload lands here even if
+  // another instance rewrote the shared localStorage entry meanwhile.
+  const q = new URLSearchParams(window.location.search);
+  if (q.get("tab") !== id) {
+    q.set("tab", id);
+    try { history.replaceState(null, "", `${window.location.pathname}?${q}`); }
+    catch (e) { /* ignore */ }
+  }
+
+  if (tab.embed) {
+    if (!tab.mount) {              // first activation: mount the iframe
+      const iframe = document.createElement("iframe");
+      iframe.className = "embed-frame";
+      iframe.src = embedUrl(tab.embed);
+      tab.host.classList.add("embed-pane");
+      tab.host.appendChild(iframe);
+      tab.mount = { iframe, destroy: () => iframe.remove() };
+      // No "active" post here: the page starts active and only pauses on
+      // an explicit "inactive" (or its own visibilitychange).
+    } else {
+      postQuicklook(tab, "active");
+    }
+    return;
+  }
 
   if (tab.mount) return;            // already mounted; nothing more to do.
 
@@ -172,6 +233,7 @@ const buildTabs = (manifest) => {
       id: w.id,
       title: w.title || w.id,
       layout: w.layout,
+      embed: w.embed || null,
       isDefault: !!w.default,
       host,
       button,
@@ -182,11 +244,15 @@ const buildTabs = (manifest) => {
   root.appendChild(strip);
   for (const t of currentTabs) root.appendChild(t.host);
 
-  // Choose initial tab: stored last-selected if it still exists,
-  // else the manifest's `default: true`, else the first entry.
+  // Choose initial tab: the ?tab= URL param first (per-instance pin),
+  // then the stored last-selected if it still exists, then the
+  // manifest's `default: true`, else the first entry.
   let initial = null;
+  const urlTab = new URLSearchParams(window.location.search).get("tab");
   const stored = readLastTab(currentApp);
-  if (stored && currentTabs.find(t => t.id === stored)) {
+  if (urlTab && currentTabs.find(t => t.id === urlTab)) {
+    initial = urlTab;
+  } else if (stored && currentTabs.find(t => t.id === stored)) {
     initial = stored;
   } else {
     const def = currentTabs.find(t => t.isDefault);

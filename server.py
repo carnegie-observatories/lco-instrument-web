@@ -25,6 +25,18 @@ class NoStoreHandler(SimpleHTTPRequestHandler):
 
     def end_headers(self):
         self.send_header("Cache-Control", "no-store")
+        # Cross-origin isolation, tunnel mode only. The Quick Look iframe
+        # (imageweb) only gets crossOriginIsolated — SharedArrayBuffer for
+        # its decode pool — when the top-level document sends COOP/COEP
+        # too. Behind the tunnel everything shares one origin (instruments
+        # are paths), so this is safe; requests forwarded by cloudflared
+        # carry Cf-Ray. Local/VPN serving stays permissive: there the
+        # gateway is a different origin (its own port) and a COEP parent
+        # would refuse the iframe outright, while without COEP it embeds
+        # fine and the embedded page falls back to inline decode.
+        if "Cf-Ray" in self.headers:
+            self.send_header("Cross-Origin-Opener-Policy", "same-origin")
+            self.send_header("Cross-Origin-Embedder-Policy", "require-corp")
         super().end_headers()
 
 

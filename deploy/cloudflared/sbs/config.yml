@@ -1,0 +1,30 @@
+tunnel: 8dd766e0-8396-4465-b428-4bd0769025f0
+credentials-file: /Users/william/.cloudflared/8dd766e0-8396-4465-b428-4bd0769025f0.json
+
+ingress:
+  # instrument WebSockets: /<app>/ws → local WS port
+  - hostname: sbs.chimera.observer
+    path: ^/adc/ws$
+    service: http://localhost:52403
+  - hostname: sbs.chimera.observer
+    path: ^/dcu/ws$
+    service: http://localhost:51703
+  - hostname: sbs.chimera.observer
+    path: ^/pfs/ws$
+    service: http://localhost:51603
+  # whole web apps mounted under a path prefix (the app serves itself
+  # there: the gcam bridge mounts /guider/<gcamPG>/ per --guider flag;
+  # the imageweb gateway mounts /image/<instrument>/ per --instrument).
+  # Prefix rules go before the SPA catch-all; cloudflared forwards the
+  # path unchanged.
+  - hostname: sbs.chimera.observer
+    path: ^/guider(/.*)?$
+    service: http://127.0.0.1:8765
+  - hostname: sbs.chimera.observer
+    path: ^/image(/.*)?$
+    service: http://127.0.0.1:8766
+  # everything else on the hostname → SPA static files
+  - hostname: sbs.chimera.observer
+    service: http://localhost:8080
+  # required catch-all
+  - service: http_status:404

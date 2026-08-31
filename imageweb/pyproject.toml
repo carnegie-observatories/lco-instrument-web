@@ -1,0 +1,28 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "imageweb"
+version = "0.1.0"
+description = "Instrument image gateway: control-WS triggered CHZ1 frame streaming and the quick-look viewer"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "aiohttp>=3.9",
+    "astropy",
+    "chz1[stream]",
+    "numpy",
+    "zstandard",
+]
+
+[project.scripts]
+imageweb = "imageweb.server:main"
+
+# chz1 is unpublished; it is consumed from the astro-ph monorepo checkout, the
+# same way gcamweb (zwo/src/web) consumes it. Pin to a git ref when it publishes.
+[tool.uv.sources]
+chz1 = { path = "../../astro-ph-labs/astro-ph/packages/chz1" }
+
+[tool.hatch.build.targets.wheel]
+packages = ["imageweb"]

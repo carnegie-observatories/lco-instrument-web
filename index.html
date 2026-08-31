@@ -46,6 +46,29 @@
         <p class="muted">Planet Finder Spectrograph — Camera window
           (exposure + mechanics + PMT + focus) and Calibration list.</p>
       </a>
+
+      <a class="instrument-card" href="http://127.0.0.1:8766/image/pfs/" data-path="/image/pfs/">
+        <h2>PFS quick look</h2>
+        <div class="instrument-port">http://127.0.0.1:8766/image/pfs/</div>
+        <p class="muted">Science-frame viewer — imageweb gateway. Streams each
+          readout to the browser; also embedded as the Quick Look tab in the
+          PFS SPA. All instruments: <code>/image/</code>.</p>
+      </a>
+
+      <a class="instrument-card" href="http://127.0.0.1:8765/guider/gcam03/" data-path="/guider/gcam03/">
+        <h2>gcam03</h2>
+        <div class="instrument-port">http://127.0.0.1:8765/guider/gcam03/</div>
+        <p class="muted">Web guider — gcam bridge, test setup. A whole web
+          app under its own path on this hostname, not a WS endpoint.
+          All guiders: <code>/guider/</code>.</p>
+      </a>
+
+      <a class="instrument-card" href="http://127.0.0.1:8765/guider/gcam41/" data-path="/guider/gcam41/">
+        <h2>gcam41</h2>
+        <div class="instrument-port">http://127.0.0.1:8765/guider/gcam41/</div>
+        <p class="muted">Web guider — gcam bridge, test setup. Same bridge
+          process as gcam03; one <code>--guider</code> flag per camera.</p>
+      </a>
     </section>
 
     <details class="advanced">
@@ -84,6 +107,19 @@
         card.href = `app.html?ws_path=${encodeURIComponent(wsPath)}`;
         const portEl = card.querySelector(".instrument-port");
         if (portEl) portEl.textContent = wsPath;
+      }
+
+      // Whole web apps (data-path): services with their own UI, such
+      // as the gcam guiders, live under a path prefix on the same
+      // telescope hostname (/guider/<gcamPG>/). cloudflared forwards
+      // the path unchanged, so the app serves itself under that prefix
+      // (gcam bridge: one --guider gcamPG flag per camera; the list is
+      // at /guider/). Same hostname ⇒ the telescope's Access app
+      // already covers it; no DNS or policy change.
+      for (const card of document.querySelectorAll(".instrument-card[data-path]")) {
+        card.href = card.dataset.path;
+        const portEl = card.querySelector(".instrument-port");
+        if (portEl) portEl.textContent = card.dataset.path;
       }
     })();
 

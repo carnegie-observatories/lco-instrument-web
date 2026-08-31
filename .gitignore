@@ -7,3 +7,8 @@ __pycache__/
 .venv/
 *.egg-info/
 .secrets
+
+# cloudflared: tunnel *ingress* config is versioned under
+# deploy/cloudflared/<telescope>/; tunnel credentials never are.
+deploy/cloudflared/**/*.json
+cert.pem

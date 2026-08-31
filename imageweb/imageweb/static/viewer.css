@@ -1,0 +1,789 @@
+/* instrument quick look — this page's own sheet (adapted from gcamweb's viewer.css).
+ *
+ * The furniture rules (#bar, #panes, #controls, the inspectors, #histpanel, #help, #fatal) are
+ * @astro-ph-labs/viewer's example stylesheet, taken as-is so the package's panels look as their author
+ * laid them out. The `.ov-*` overlay colours come from the package's own overlay.css through the
+ * `--ov-*` tokens below. What is ours is at the bottom: the stream strip and the header panel.
+ */
+
+:root {
+  --bg: #0a0a0c;
+  --panel: #14141aee;
+  --line: #2a2a35;
+  --fg: #d8d8e0;
+  --dim: #8a8a98;
+  --accent: #6ee7b7;
+  --warn: #fbbf24;
+  --bad: #f87171;
+  --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+
+  /* The package's overlay, in this page's palette. One assignment per token and no rules at all,
+     which is the whole point of `overlay.css` naming its colours: a host that wants a different
+     graticule blue says so here rather than restating `.ov-grid-icrs`. */
+  --ov-grid-icrs: #749dc4;
+  --ov-label-fill: var(--fg);
+  --ov-label-halo: rgba(6, 9, 13, .85);
+  --ov-plot-line: var(--line);
+  --ov-plot-dim: var(--dim);
+  --ov-plot-trace: var(--accent);
+  --ov-warn: var(--warn);
+  --ov-font: 10px ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+}
+
+/* A 9600x6422 frame is normal here; nothing is ever allowed to produce a scrollbar. */
+html, body {
+  margin: 0;
+  height: 100%;
+  overflow: hidden;
+  background: var(--bg);
+  color: var(--fg);
+  font: 13px/1.45 ui-sans-serif, system-ui, sans-serif;
+}
+
+#view {
+  display: block;
+  width: 100vw;
+  height: 100vh;
+  cursor: crosshair;
+  touch-action: none; /* the wheel handler owns zoom; never let the page pan or pinch */
+}
+
+/* One SVG layer over the canvas for everything drawn on the frame: the graticule, the mode markers,
+   the leader line. Its viewBox is in CSS pixels. */
+#overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 4;
+  pointer-events: none;
+}
+/* The imexam markers. These are the page's own class names, not `shapes.js` output — the modes draw
+   an aperture and a cut line directly, because the geometry of "the box the centroid walked in" is
+   one circle and not worth a descriptor. */
+#overlay .cut { stroke: var(--accent); stroke-width: 1; opacity: .55; }
+#overlay .aperture { fill: none; stroke: var(--accent); stroke-width: 1.5; }
+#overlay .aperture.outer { stroke-dasharray: 4 5; opacity: .55; }
+#overlay .box { fill: none; stroke: var(--accent); stroke-width: 1.2; opacity: .8; }
+#overlay .iso { fill: none; stroke: var(--accent); stroke-width: 1; }
+/* A dark stroke under a marker, so it reads over both empty sky and a saturated star. */
+#overlay .halo { stroke: rgba(0, 0, 0, .75); stroke-width: 3; fill: none; }
+/* The leader from the anchor to the popover: a hint that the two belong together, not a rule. */
+#overlay .leader { stroke: var(--accent); stroke-width: .6; opacity: .3; }
+#overlay .leader-dot { fill: var(--accent); opacity: .45; }
+
+/* -- the readout ---------------------------------------------------------------------------------- */
+
+#bar {
+  position: fixed;
+  left: 16px;
+  bottom: 14px;
+  z-index: 6;
+  display: flex;
+  align-items: baseline;
+  gap: 18px;
+  pointer-events: none;
+  white-space: nowrap;
+  padding: 5px 11px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  backdrop-filter: blur(3px);
+  font-family: var(--mono);
+  font-size: 12.5px;
+  font-variant-numeric: tabular-nums;
+  color: var(--fg);
+}
+#bar.idle { opacity: .35; }
+#bar .grp { display: inline-flex; align-items: baseline; gap: 5px; }
+/* `display` on an id+class selector outranks the UA sheet's `[hidden] { display: none }`, so every
+   optional group in this bar — the WCS readout, the FOV, the scale bar, and the "warped" warning
+   that is the only place the picture and the readout are allowed to disagree — was showing
+   unconditionally. Nothing caught it because the frames that get looked at all have a WCS. */
+#bar .grp[hidden] { display: none; }
+#bar .grp.dim { color: var(--dim); }
+#bar i { font-style: normal; color: var(--dim); }
+/* Fixed widths so the numbers do not shuffle sideways as the cursor moves. */
+#bar b { font-weight: 500; min-width: 7ch; text-align: right; }
+#bar b.wide { min-width: 6ch; color: var(--accent); }
+#bar .grp.dim b { min-width: 0; }
+#bar .warn { color: var(--warn); }
+/* Drawn to the current zoom, so the length on screen is the length it claims. */
+#bar-scale-bar {
+  display: inline-block;
+  height: 6px;
+  min-width: 8px;
+  border: 1px solid var(--fg);
+  border-top: none;
+  opacity: .7;
+}
+#bar-fov[hidden], #bar-scale[hidden], #bar-sky[hidden] { display: none; }
+
+/* Keyboard cursor. The double ring reads over both an empty sky and a saturated star, which a
+   single-colour outline does not. */
+#crosshair, #mag-box {
+  position: fixed;
+  z-index: 5;
+  pointer-events: none;
+  /* border-box so the ring sits exactly on the texel rather than 1px outside it */
+  box-sizing: border-box;
+  border: 1px solid var(--accent);
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, .75), inset 0 0 0 1px rgba(0, 0, 0, .55);
+}
+#crosshair[hidden] { display: none; }
+#mag-box[hidden] { display: none; }
+
+/* -- the panes ------------------------------------------------------------------------------------
+ *
+ * DS9 sizes both at 128x128 and so do we. */
+
+#panes {
+  position: fixed;
+  right: 12px;
+  bottom: 14px;
+  z-index: 6;
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+}
+#panes .pane[hidden] { display: none; }
+/* The column strip owns the right edge while it is open, and everything else on that edge steps
+   aside. The strip has to span the canvas exactly — plot y *is* device y, which is the only thing
+   that makes the trace line up with the star beside it — so it cannot be the one to move. */
+body.cut-column #panes,
+body.cut-column #panels,
+body.cut-column #experiments { right: 194px; }
+/* overflow:hidden is what lets #panner-crop dim everything outside the crop with one huge shadow */
+#panes .frame {
+  position: relative;
+  width: 128px;
+  height: 128px;
+  overflow: hidden;
+  background: #0a0a0c;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+}
+#panes canvas { display: block; width: 128px; height: 128px; }
+#panner { cursor: crosshair; }
+#panes .cap {
+  display: block;
+  margin-top: 3px;
+  text-align: center;
+  font: 10px/1.4 var(--mono);
+  color: var(--dim);
+}
+#panes .cap b { font-weight: 500; color: var(--accent); }
+
+/* The region the main view is showing. Axis-aligned because the panner turns with the view. */
+#panner-rect {
+  position: absolute;
+  box-sizing: border-box;
+  pointer-events: none;
+  border: 1px solid var(--accent);
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, .7);
+}
+#panner-rect[hidden] { display: none; }
+
+/* The crop, when one is set: outlined, with everything outside it knocked back. */
+#panner-crop {
+  position: absolute;
+  box-sizing: border-box;
+  pointer-events: none;
+  border: 1px dashed var(--warn);
+  box-shadow: 0 0 0 9999px rgba(0, 0, 0, .55);
+}
+#panner-crop[hidden] { display: none; }
+
+/* Panner compass, WCS-derived and hidden without one.
+   Explicit size, not `inset: 0`: an inline SVG with no width/height attributes collapses to zero
+   under absolute positioning rather than stretching to its containing block. */
+#compass {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 128px;
+  height: 128px;
+  pointer-events: none;
+}
+#compass[hidden] { display: none; }
+#compass line { stroke: var(--accent); stroke-width: 1.2; opacity: .85; }
+#compass text { fill: var(--accent); font: 8px var(--mono); opacity: .9; }
+
+/* -- the controls panel ---------------------------------------------------------------------------- */
+
+#controls {
+  position: fixed;
+  top: 12px;
+  left: 12px;
+  /* wide enough for the five scale options on one row, which is the widest thing in here */
+  width: 262px;
+  max-height: calc(100vh - 24px);
+  overflow: auto;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 10px 12px;
+  backdrop-filter: blur(8px);
+  font-family: var(--mono);
+  font-size: 11.5px;
+  z-index: 7;
+}
+#controls[hidden] { display: none; }
+#controls header {
+  display: flex;
+  justify-content: space-between;
+  padding-bottom: 6px;
+  margin-bottom: 4px;
+  border-bottom: 1px solid var(--line);
+  color: var(--accent);
+}
+#controls section { margin: 10px 0 0; }
+#controls h4 {
+  margin: 0 0 5px;
+  font: 500 10px/1.4 var(--mono);
+  text-transform: uppercase;
+  letter-spacing: .07em;
+  color: var(--dim);
+}
+#controls .row { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; }
+#controls button {
+  font: inherit;
+  color: var(--dim);
+  background: #1c1c24;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  padding: 2px 6px;
+  cursor: pointer;
+}
+#controls button:hover { background: #2c2c38; color: var(--fg); }
+#controls button.on { color: #0a0a0c; background: var(--accent); border-color: var(--accent); }
+#controls #c-bar {
+  display: block;
+  width: 100%;
+  height: 14px;
+  margin: 6px 0 4px;
+  border: 1px solid var(--line);
+  border-radius: 3px;
+}
+#controls .chk { display: flex; align-items: center; gap: 5px; color: var(--dim); cursor: pointer; }
+#controls .chk input { accent-color: var(--accent); margin: 0; }
+#controls dl.cb {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0 8px;
+  margin: 0 0 5px;
+  color: var(--dim);
+}
+#controls dl.cb dd { margin: 0; text-align: right; color: var(--fg); font-variant-numeric: tabular-nums; }
+#controls .note { margin: 5px 0 0; color: var(--dim); font-size: 10px; line-height: 1.45; }
+#controls .grid4 { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; margin-top: 5px; }
+#controls .grid4 .num { margin-top: 0; }
+#controls .num {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 5px;
+  /* Without this the grid column sizes to a number input's default 20-character min-content and
+     the x and w cells come out twice the width of y and h. */
+  min-width: 0;
+  color: var(--dim);
+}
+#controls .num input {
+  flex: 1;
+  width: 100%;
+  min-width: 0;
+  font: inherit;
+  color: var(--fg);
+  background: #1c1c24;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  padding: 1px 4px;
+  font-variant-numeric: tabular-nums;
+}
+#controls .num input:focus { outline: 1px solid var(--accent); }
+#controls .val { margin-left: auto; color: var(--fg); font-variant-numeric: tabular-nums; }
+#controls .hint {
+  color: var(--dim);
+  background: #22222c;
+  border: 1px solid var(--line);
+  border-radius: 3px;
+  padding: 0 3px;
+  font-size: 9.5px;
+}
+#controls button.on .hint { color: #0a0a0c; background: transparent; border-color: transparent; }
+
+/* -- the experiments panel -------------------------------------------------------------------------
+ *
+ * Top right, opened deliberately with `e`. Same idiom as #controls and a different corner, because
+ * the two are read against each other: a setting on the left, an effect on the right. */
+
+#experiments {
+  position: fixed;
+  top: 12px;
+  right: 12px;
+  width: 246px;
+  max-height: calc(100vh - 24px);
+  overflow: auto;
+  z-index: 8;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 10px 12px;
+  backdrop-filter: blur(8px);
+  font-family: var(--mono);
+  font-size: 11.5px;
+}
+#experiments[hidden] { display: none; }
+/* a standing reminder that the picture and the readout have been allowed to disagree */
+#experiments.warping { border-color: var(--warn); }
+#experiments header {
+  display: flex;
+  justify-content: space-between;
+  padding-bottom: 6px;
+  margin-bottom: 4px;
+  border-bottom: 1px solid var(--line);
+  color: var(--accent);
+}
+#experiments section { margin: 10px 0 0; padding-top: 8px; border-top: 1px solid var(--line); }
+#experiments h4 { margin: 0 0 6px; font: 500 11px/1.4 var(--mono); color: var(--fg); }
+#experiments h4 .chk { color: var(--fg); }
+#experiments .row { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; }
+#experiments .note { margin: 6px 0 0; color: var(--dim); font-size: 10px; line-height: 1.45; }
+#experiments .note b { color: var(--fg); font-weight: 500; font-variant-numeric: tabular-nums; }
+#experiments .chk { display: flex; align-items: center; gap: 5px; color: var(--dim); cursor: pointer; }
+#experiments .chk input { accent-color: var(--accent); margin: 0; }
+#experiments .val { margin-left: auto; color: var(--fg); font-variant-numeric: tabular-nums; }
+#experiments button {
+  font: inherit;
+  color: var(--dim);
+  background: #1c1c24;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  padding: 2px 6px;
+  cursor: pointer;
+}
+#experiments button:hover { background: #2c2c38; color: var(--fg); }
+#experiments button.on { color: #0a0a0c; background: var(--accent); border-color: var(--accent); }
+
+/* `panel.js`'s `slider()`, which is why this is a bare class and not `#experiments .fx-slider`:
+   any panel in the package may emit one. */
+.fx-slider {
+  display: grid;
+  grid-template-columns: 4.5em 1fr 5em;
+  align-items: center;
+  gap: 6px;
+  margin-top: 4px;
+  color: var(--dim);
+  font-size: 10.5px;
+}
+.fx-slider input { width: 100%; accent-color: var(--accent); }
+.fx-slider b {
+  font-weight: 500;
+  color: var(--fg);
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+/* -- the measurement panels -------------------------------------------------------------------------
+ *
+ * One column, bottom-up, on the right above the panes: #controls is tall and fixed on the left, and
+ * these grow upward, so left would collide with it every time both were open. */
+
+#panels {
+  position: fixed;
+  right: 12px;
+  bottom: 176px;
+  z-index: 7;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: calc(100vh - 200px);
+}
+#histpanel {
+  width: 360px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  backdrop-filter: blur(8px);
+  font-family: var(--mono);
+  font-size: 11.5px;
+}
+#histpanel[hidden] { display: none; }
+
+/* The inspector is positioned by viewer.js: a popover beside the centroid for r/c/d, a docked strip
+   along the cut axis for x/y. Both share the chrome; only the frame differs. */
+.inspector {
+  position: fixed;
+  z-index: 8;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  backdrop-filter: blur(8px);
+  font-family: var(--mono);
+  font-size: 11.5px;
+}
+.inspector[hidden] { display: none; }
+.inspector[data-shape="popover"] { width: 360px; }
+/* The strips span an axis and must be *registered* with it: no border and no padding across the
+   spanning direction, or the trace sits a few pixels off the pixels it describes.
+
+   And they are quiet. A strip is a *ruler* laid over the frame, not a panel sitting on top of it:
+   two of them plus a popover is three opaque slabs over the picture, and the picture is the thing
+   being measured. So no panel fill, no blur, no border — a faint wash so the trace stays readable
+   over a bright field, the axis, and the line. The furniture appears on hover, when you have
+   reached for it. */
+.inspector[data-shape="strip"] {
+  border-radius: 0;
+  display: flex;
+  flex-direction: column;
+  background: linear-gradient(to top, rgba(10, 10, 13, .62), rgba(10, 10, 13, .12));
+  border: none;
+  backdrop-filter: none;
+}
+.inspector[data-shape="strip"].vertical {
+  background: linear-gradient(to left, rgba(10, 10, 13, .62), rgba(10, 10, 13, .12));
+}
+.inspector[data-shape="strip"] header,
+.inspector[data-shape="strip"] .ins-stats {
+  opacity: .38;
+  transition: opacity .12s ease-out;
+}
+.inspector[data-shape="strip"]:hover header,
+.inspector[data-shape="strip"]:hover .ins-stats { opacity: 1; }
+.inspector[data-shape="strip"] header { border-bottom: none; padding: 2px 8px; }
+.inspector[data-shape="strip"] .ins-label { font-size: 10px; }
+.inspector[data-shape="strip"] .ins-stats { font-size: 10px; }
+/* The axis and the mid-line are structure, not data: enough to read the trace against, no more. */
+.inspector[data-shape="strip"] .ins-body .ov-plot-axis { opacity: .35; }
+.inspector[data-shape="strip"] .ins-body .ov-plot-mid { opacity: .3; }
+.inspector[data-shape="strip"] .ins-body .ov-plot-tick { opacity: .55; }
+.inspector[data-shape="strip"] .ins-body { padding: 0; flex: 1; min-height: 0; }
+.inspector[data-shape="strip"]:not(.vertical) { border-left: none; border-right: none; }
+.inspector[data-shape="strip"] .ins-stats {
+  grid-template-columns: repeat(8, auto 1fr);
+  padding: 4px 10px 6px;
+}
+.inspector[data-shape="strip"] .ins-body .plot { height: 74px; }
+
+/* The column strip: narrow, full height, one stat per line.
+   The header and the stats *float over* the plot rather than taking rows from it — the plot has to
+   span the panel's whole height for its y to be device y, which is the only thing that makes the
+   trace line up with the star beside it. */
+.inspector.vertical { border-top: none; border-bottom: none; position: fixed; }
+.inspector.vertical .ins-body {
+  position: absolute;
+  inset: 0;
+  padding: 0;
+}
+.inspector.vertical .ins-body .plot { width: 100%; height: 100%; }
+.inspector.vertical header,
+.inspector.vertical .ins-stats {
+  position: absolute;
+  left: 0;
+  right: 0;
+  background: rgba(10, 10, 13, .72);
+  z-index: 1;
+}
+.inspector.vertical header { top: 0; padding: 2px 8px; border-bottom: none; }
+.inspector.vertical .ins-stats {
+  bottom: 0;
+  grid-template-columns: auto 1fr;
+  padding: 4px 8px 6px;
+  border-top: none;
+}
+
+/* The 3D surface: a live WebGPU canvas, so it is never rebuilt, only shown and hidden. */
+#surface {
+  display: block;
+  width: 100%;
+  height: 240px;
+  cursor: grab;
+  touch-action: none;
+}
+#surface.dragging { cursor: grabbing; }
+.ins-canvas[hidden] { display: none; }
+.ins-surface { padding: 0 10px 6px; }
+.ins-surface[hidden] { display: none; }
+.ins-surface .row { display: flex; align-items: center; gap: 6px; }
+.ins-surface button {
+  font: inherit;
+  color: var(--dim);
+  background: #1c1c24;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  padding: 2px 6px;
+  cursor: pointer;
+}
+.ins-surface button:hover { background: #2c2c38; color: var(--fg); }
+.ins-surface button.on { color: #0a0a0c; background: var(--warn); border-color: var(--warn); }
+.ins-surface .chk { display: flex; align-items: center; gap: 4px; color: var(--dim); cursor: pointer; }
+.ins-surface .chk input { accent-color: var(--accent); margin: 0; }
+.ins-surface .val { margin-left: auto; color: var(--fg); font-variant-numeric: tabular-nums; font-size: 10px; }
+
+/* the title bar is the drag handle */
+.inspector header { cursor: grab; user-select: none; }
+.inspector.dragging header { cursor: grabbing; }
+.inspector.dragging { user-select: none; }
+
+.inspector header, #histpanel header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 10px;
+  border-bottom: 1px solid var(--line);
+  color: var(--accent);
+  text-transform: lowercase;
+  letter-spacing: .04em;
+}
+.inspector header span:nth-child(2), #histpanel header span:nth-child(2) {
+  color: var(--dim);
+  font-size: 10.5px;
+  flex: 1;
+  font-variant-numeric: tabular-nums;
+}
+.inspector header button, #histpanel header button {
+  margin-left: auto;
+  width: 17px;
+  height: 17px;
+  padding: 0;
+  line-height: 1;
+  color: var(--dim);
+  background: #1c1c24;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  cursor: pointer;
+}
+.inspector header button:hover, #histpanel header button:hover { color: var(--fg); background: #2c2c38; }
+
+/* Sizes only. What a trace, an axis tick or an isoline is *coloured* is `overlay.css`'s, retinted by
+   the `--ov-*` block at the top — the demo restated all nine rules here and they were a third copy. */
+.ins-body, #hist-body { padding: 6px 8px 0; }
+.ins-body .plot { display: block; width: 100%; height: 118px; }
+.ins-body .contour-wrap { display: flex; gap: 9px; align-items: flex-start; }
+.ins-body .contour {
+  width: 150px;
+  height: 150px;
+  flex: none;
+  background: #05070a;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+}
+.ins-body .levels { display: flex; flex-direction: column; gap: 2px; color: var(--fg); font-size: 10px; }
+.ins-body .levels span { font-variant-numeric: tabular-nums; }
+
+.ins-stats {
+  display: grid;
+  grid-template-columns: auto 1fr auto 1fr;
+  gap: 1px 8px;
+  margin: 0;
+  padding: 6px 10px 8px;
+  border-top: 1px solid var(--line);
+  color: var(--dim);
+  font-size: 10px;
+}
+.ins-stats dt, .ins-stats dd { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ins-stats dd { margin: 0; color: var(--fg); text-align: right; font-variant-numeric: tabular-nums; }
+
+#hist-body .hist { display: block; width: 100%; height: 64px; }
+#hist-body .hist-fill { fill: rgba(110, 231, 183, .25); stroke: var(--accent); stroke-width: 1; }
+#hist-body .cut-lo { stroke: var(--bad); stroke-width: 1; }
+#hist-body .cut-hi { stroke: var(--fg); stroke-width: 1; }
+.hist-axis {
+  display: flex;
+  justify-content: space-between;
+  padding: 2px 10px 7px;
+  color: var(--dim);
+  font-size: 9.5px;
+  font-variant-numeric: tabular-nums;
+}
+
+/* -- the `?` screen ---------------------------------------------------------------------------------
+ *
+ * The one panel that is read rather than glanced at, so it is deliberately not dressed like the
+ * others: bigger type, an opaque card, and the text at the contrast the rest of the furniture trades
+ * away for translucency. */
+
+#help {
+  position: fixed;
+  inset: 0;
+  /* Over #open, the front door at 20. chrome.js inserts the furniture with `afterbegin`, so #help
+     lands before the door in DOM order and would otherwise paint under it — and `?` has to work
+     before a file has been chosen. */
+  z-index: 21;
+  display: grid;
+  place-items: center;
+  /* cc -> e6: under the lighter scrim a saturated frame lifted the surround to about #38393d and the
+     card sat in a bright halo, which is most of what made it hard to read. */
+  background: #05070ce6;
+  backdrop-filter: blur(3px);
+  font-family: var(--mono);
+  font-size: 13px;
+}
+#help[hidden] { display: none; }
+#help .card {
+  max-width: 560px;
+  max-height: calc(100vh - 48px);
+  overflow: auto;
+  padding: 18px 22px;
+  /* Opaque, not --panel's #14141aee: over a white frame that composites to about #161620 and every
+     ratio below drifts down. The shadow, not the alpha, is what lifts it off the picture. */
+  background: #14141a;
+  border: 1px solid #3a3a48;
+  border-radius: 12px;
+  box-shadow: 0 18px 48px #00000099;
+}
+#help .card.wide { max-width: min(1120px, calc(100vw - 32px)); }
+#help .groups { columns: 360px 2; column-gap: 38px; }
+#help .grp { break-inside: avoid; margin: 0 0 15px; }
+#help header {
+  display: flex; justify-content: space-between; gap: 24px; align-items: baseline;
+  margin-bottom: 14px; padding-bottom: 10px; border-bottom: 1px solid var(--line);
+  font-weight: 600; color: var(--fg);
+}
+#help .hint { color: #9aa2b4; font-size: 11.5px; font-weight: 400; }
+/* No top margin: `columns` starts each column with whatever falls there, and a margin on the first
+   heading in the second column would hang it below the first. `.grp` carries the gap instead. */
+#help h4 {
+  margin: 0 0 7px; font-size: 11px; text-transform: uppercase; letter-spacing: .08em;
+  color: #c4c9d6; font-weight: 600;
+}
+/* A two-column grid rather than a table, so the key column sizes itself to the widest binding and
+   the descriptions wrap under themselves. */
+.keys {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 6px 12px;
+  margin: 0;
+  align-items: baseline;
+}
+#help .keys dt { display: flex; flex-wrap: wrap; align-items: center; gap: 3px; }
+#help .keys dt i { color: #8f8f9e; font-style: normal; padding: 0 1px; }
+#help .keys dd { margin: 0; color: var(--fg); line-height: 1.5; text-align: left; }
+#help kbd {
+  font: inherit; line-height: 1.4;
+  color: #9ff0c6; background: #2b2b38;
+  border: 1px solid #4d4d63; border-bottom-color: #2a2a36;
+  border-radius: 4px; padding: 0 5px;
+}
+#help .note { margin: 7px 0 0; color: #9aa2b4; font-size: 12px; line-height: 1.5; }
+
+/* -- failure, and the front door --------------------------------------------------------------------- */
+
+#fatal {
+  position: fixed;
+  inset: 0;
+  z-index: 30;
+  display: grid;
+  place-content: center;
+  gap: 12px;
+  padding: 6vw;
+  background: var(--bg);
+  text-align: center;
+}
+#fatal[hidden] { display: none; }
+#fatal h1 { margin: 0; font-size: 20px; color: var(--bad); font-weight: 600; }
+#fatal p { margin: 0; max-width: 60ch; color: var(--dim); font-family: var(--mono); font-size: 12px; }
+
+
+/* -- ours: the stream strip along the top --------------------------------------------------------- */
+
+#strip {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 9;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 5px 14px;
+  background: var(--panel);
+  border-bottom: 1px solid var(--line);
+  backdrop-filter: blur(6px);
+  font: 12px var(--mono);
+  color: var(--fg);
+}
+#strip b { color: var(--accent); font-weight: 600; }
+#strip .dim { color: var(--dim); }
+#strip .bad { color: var(--bad); }
+#strip .grow { flex: 1; }
+#strip label { display: flex; align-items: center; gap: 5px; color: var(--dim); }
+#strip select, #strip button {
+  font: inherit;
+  color: var(--fg);
+  background: #1c1c24;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  padding: 1px 6px;
+  cursor: pointer;
+}
+#strip button:hover { border-color: var(--accent); color: var(--accent); }
+#strip button.on { color: #0a0a0c; background: var(--accent); border-color: var(--accent); }
+#strip a { color: var(--dim); text-decoration: none; }
+#strip a:hover { color: var(--accent); }
+#strip-rate { font-variant-numeric: tabular-nums; }
+
+/* The strip takes the top 30px, so everything pinned to the top steps down. The header panel
+   lives on the LEFT, and stops short of the bottom, so it can never cover the panner and the
+   magnifier (bottom right) or the readout bar (bottom left). The controls panel (`p`) sits beside
+   it rather than under it. */
+#hdr { top: 40px; left: 12px; max-height: calc(100vh - 120px); }
+#controls { top: 40px; left: 404px; max-height: calc(100vh - 52px); }
+
+/* -- ours: the header panel ----------------------------------------------------------------------- */
+
+#hdr {
+  position: fixed;
+  width: 380px;
+  overflow: auto;
+  z-index: 8;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 10px 12px;
+  backdrop-filter: blur(8px);
+  font: 11.5px var(--mono);
+  color: var(--fg);
+}
+#hdr[hidden] { display: none; }
+#hdr header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 8px;
+  padding-bottom: 6px;
+  margin-bottom: 4px;
+  border-bottom: 1px solid var(--line);
+  color: var(--accent);
+}
+#hdr header span { color: var(--dim); font-size: 10.5px; font-variant-numeric: tabular-nums; }
+#hdr header .bad { color: var(--bad); }
+#hdr header .warn { color: var(--warn); }
+#hdr h4 {
+  margin: 10px 0 4px;
+  font: 500 10px/1.4 var(--mono);
+  text-transform: uppercase;
+  letter-spacing: .07em;
+  color: var(--dim);
+}
+#hdr dl {
+  display: grid;
+  grid-template-columns: max-content 1fr 1.6fr;
+  gap: 1px 8px;
+  margin: 0;
+  align-items: baseline;
+}
+#hdr dt { color: var(--dim); white-space: nowrap; }
+#hdr dd { margin: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+#hdr dd.v { text-align: right; font-variant-numeric: tabular-nums; color: var(--fg); }
+#hdr dd.c { color: var(--dim); font-size: 10px; }
+/* Stale: the served flag says these are not being updated. Greyed, never hidden. */
+#hdr .stale { opacity: .4; }
+#hdr .banner {
+  margin: 6px 0 0;
+  padding: 4px 8px;
+  border-radius: 4px;
+  background: #2a1e1e;
+  color: var(--bad);
+  font-size: 10.5px;
+}
+#hdr .banner[hidden] { display: none; }
+

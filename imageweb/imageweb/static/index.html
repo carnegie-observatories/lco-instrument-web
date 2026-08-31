@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<link rel="icon" type="image/svg+xml" href="favicon.svg">
+<title>instrument — quick look</title>
+<!-- The package's own sheet first (overlay/plots emit class names and no colours), then ours. -->
+<link rel="stylesheet" href="../pkg/core/src/overlay/overlay.css">
+<link rel="stylesheet" href="viewer.css">
+</head>
+<body>
+
+<!-- Everything else on screen comes from `mountViewerChrome` (app.js), inserted *before* this
+     markup. These two are ours: the stream strip along the top and the header panel. -->
+<header id="strip">
+  <b id="strip-title">quick look</b>
+  <span id="strip-state" class="dim">connecting…</span>
+  <label>tier
+    <select id="tier">
+      <option value="lossless">lossless</option>
+      <option value="bin2">bin 2 · q 0.5</option>
+      <option value="bin4" selected>bin 4 · q 0.5</option>
+    </select>
+  </label>
+  <label>workers
+    <select id="workers">
+      <option value="0">inline</option>
+      <option value="2">2</option>
+      <option value="4" selected>4</option>
+    </select>
+  </label>
+  <span id="strip-rate" class="dim"></span>
+  <span class="grow"></span>
+  <button id="hdr-toggle" type="button" title="the header panel (k)">header</button>
+  <button id="help-toggle" type="button" title="every binding (?)">?</button>
+  <a href="../" class="dim" title="the other instruments this gateway serves">instruments</a>
+</header>
+
+<section id="hdr"></section>
+
+<!-- Import map: the gateway mounts the astro-ph monorepo's packages at <prefix>/pkg/, one level
+     above this page (<prefix>/<name>/), so the addresses are relative — the page never knows the
+     prefix. chz1 ships plain JS (ts/src); core and viewer resolve to their built dist/. The decode
+     worker and the wasm are NOT resolved through this map (workers ignore import maps); app.js
+     builds their URLs the same way. -->
+<script type="importmap">
+{
+  "imports": {
+    "@astro-ph-labs/chz1": "../pkg/chz1/ts/src/index.js",
+    "@astro-ph-labs/chz1/": "../pkg/chz1/ts/src/",
+    "@astro-ph-labs/core": "../pkg/core/dist/index.js",
+    "@astro-ph-labs/core/": "../pkg/core/dist/",
+    "@astro-ph-labs/viewer": "../pkg/viewer/dist/index.js",
+    "@astro-ph-labs/viewer/": "../pkg/viewer/dist/"
+  }
+}
+</script>
+<script type="module" src="app.js"></script>
+</body>
+</html>

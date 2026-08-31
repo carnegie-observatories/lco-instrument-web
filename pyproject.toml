@@ -6,10 +6,12 @@ requires-python = ">=3.10"
 dependencies = [
     "pyyaml>=6.0",
     "xib2ir",
+    "imageweb",
 ]
 
 [tool.uv.sources]
 xib2ir = { workspace = true }
+imageweb = { workspace = true }
 
 [tool.uv.workspace]
-members = ["tools/xib2ir"]
+members = ["tools/xib2ir", "imageweb"]

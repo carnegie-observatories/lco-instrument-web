@@ -228,7 +228,18 @@ cloudflared tunnel create clay-telescope
 
 ### 3. Write `~/.cloudflared/config.yml`
 
-One tunnel, one hostname; one path rule per instrument:
+The file is versioned per telescope under
+[`deploy/cloudflared/<telescope>/config.yml`](../deploy/cloudflared/README.md)
+— edit the committed copy, then install it:
+
+```sh
+cp deploy/cloudflared/clay/config.yml ~/.cloudflared/config.yml
+```
+
+Only the tunnel UUID and the ingress table live there; the
+credentials JSON and `cert.pem` never leave `~/.cloudflared/`
+(`.gitignore` enforces it). One tunnel, one hostname; one path rule
+per instrument:
 
 ```yaml
 tunnel: <UUID>
@@ -245,6 +256,12 @@ ingress:
   - hostname: clay.chimera.observer
     path: ^/adc/ws$
     service: http://localhost:52403
+
+  # --- whole web apps under a path prefix (gcam guiders, the
+  #     imageweb quick-look gateway) — before the SPA catch-all ---
+  - hostname: clay.chimera.observer
+    path: ^/image(/.*)?$
+    service: http://127.0.0.1:8766
 
   # --- everything else on the hostname → SPA static files ---
   - hostname: clay.chimera.observer
@@ -336,6 +353,44 @@ the safest place for it (the alternative, proxying WebSockets
 through the Python static server, would put hand-rolled proxy code
 in the control path for no gain).
 
+## Mounting a whole web app under a path (guider)
+
+Some services are not SPA instruments but complete web apps of their
+own — the gcam web guider (`http://127.0.0.1:8765/`) is one. They
+stay on the telescope hostname, under a path prefix, so the
+telescope's Access app already covers them and neither DNS nor the
+policy changes. cloudflared forwards the path **unchanged** (there is
+no prefix stripping), so the app itself must serve under the prefix
+— the gcam bridge does: one process, one `--guider gcamPG[@HOST[:PORT]]`
+flag per camera, each mounted at `/guider/gcamPG/` (list at `/guider/`,
+JSON at `/guider/guiders.json`, packages shared at `/guider/pkg/`).
+Two pieces:
+
+1. **Ingress rule**, before the SPA catch-all, in
+   `deploy/cloudflared/<telescope>/config.yml` (then install it):
+
+   ```yaml
+   - hostname: sbs.chimera.observer
+     path: ^/guider(/.*)?$
+     service: http://127.0.0.1:8765
+   ```
+2. **Landing-page card per guider**, `data-path="/guider/gcam03/"` —
+   on HTTPS it links to the path; on plain HTTP straight to
+   `127.0.0.1:8765/guider/gcam03/`. Adding a guider = a `--guider` flag
+   on the bridge + a card; the ingress rule already covers `/guider/*`.
+
+The mounted app must be prefix- and HTTPS-clean: page-relative URLs
+(`../pkg/…`, not `/pkg/…`) and `wss:` when the page is `https:`. The
+gcam bridge is; `cloudflared tunnel ingress rule
+https://sbs.chimera.observer/guider/pkg/chz1/index.js` should hit
+the guider rule, and `…/guider/gcam03` (no slash) redirects to
+`…/gcam03/`.
+
+A guider whose camera is on a *different* Mac should run its own
+bridge there (single `--guider`) behind a cloudflared replica with
+its own `^/guider/gcamPG(/.*)?$` rule, so frames never cross the LAN
+in cleartext — the same replica pattern as the instruments.
+
 ## Test telescope walkthrough (SBS)
 
 A complete worked example against a development Mac — the same
@@ -351,18 +406,10 @@ brew install cloudflared
 cloudflared tunnel login
 cloudflared tunnel create sbs-telescope
 
-# 3. ~/.cloudflared/config.yml — one instrument (ADC on 52403) to start
-cat > ~/.cloudflared/config.yml <<'EOF'
-tunnel: <UUID>
-credentials-file: /Users/<you>/.cloudflared/<UUID>.json
-ingress:
-  - hostname: sbs.chimera.observer
-    path: ^/adc/ws$
-    service: http://localhost:52403
-  - hostname: sbs.chimera.observer
-    service: http://localhost:8080
-  - service: http_status:404
-EOF
+# 3. ~/.cloudflared/config.yml — the committed copy carries all three
+#    instruments; set `tunnel:` / `credentials-file:` to the UUID
+#    printed in step 2 if you recreated the tunnel
+cp deploy/cloudflared/sbs/config.yml ~/.cloudflared/config.yml
 cloudflared tunnel ingress validate
 
 # 4. DNS — one record, one time

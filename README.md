@@ -42,6 +42,13 @@ Two views, toggled in the header:
   generic command form, live log pane streaming the app's `logs`
   topic. The first thing to open when something misbehaves.
 
+FITS-producing instruments (PFS today) additionally get a **Quick
+Look** sub-tab in the Window view: the imageweb gateway's viewer
+(see [imageweb/README.md](imageweb/README.md)) embedded
+in the SPA. Its frame stream is opened only while the tab is active —
+an instance parked on the Camera tab transfers no pixels — and
+`?tab=quicklook` pins a browser window to it.
+
 ## Repo layout
 
 | Path | Purpose |
@@ -55,6 +62,7 @@ Two views, toggled in the header:
 | `instruments/<app>/`       | per-app `manifest.json` + `bindings/*.yml` |
 | `generated/<app>/`         | per-window layout JSON, produced by xib2ir — committed, don't hand-edit |
 | `tools/xib2ir/`            | XIB → layout-JSON converter (Python, stdlib-only) |
+| `imageweb/`                | science-frame quick-look gateway (control-WS triggered CHZ1 streaming + viewer) |
 | `docs/plans/`              | design plans (protocol, XIB conversion, per-app audits) |
 
 ## Regenerating a layout
