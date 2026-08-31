@@ -46,6 +46,8 @@ telescopes:
     domain: sbs.chimera.observer
     allowed:
       - "*@carnegiescience.edu"
+      - "hreggiani@gmail.com"
+      - "ph.silva@gmail.com"
 
 # Per-telescope extras go straight into the same list, e.g.:
 #
