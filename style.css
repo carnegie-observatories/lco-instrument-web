@@ -199,6 +199,108 @@ ol#log[data-min-level="error"] li[data-level="warn"]                        { di
   padding: 2px 6px; font: inherit;
 }
 
+/* List / table widget. Scrollable column of records rendered as a
+   <table> when columns are declared (read-only cells, multi-row
+   selection). First consumer: PFS calTable in callist.xib. The
+   wrapper is positioned absolutely by renderer.js positionAbs; the
+   inner table is constrained to the wrapper's frame and scrolls
+   inside it. */
+.wf-list {
+  background: var(--bg-2);
+  border: 1px solid var(--bg-3);
+  border-radius: 4px;
+  overflow: auto;          /* H+V scroll on overflow */
+  font-size: 12px;
+}
+.wf-list-table {
+  border-collapse: collapse;
+  width: 100%;
+  font-family: var(--mono);
+}
+.wf-list-table thead th {
+  background: var(--bg-3);
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-size: 10px;
+  font-weight: 600;
+  text-align: left;
+  padding: 4px 8px;
+  border-bottom: 1px solid var(--bg);
+  position: sticky;
+  top: 0;
+  z-index: 1;              /* over scrolled rows */
+}
+.wf-list-table tbody td {
+  padding: 3px 8px;
+  border-bottom: 1px solid var(--bg-3);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  overflow: hidden;
+  max-width: 0;            /* required for ellipsis on table-layout */
+}
+.wf-list-table tbody tr {
+  cursor: pointer;
+  user-select: none;
+}
+.wf-list-table tbody tr:hover { background: var(--bg-3); }
+.wf-list-table tbody tr.is-selected {
+  background: rgba(93, 177, 255, 0.18);   /* --accent at low alpha */
+  color: var(--accent);
+}
+.wf-list-table tbody tr.is-running {
+  background: rgba(245, 196, 74, 0.18);   /* --warn at low alpha */
+  font-weight: 600;
+}
+.wf-list-table tbody tr.is-selected.is-running {
+  background: linear-gradient(
+    rgba(245, 196, 74, 0.30),
+    rgba(93, 177, 255, 0.30));
+}
+.wf-list-empty {
+  padding: 18px 12px;
+  text-align: center;
+  color: var(--muted);
+  font-style: italic;
+}
+
+/* Sub-tab strip — window-host.js builds this inside #window-view
+   from the per-app manifest. Sits above the per-tab renderer hosts.
+   Single-window apps (ADC, DCU today) still get a strip with one tab;
+   the goal is for additional XIBs (PFS calibration, target list, …)
+   to drop in as new tabs without SPA code changes. */
+.subtab-strip {
+  display: flex;
+  gap: 0;
+  padding: 8px var(--gap) 0;
+  border-bottom: 1px solid var(--bg-3);
+  flex-wrap: wrap;
+}
+.subtab {
+  background: var(--bg-2);
+  color: var(--fg);
+  border: 1px solid var(--bg-3);
+  border-bottom: 0;
+  border-radius: 4px 4px 0 0;
+  padding: 5px 12px;
+  margin-right: 2px;
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+  position: relative;
+  top: 1px;          /* overlap the strip's border-bottom on the active tab */
+}
+.subtab:hover { background: var(--bg-3); }
+.subtab.is-active {
+  background: var(--bg);
+  border-color: var(--bg-3);
+  border-bottom-color: var(--bg);
+  color: var(--accent);
+}
+.subtab-pane {
+  /* Empty container; renderer.js fills it with .window-scale-wrap. */
+}
+
 /* View toggle */
 .view-toggle { display: flex; gap: 0; }
 .view-toggle button {

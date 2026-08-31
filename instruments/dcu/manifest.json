@@ -1,0 +1,6 @@
+{
+  "app": "dcu",
+  "windows": [
+    { "id": "main", "title": "Main", "layout": "main.layout.json", "default": true }
+  ]
+}
