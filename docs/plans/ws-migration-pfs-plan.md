@@ -49,11 +49,13 @@ and [GraphController](/Users/william/workspace/pfs/src/PFS/GraphController.h)
 are out of scope.
 
 PFS produces FITS via Archon. **Image transfer is out of scope for this
-PR.** The WS surface can announce that a FITS file has been written (a
-lightweight `exposure_complete` event carrying the on-disk path), but
-no bytes flow over the network from this PR. JS9, ImageHTTPServer, the
-`+3` port, and the `image_ready` event are all deferred to a future
-image-transfer PR.
+PR — and permanently out of scope for the Cocoa app.** The WS surface
+announces that a FITS file has been written (the `exposure_complete`
+event carrying the local absolute on-disk path); the imageweb
+WebSocket gateway ([image-viewer-plan.md](image-viewer-plan.md))
+consumes that event and does all transfer. JS9, ImageHTTPServer, the
+`+3` port, and the `image_ready` event are withdrawn, not deferred —
+no in-app HTTP server will be built.
 
 ### What's different from ADC/DCU
 
@@ -74,14 +76,15 @@ itself stays unchanged.
 
 Following the canonical formula (`50001 + PROJECT_ID*100`, WS at `+2`):
 
-| Instrument | PROJECT_ID | Legacy TCP | WS control | Image HTTP |
-|------------|------------|------------|------------|------------|
-| PFS        | 16         | 51601 (n/a) | **51603**  | 51604 (future) |
+| Instrument | PROJECT_ID | Legacy TCP | WS control |
+|------------|------------|------------|------------|
+| PFS        | 16         | 51601 (n/a) | **51603**  |
 
 `51601` is reserved by `PROJECT_ID*100` arithmetic but PFS has no legacy
 TCP server, so the slot is unused — documented here so it's not double-
-allocated to another instrument later. `51604` is reserved for the
-eventual image-transfer PR and should not be claimed by anything else.
+allocated to another instrument later. `51604` (once earmarked for an
+in-app image HTTP port) is released — image transfer goes through the
+imageweb gateway, which has its own single listen port per Mac.
 
 Add the PFS row to ws-migration-plan.md's port table as part of this PR.
 
@@ -416,17 +419,20 @@ adapted for PFS:
   start/end/pause/stop transitions to emit `event` frames:
   `exposure_started`, `exposure_paused`, `exposure_stopped`,
   `exposure_complete`. `exposure_complete` carries the on-disk
-  `fits_path` (string) for now — no `image_id` / `fits_url` / `shape` /
-  `dtype` fields. A future image-transfer PR will extend this event
-  with the URL fields; clients written against this PR should still
-  parse forward-compatibly (ignore unknown fields).
+  `fits_path` (string, local absolute) — and that is the finished
+  contract: the imageweb gateway consumes the file straight from
+  disk, so no `image_id` / `fits_url` / `shape` / `dtype` fields are
+  coming. Clients should still parse forward-compatibly (ignore
+  unknown fields).
 - **Multi-client alert** — same rule as ADC/DCU. Route to `main_logger`
   (a warning per client-count change) and add a small NSWindow notice
   in CameraController (the always-open window).
 
 **Explicitly not in this PR:**
-- `image_ready` events (no image transfer).
-- ImageHTTPServer / FITS bytes.
+- Image bytes in any form — transfer belongs to the imageweb gateway
+  ([image-viewer-plan.md](image-viewer-plan.md)); `image_ready` and
+  ImageHTTPServer are withdrawn from the roadmap entirely, not
+  deferred.
 - High-frequency state push (no graph window).
 
 ## Step D — `AppDelegate` wiring
@@ -579,10 +585,11 @@ Verification) against PFS, adapted:
 5. WS smoke (Python `lco-instrument-ws.PFSClient`): connect to 51603,
    subscribe to `exposure`/`readout`/`dewar`/`mechanics`, assert
    snapshot shapes, send each write command.
-6. **No image-port verification** — image transfer is out of scope.
+6. **No image-transfer verification** — transfer lives in the imageweb
+   gateway and is verified by that plan's own staging. Here the
    `exposure_complete` event carrying `fits_path` is the only check;
-   confirm the path matches what Archon wrote and the file exists on
-   disk.
+   confirm the path is absolute, matches what Archon wrote, and the
+   file exists on disk.
 7. Browser end-to-end via [lco-instrument-web](../..)
    Diagnostic view first, then the position-faithful Camera window
    once the layout JSON is generated. Verify every Step 0 row.
@@ -596,12 +603,12 @@ Verification) against PFS, adapted:
 
 ## Open questions
 
-1. **`exposure_complete.fits_path` format.** Absolute path? Path
-   relative to a documented data root? Forward-compatible with a
-   future image-transfer PR that adds `image_id` / `fits_url`?
-   Recommend: absolute path for this PR; the image-transfer PR adds
-   `image_id` as a new sibling field without removing `fits_path`,
-   so clients keep working.
+1. **`exposure_complete.fits_path` format.** **Resolved** by its
+   first consumer ([image-viewer-plan.md](image-viewer-plan.md)): a
+   local absolute path on the Mac that wrote the file. No `image_id` /
+   `fits_url` sibling fields are coming — the imageweb gateway reads
+   the path from the local disk, so URL minting never happens in the
+   Cocoa app.
 
 2. **InstrumentService init signature.** Plan above passes
    `initWithAppDelegate:`. Alternative is

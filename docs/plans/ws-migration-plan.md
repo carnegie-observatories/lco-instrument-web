@@ -13,7 +13,7 @@ The end-state goal is a browser-based control surface for the instruments, with 
 The chosen design:
 - **ObjC apps expose a WebSocket service**, JSON-framed, push-based for state, request/response for commands. As small as possible — no HTTP, no static asset serving on the WS port.
 - **A separate Python static server** (own small repo) serves the browser SPA static assets and is otherwise unaware of the WebSocket protocol. The browser connects directly from JS to the ObjC WS endpoint. Decoupling means the frontend can iterate independently and the ObjC code stays minimal.
-- **A separate HTTP image port** at `port + 3` serves raw FITS files (v2; not v1). Big binary data does not share the control WS. Display is the client's responsibility (JS9 today, a future webasm FITS viewer is its own v2+ project, out of scope here).
+- **Image transfer lives outside the Cocoa app entirely**, in the imageweb WebSocket gateway ([image-viewer-plan.md](image-viewer-plan.md)): a Python bridge on the same Mac that hears `exposure_complete` on the control WS, reads the FITS from the local disk, and streams chz1-encoded frames to browsers. Big binary data does not share the control WS, and the ObjC apps never grow an HTTP server. Display is the gateway's viewer page (client-side stretch; the backend has no opinion on rendering).
 - **The legacy line-protocol TCP server stays running in parallel** for one observing run so existing Python TCP clients keep working unchanged.
 
 **Lead rollout: ADC and DCU first.** They have the smallest external command surface (3 commands each) and produce no FITS, so the lead PR is a clean validation of the WSServer + InstrumentService + InstrumentRouter framework with minimal per-instrument complexity. Once that ships and is stable, the migration extends to Henrietta + Swope, then LDSS3 + MagE + MIKE (direct fits), then IFUM + M2FS once their legacy handlers are caught up.
@@ -77,7 +77,7 @@ The chosen design:
    └─────────────────────────┘    └─────────────────────────┘
 ```
 
-Ports (per app): keep legacy TCP at `50001 + PROJECT_ID*100`; add WS at `+2` and (v2, FITS-producing instruments only) image HTTP at `+3` so all three can run in parallel without colliding. ADC: TCP 52401, WS 52403, no image port (no FITS output). DCU: TCP 51701, WS 51703, no image port. Henrietta: TCP 52801, WS 52803, image 52804. Swope: TCP 51201, WS 51203, image 51204.
+Ports (per app): keep legacy TCP at `50001 + PROJECT_ID*100`; add WS at `+2` so both can run in parallel without colliding. ADC: TCP 52401, WS 52403. DCU: TCP 51701, WS 51703. Henrietta: TCP 52801, WS 52803. Swope: TCP 51201, WS 51203. There is no per-instrument image port: image transfer is the imageweb gateway's job (one process per Mac with its own single listen port — [image-viewer-plan.md](image-viewer-plan.md)).
 
 ## Applicability across the LCO Cocoa instrument suite
 
@@ -99,7 +99,7 @@ Survey of the broader set confirms the design generalizes. A direct fit means St
 Rollout order (confirmed):
 
 1. **Lead PR — ADC + DCU.** Smallest surface (3 commands each), no FITS, no wheels, no exposures. Validates the framework on the simplest cases and exposes design issues before larger instruments are touched.
-2. **Henrietta + Swope.** Full exposure/wheel coverage; first FITS-producing instruments; introduces the image port (§ Image transfer).
+2. **Henrietta + Swope.** Full exposure/wheel coverage; first FITS-producing instruments — their `exposure_complete` events make them the first gateway-served instruments (§ Image transfer).
 3. **LDSS3, MagE, MIKE.** Direct fits; mostly mechanical translation of their existing `tcpip_handler:` to InstrumentService methods.
 4. **IFUM, M2FS.** Only after their legacy handlers are caught up to LDSS3/MagE/MIKE parity. Catching them up is a separate, mechanical PR per instrument (copy LDSS3 handler shape, wire to existing `CCD_Controller`).
 
@@ -107,19 +107,19 @@ Rollout order (confirmed):
 
 **Out of scope: GuidePaddle.** It's a *client* of a remote TCS, not an instrument server. Nothing to migrate.
 
-Per-instrument port assignments (control WS = `+2`, image HTTP = `+3` only for FITS-producing instruments):
+Per-instrument port assignments (control WS = `+2`; no per-instrument image ports — see § Image transfer):
 
-| Instrument | PROJECT_ID | Legacy TCP | WS control | Image HTTP |
-|------------|------------|------------|------------|------------|
-| LDSS3      |  6         | 50601      | 50603      | 50604      |
-| MIKE       |  8         | 50801      | 50803      | 50804      |
-| Swope      | 12         | 51201      | 51203      | 51204      |
-| MagE       | 15         | 51501      | 51503      | 51504      |
-| DCU        | 17         | 51701      | 51703      | n/a        |
-| IFUM       | 18         | 51801      | 51803      | 51804      |
-| M2FS       | 18         | 51801      | 51803      | 51804      |
-| ADC        | 24         | 52401      | 52403      | n/a        |
-| Henrietta  | 28         | 52801      | 52803      | 52804      |
+| Instrument | PROJECT_ID | Legacy TCP | WS control |
+|------------|------------|------------|------------|
+| LDSS3      |  6         | 50601      | 50603      |
+| MIKE       |  8         | 50801      | 50803      |
+| Swope      | 12         | 51201      | 51203      |
+| MagE       | 15         | 51501      | 51503      |
+| DCU        | 17         | 51701      | 51703      |
+| IFUM       | 18         | 51801      | 51803      |
+| M2FS       | 18         | 51801      | 51803      |
+| ADC        | 24         | 52401      | 52403      |
+| Henrietta  | 28         | 52801      | 52803      |
 
 (IFUM and M2FS share `PROJECT_ID = 18` in their respective `main.h`. Pre-existing collision; if both run on the same host one needs a fresh ID. Not introduced by this plan but worth surfacing.)
 
@@ -153,9 +153,9 @@ Rules:
 
 ### Image data is not on the control WS
 
-FITS files do not flow over the control WebSocket. A multi-MB pixel array on the same socket as state pushes and command acks would stall the control channel. Image transfer happens on a dedicated HTTP-GET-only port at `port + 3` — see "Image transfer" section below for the full design.
+FITS files do not flow over the control WebSocket. A multi-MB pixel array on the same socket as state pushes and command acks would stall the control channel. Image transfer happens through the imageweb gateway — see "Image transfer" below.
 
-The control WS announces images via `event` frames carrying `image_id` / `shape` / `dtype` / URL; the client fetches the bytes from the image port. The control protocol stays JSON-only.
+The control WS announces images via the `exposure_complete` event carrying the local absolute `fits_path`; the gateway — a read-only localhost client of this same WS — picks the file up from disk and streams it to viewers. The control protocol stays JSON-only.
 
 (Live readout streaming — partial-image updates during a long readout — is a separate v3+ slice that this plan does not address.)
 
@@ -179,56 +179,22 @@ Topic snapshots:
 - `pressure` → `{value, unit:"mbar", timestamp}`
 - `exposure` → `{running, id, remaining_s, loop_left, fits_path}`
 
-## Image transfer (v2: dedicated HTTP port for FITS)
+## Image transfer (imageweb gateway — no HTTP server in the Cocoa app)
 
-FITS-producing instruments (Henrietta, Swope, LDSS3, MagE, MIKE, IFUM, M2FS) ship raw FITS files to clients over a separate read-only HTTP port at `50001 + PROJECT_ID*100 + 3`. Not part of the lead ADC+DCU rollout, and not part of v1 generally — v1 ships no image transfer at all — but specified now so the v1 control-WS message shapes (`image_id`, `shape`, `dtype`) are forward-compatible with v2 image events.
+*Revised 2026-08-30; supersedes the earlier "dedicated HTTP port at `+3`" design. Full design: [image-viewer-plan.md](image-viewer-plan.md).*
 
-**Display is the client's responsibility.** The backend serves raw FITS bytes. Today, JS9 (a mature browser-side JS FITS viewer) consumes HTTP-served FITS directly. A future small webasm-based custom FITS viewer is its own v2+ project, out of scope here. The point is that the backend has no opinion on rendering — no JPEG conversion, no zscale stretching, no preview generation. That keeps the ObjC code small and lets the rendering tech evolve independently.
+FITS-producing instruments ship images to browsers through the **imageweb WebSocket gateway**: a Python bridge running on the same Mac as the Cocoa app. It connects to the instrument's control WS as a read-only localhost client, waits for `exposure_complete`, reads the just-written FITS from the local disk, chz1-encodes it (lossless or bin+quantize tiers, negotiated per client), and pushes it to viewers over its own WebSocket — surfaced in the browser as the SPA's Quick Look tab.
 
-### Endpoint (port + 3)
+**The Cocoa app's entire contribution is the event.** `exposure_complete` fires after the FITS is closed on disk and carries `{id, fits_path}`, with `fits_path` local and absolute. That is the finished contract. The previously sketched `image_id` / `fits_url` / `shape` / `dtype` fields, the `image_ready` event name, the `GET /fits/<id>` endpoint, and the `ImageHTTPServer.{h,m}` implementation are **withdrawn** — nothing HTTP is ever built into the ObjC apps.
 
-```
-GET /fits/<image_id>   → full FITS file, supports HTTP Range, Content-Type: application/fits
-```
+Why this beats the in-app HTTP port:
 
-`<image_id>` is a stable opaque token issued by the backend at exposure-complete time; once minted it never changes. URLs are cacheable. The mapping `image_id → on-disk FITS path` is held by `InstrumentService`, the same place that knows the data path.
+- **Zero new ObjC surface.** No `Network.framework` HTTP parser, no routes, no `Range:` handling, nothing extra to audit in every app — the event already ships.
+- **Raw FITS never crosses the network.** A full frame (PFS: >200 MB) leaves the machine only as chz1 frames — single-digit MB at the display tier, lossless on demand — instead of raw bytes to every viewer.
+- **One deploy story.** The gateway sits behind the same Cloudflare Tunnel + Access path rules as the rest of the web surface; the Cocoa app exposes nothing new to the network.
+- **Rendering evolves without touching instrument code** — the same "backend has no opinion on rendering" goal the HTTP design had, moved one process out of the app.
 
-### Control-WS announces, image port serves
-
-After a readout completes, the control WS pushes:
-
-```
-{"type":"event","name":"image_ready","data":{
-   "image_id":"img_42",
-   "shape":[2048,2048],
-   "dtype":"uint16",
-   "fits_url":"http://<host>:<port+3>/fits/img_42",
-   "timestamp":"2026-..."
-}}
-```
-
-The client decides whether to fetch (with optional `Range:` header for partial reads) and how to render. JS9 takes the URL and renders.
-
-### Implementation sketch
-
-A new `ImageHTTPServer.{h,m}` in `src/Common/`, also built on `Network.framework`'s `NWListener`. Surface intentionally tiny:
-
-- Parse Request-Line + headers only (no POST, no cookies, no chunked encoding, no TLS).
-- One route (`/fits/<id>`).
-- Stream file body via `NWConnection sendData:` in chunks; honor a single `Range:` byte range if present.
-- `Content-Type: application/fits` (or `application/octet-stream`).
-- `Cache-Control: public, max-age=31536000, immutable` on `image_id`-keyed URLs.
-
-No image processing in the ObjC app. It maps `image_id` → path and streams the bytes.
-
-### Why HTTP, not a second WebSocket
-
-- JS9 and similar libraries consume HTTP-served FITS directly with `Range:` support. WS frames would require a custom adapter.
-- `Range:` requests give partial-FITS retrieval for free (huge for large multi-extension FITS).
-- Caching by immutable URL works correctly out of the box.
-- HTTP failure modes (timeout, retry, status code) are well-understood; reconnect logic on a dedicated image WS is custom code we'd have to write and test.
-
-The trade-off is an extra tiny HTTP server in the ObjC app — strictly read-only single-route GET, ~150 LOC. Instruments without image output (ADC, DCU) simply don't start it.
+Programmatic raw-FITS access (the old JS9-over-`Range:` use case) is not lost: software on the instrument Mac reads the file `fits_path` names; remote programmatic access, if ever wanted, is a gateway feature (it holds the path and the file) — not an ObjC one.
 
 ## Project rules
 
@@ -238,7 +204,7 @@ These constraints govern the migration so the WS work doubles as the foundation 
 2. **Source-of-truth lives in the backend.** The frontend (browser SPA, scripting client, future native UI) renders state pushed from the server. It does not cache, recompute, or invent state. If a frontend needs a derived value, the service computes it and pushes it.
 3. **No new GUI action bypasses the service.** Existing button handlers in `CameraController.m` and friends keep their direct calls for now (refactoring all of them is out of scope for this PR), but any new action added from this point on routes through `InstrumentService`. Over time the bypass shrinks naturally; it does not grow.
 4. **Protocol changes are versioned.** Use `protocol_version` in `hello`; document additions in a changelog kept next to the WS server source.
-5. **Image data lives on a dedicated HTTP port (`port + 3`), not the control WS.** v1 ships no image transfer at all; v2 adds the image port for FITS-producing instruments. The backend serves raw FITS only — display lives in the client (JS9 today, future webasm viewer is its own project). v1 control-WS message shapes (`image_id`, `shape`, `dtype`) are forward-compatible with v2 `image_ready` events, so v1 clients won't break when the image port arrives.
+5. **Image bytes never leave the Cocoa app — not on the control WS, not on an in-app HTTP port.** The control WS carries only the `exposure_complete` announcement (local absolute `fits_path`); the imageweb gateway does the transfer. The apps' single image-related obligation is emitting that event after the file is closed on disk.
 
 ## Implementation
 
@@ -460,7 +426,7 @@ Apply the same deprecation cadence to each subsequent instrument as it migrates 
 
 ### Subsequent rollout (Henrietta, Swope, then the rest)
 
-Mirror the lead structure in each instrument's `src/<Instrument>/Service/` and `src/Common/`. Henrietta/Swope additionally introduce `ImageHTTPServer.{h,m}` in `src/Common/` (the FITS port). LDSS3/MagE/MIKE/IFUM/M2FS pick that up the same way.
+Mirror the lead structure in each instrument's `src/<Instrument>/Service/` and `src/Common/`. Henrietta/Swope additionally wire the `exposure_complete` event (emitted post-FITS-close with the local absolute `fits_path`) — the hook the imageweb gateway consumes. LDSS3/MagE/MIKE/IFUM/M2FS pick that up the same way.
 
 ### Out of tree (standalone repos, lead PR ships first cut)
 
@@ -481,7 +447,7 @@ For the lead PR (ADC + DCU):
 8. **Idle leak** — leave WS server up 12h with one subscribed client; `lsof -p <pid> | wc -l` stays bounded; memory stable in Instruments.
 9. **On-instrument acceptance** — run ADC and DCU at the observatory for a full engineering shift driven by the WS client (production scripting switched), with TCP still up as fallback. Acceptance: completed shift, no operator-visible regressions vs. prior TCP control.
 
-For subsequent rollouts (Henrietta + Swope, etc.), redo Step 0 for that instrument's main window, then repeat 1–9. Henrietta/Swope additionally verify the image port: `GET /fits/<id>` returns the same bytes as the on-disk file, `Range:` requests work, and JS9 in the browser renders an exposure end-to-end.
+For subsequent rollouts (Henrietta + Swope, etc.), redo Step 0 for that instrument's main window, then repeat 1–9. Henrietta/Swope additionally verify the image path end-to-end through the gateway: take an exposure, confirm `exposure_complete` carries the correct absolute on-disk path, and see the frame render in the Quick Look tab ([image-viewer-plan.md](image-viewer-plan.md) staging).
 
 ## Long-term: backend/frontend transition (future, not this PR)
 
@@ -494,7 +460,7 @@ The transition is complete when the Cocoa app can launch with a `--headless` fla
 ### Stages after v1
 
 1. **Spike: one ambitious live-updating browser feature.** Pick something that exercises the live-state path hard — recommended candidate is a live temperature/pressure graph fed by the existing [Graph.xib](src/Henrietta/Graph.xib) timeseries. If the WS protocol can drive a real graph at the browser without lag or coalescing artifacts, it'll handle anything else. This is the most informative early-warning system for protocol design problems.
-2. **Image transfer (port + 3 HTTP).** Build the `ImageHTTPServer` specified in § Image transfer above. The QlTool image preview ([QltoolController.m](src/Henrietta/QlTool/QltoolController.m)) is the obvious first consumer, since it already does the FITS scaling/stretching that needs to move to the frontend.
+2. **Image transfer (imageweb gateway).** Deploy the gateway of § Image transfer beside each FITS-producing app. The QlTool image preview ([QltoolController.m](src/Henrietta/QlTool/QltoolController.m)) is the obvious first thing it replaces, since the FITS scaling/stretching it does belongs in the viewer.
 3. **Surface the rest of the GUI's functionality through `InstrumentService`.** Each remaining Cocoa screen — preferences, GalilHardhat motor diagnostics, exposure log windows, calibration workflows, detector bias configuration — gets exposed as topics + commands on WS. Unglamorous plumbing; budget for it explicitly. Expect a long tail.
 4. **Refactor existing GUI action methods onto `InstrumentService`.** Today's button handlers in `CameraController.m` bypass the service and call internal methods directly. For the headless future to work, those calls need to go through the service so the GUI is a regular client. Sequence it incrementally — every PR that touches a button handler also moves it onto the service. Months of mechanical work with no user-visible payoff; easy to lose momentum.
 5. **Headless build target.** Once 3 and 4 are far enough along, add a build configuration that compiles without UI frameworks. The first time it works, you'll discover which `dispatch_sync(MAIN_QUEUE, …)` calls actually depended on the main thread for UI reasons and need to be relaxed.
