@@ -9,6 +9,12 @@ place; creates on first run.
 Usage:
     export CLOUDFLARE_API_TOKEN=...   # needs "Access: Apps and Policies Write"
     python3 deploy/sync-access-policies.py                # sync all telescopes
+
+Note: for deployments that have a deployments/<name>.yml, the allowed
+list in access-policies.yml is GENERATED from that file by
+tools/generate_deploy_artifacts.py. Edit the deployment file and
+regenerate; edits made here are overwritten. Telescopes without a
+deployment file are still hand-maintained in access-policies.yml.
     python3 deploy/sync-access-policies.py --dry-run      # print, change nothing
     python3 deploy/sync-access-policies.py --telescope clay
     python3 deploy/sync-access-policies.py --allow-lockout  # permit empty allowed-lists
