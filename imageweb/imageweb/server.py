@@ -9,7 +9,9 @@ Cloudflare Tunnel that forwards paths unchanged (ingress
     /image/pfs/              the quick-look viewer for one instrument
     /image/pfs/ws            its CHZ1 frame stream
     /image/pfs/status        its status channel (JSON, once a second)
-    /image/pkg/{chz1,core,viewer}/         the JS packages, from the astro-ph monorepo
+    /pkg/{chz1,core,viewer}/ the JS packages, from the astro-ph monorepo -- at the root, not
+                             under the prefix, so the gateway can serve them once for every
+                             page (the guider pages use them too)
 
 Per instrument: a read-only client of the control WS (``exposure_complete``
 -> local ``fits_path``), a lazily-decoded latest-frame source, and per-client
@@ -34,8 +36,12 @@ from chz1.stream import Settings, isolation_headers, ws_handler
 
 log = logging.getLogger("imageweb")
 
-STATIC = Path(__file__).parent / "static"
-PAGES = ("index.html", "app.js", "header-panel.js", "viewer.css", "favicon.svg")
+# The viewer page is the repository's, not this package's: viewer/ at the
+# repo root is one assembly serving both quick look (this) and the guider
+# pages (the gateway), so it lives beside both. This package is a uv
+# workspace member of that repository and is never installed elsewhere.
+VIEWER = Path(__file__).resolve().parents[2] / "viewer"
+PAGE = "quicklook.html"
 # imageweb/imageweb/server.py -> workspace/ — the astro-ph monorepo
 # checkout, the same convention gcamweb uses.
 DEFAULT_ASTRO_PH = Path(__file__).resolve().parents[3] / "astro-ph-labs" / "astro-ph"
@@ -144,9 +150,11 @@ def instrument_app(name: str, host: str, port: int, args: argparse.Namespace) ->
 
     app.router.add_get("/ws", ws_handler)
     app.router.add_get("/status", status_ws)
-    app.router.add_get("/", page("index.html"))
-    for name_ in PAGES:
-        app.router.add_get(f"/{name_}", page(name_))
+    # The page, then the assembly's files beside it. The static route is a
+    # prefix resource, so it goes after the two channels above and after
+    # the page (a bare directory is a 403 to add_static, not an index).
+    app.router.add_get("/", page(PAGE))
+    app.router.add_static("/", VIEWER)
     app.on_startup.append(on_start)
     app.on_cleanup.append(on_stop)
     return app
@@ -154,7 +162,7 @@ def instrument_app(name: str, host: str, port: int, args: argparse.Namespace) ->
 
 def page(name: str):
     async def handler(request):
-        return web.FileResponse(STATIC / name)
+        return web.FileResponse(VIEWER / name)
     return handler
 
 
@@ -162,6 +170,13 @@ def redirect(location: str):
     async def handler(request):
         raise web.HTTPFound(location)
     return handler
+
+
+def mount_packages(app: web.Application, astro_ph: Path) -> None:
+    """/pkg/{chz1,core,viewer}/ from the astro-ph checkout -- one mount, shared
+    by every page that imports the viewer packages."""
+    for pkg in ("chz1", "core", "viewer"):
+        app.router.add_static(f"/pkg/{pkg}/", astro_ph / "packages" / pkg)
 
 
 def build_app(args: argparse.Namespace) -> web.Application:
@@ -195,10 +210,9 @@ li{{margin:.3rem 0}} ul{{padding-left:1.2rem}}</style>
     # Package roots from the astro-ph monorepo, so the import map reaches each
     # package's own layout: chz1 ships plain JS under ts/src; core and viewer
     # ship built JS under dist (npm run build in the checkout) plus core's
-    # overlay.css under src.
-    root.router.add_static(f"{prefix}/pkg/chz1/", args.astro_ph / "packages" / "chz1")
-    root.router.add_static(f"{prefix}/pkg/core/", args.astro_ph / "packages" / "core")
-    root.router.add_static(f"{prefix}/pkg/viewer/", args.astro_ph / "packages" / "viewer")
+    # overlay.css under src. Mounted at the root, where the gateway mounts
+    # them too, so the page's ../../pkg/ resolves the same way under either.
+    mount_packages(root, args.astro_ph)
     for name, sub in subs.items():
         root.router.add_get(f"{prefix}/{name}", redirect(f"{prefix}/{name}/"))  # relative URLs need the slash
         root.add_subapp(f"{prefix}/{name}/", sub)

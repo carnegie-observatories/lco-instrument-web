@@ -8,8 +8,10 @@ with a single front door, configured entirely by
 
     /                     SPA static files
     /config.json          the deployment, as the SPA consumes it
+    /pkg/{chz1,core,viewer}/  the viewer packages, once, for every page below
     /image/<app>/         quick-look viewer   — imageweb, in-process
-    /guider/<name>/       web guider          — gcam bridge, proxied
+    /guider/<name>/       web guider page     — served here; its ws/status/every/roi
+                                                proxied to gcamweb's /guider/<gcam_name>/
     /<app>/ws             instrument control  — proxied, --proxy-ws only
     /healthz              per-target liveness, over each target's own WebSocket
 
@@ -19,7 +21,13 @@ in-process — one control-WS client per instrument, sharing this event
 loop. The gcam bridge is not: it lives in carnegie-observatories/zwo,
 ships on its own release cadence, and vendoring another repo's service
 to avoid a loopback hop would be the wrong trade. It stays a separate
-process and this gateway reverse-proxies to it.
+process and this gateway reverse-proxies to it — the live channels only.
+The guider *page* is this repo's (viewer/guider.html, one assembly with
+quick look), served here under the guider's operational name: `pfs-sv`
+is what the camera is for, `gcam13` is gcamweb's addressing (rotator
+port 1, camera 3 — and cameras 3 and up are not the telescope's guiders
+but the instrument's own), so only the proxy side ever sees the latter.
+See docs/plans/guider-viewer-plan.md.
 
 The instrument WebSocket is proxied only under `--proxy-ws`. Without
 it, `/<app>/ws` is left to cloudflared exactly as before — see
@@ -150,17 +158,20 @@ async def proxy_http(request: web.Request, target: str) -> web.StreamResponse:
         return web.Response(status=502, text=f"upstream unreachable: {target}\n{e}\n")
 
 
-def make_proxy(upstream_base: str):
-    """Proxy this request's path+query unchanged to `upstream_base`.
+def make_proxy(target: str):
+    """Proxy this route to one fixed upstream URL, keeping the query string.
 
-    For the gcam bridge, which mounts itself at /guider/<name>/ and so
-    expects the path it was called with.
+    The route's own path is *not* forwarded: /guider/pfs-sv/ws lands on
+    gcamweb's /guider/gcam13/ws, so the rename between the operational
+    name and gcamweb's happens here and nowhere else. HTTP and WebSocket
+    alike (every, roi and status are the former; ws and status the
+    latter — gcamweb's status channel is a WebSocket).
     """
     async def handler(request: web.Request) -> web.StreamResponse:
-        target = f"{upstream_base}{request.rel_url}"
+        t = f"{target}?{request.query_string}" if request.query_string else target
         if request.headers.get("Upgrade", "").lower() == "websocket":
-            return await proxy_ws(request, target.replace("http://", "ws://", 1))
-        return await proxy_http(request, target)
+            return await proxy_ws(request, t.replace("http://", "ws://", 1))
+        return await proxy_http(request, t)
 
     return handler
 
@@ -252,6 +263,92 @@ def health_handler(config: dict, guider_upstream: tuple[str, int] | None):
 # app
 # --------------------------------------------------------------------------
 
+def mount_packages(app: web.Application, astro_ph: Path) -> bool:
+    """/pkg/{chz1,core,viewer}/ from the astro-ph checkout: one mount for
+    every viewer page (quick look and the guiders both address ../../pkg/).
+    Missing checkout -> no packages, and both kinds of page say so."""
+    if not all((astro_ph / "packages" / p).is_dir() for p in ("chz1", "core", "viewer")):
+        log.error("viewer packages unavailable: no astro-ph checkout at %s", astro_ph)
+        return False
+    for pkg in ("chz1", "core", "viewer"):
+        app.router.add_static(f"/pkg/{pkg}/", astro_ph / "packages" / pkg)
+    return True
+
+
+def mount_guiders(app: web.Application, config: dict, bridge: tuple[str, int]) -> None:
+    """The guider pages, and the proxies behind them.
+
+    Per guider, under its operational name: the page and the assembly's
+    files (viewer/, served static), and four routes proxied to gcamweb
+    under gcamweb's name -- ws and status (WebSockets), every and roi
+    (GET/POST settings). Above them, /guider/ and /guider/guiders.json
+    are generated here from the deployment joined with gcamweb's own
+    list, because the gateway knows names gcamweb does not and gcamweb
+    knows state the config does not. Route order matters throughout:
+    aiohttp takes the first match, and add_static is a prefix resource.
+    """
+    host, port = bridge
+    upstream = f"http://{host}:{port}/guider"
+    guiders = config["guiders"]
+
+    async def upstream_status(session: ClientSession) -> tuple[dict, str | None]:
+        try:
+            async with session.get(f"{upstream}/guiders.json", timeout=ClientTimeout(total=3)) as r:
+                body = await r.json()
+                return {g["name"]: g for g in body.get("guiders", [])}, None
+        except (OSError, ClientError, ValueError, KeyError) as e:
+            return {}, f"{type(e).__name__}: {e}"
+
+    async def rows(session: ClientSession) -> list[dict]:
+        seen, err = await upstream_status(session)
+        out = []
+        for g in guiders:
+            s = seen.get(g["gcam_name"])
+            out.append({
+                "name": g["name"], "title": g["title"], "path": g["path"],
+                "gcam_name": g["gcam_name"], "image_port": g["image_port"],
+                "bridge": "unreachable" if err else ("up" if s else "up, guider not served"),
+                "gcam": s.get("gcam") if s else None,
+                "last_seq": s.get("last_seq") if s else None,
+                "age_s": s.get("age_s") if s else None,
+                "every": s.get("every") if s else None,
+                "roi": s.get("roi") if s else None,
+                "clients": s.get("clients") if s else None,
+            })
+        return out
+
+    async def index(request: web.Request) -> web.Response:
+        items = []
+        for r in await rows(request.app["session"]):
+            state = (f'gcam {r["gcam"]}' + (f', frame #{r["last_seq"]}, {r["age_s"]} s ago' if r["last_seq"] is not None else "")
+                     if r["gcam"] else f'bridge {r["bridge"]}')
+            items.append(f'<li><a href="{r["name"]}/">{r["name"]}</a> — {r["title"]} '
+                         f'<span class="dim">(gcamweb {r["gcam_name"]}) · {state}</span></li>')
+        return web.Response(content_type="text/html", text=
+            "<!doctype html><meta charset=utf-8><title>web guiders</title>"
+            "<style>body{margin:0;padding:1.2rem;background:#0a0a0c;color:#d8d8e0;font:14px/1.6 ui-monospace,Menlo,monospace}"
+            "h1{font-size:1.1rem;color:#6ee7b7;margin:0 0 .6rem} a{color:#6ee7b7} .dim{color:#8a8a98;font-size:12px}</style>"
+            f"<h1>web guiders</h1><ul>{''.join(items)}</ul>")
+
+    async def guiders_json(request: web.Request) -> web.Response:
+        return web.json_response({"prefix": "/guider", "guiders": await rows(request.app["session"])})
+
+    app.router.add_get("/guider", lambda r: web.HTTPFound("/guider/"))
+    app.router.add_get("/guider/", index)
+    app.router.add_get("/guider/guiders.json", guiders_json)
+
+    async def guider_page(request: web.Request) -> web.StreamResponse:
+        return web.FileResponse(REPO / "viewer" / "guider.html")
+
+    for g in guiders:
+        base, target = f"/guider/{g['name']}", f"{upstream}/{g['gcam_name']}"
+        app.router.add_get(base, lambda r, to=f"{base}/": web.HTTPFound(to))  # relative URLs need the slash
+        app.router.add_get(f"{base}/", guider_page)
+        for channel in ("ws", "status", "every", "roi"):
+            app.router.add_route("*", f"{base}/{channel}", make_proxy(f"{target}/{channel}"))
+        app.router.add_static(f"{base}/", REPO / "viewer")
+
+
 def mount_imageweb(app: web.Application, config: dict, astro_ph: Path) -> list[str]:
     """Mount one imageweb instrument app per quick-look instrument.
 
@@ -269,9 +366,6 @@ def mount_imageweb(app: web.Application, config: dict, astro_ph: Path) -> list[s
     args = iw.parse_args([])                       # encoder defaults
     args.astro_ph = astro_ph
     args.prefix = "/image"
-
-    for pkg in ("chz1", "core", "viewer"):
-        app.router.add_static(f"/image/pkg/{pkg}/", astro_ph / "packages" / pkg)
 
     subs = {}
     for inst in quicklook:
@@ -314,11 +408,13 @@ def build_app(config: dict, args: argparse.Namespace) -> web.Application:
 
     app.router.add_get("/config.json", config_json)
 
+    # The viewer packages first: both kinds of page below import them.
+    packages = mount_packages(app, args.astro_ph)
+
     guider_upstream = None
     if config["guiders"] and not args.no_guiders:
         guider_upstream = (args.guider_host, args.guider_port)
-        app.router.add_route("*", "/guider/{tail:.*}",
-                             make_proxy(f"http://{args.guider_host}:{args.guider_port}"))
+        mount_guiders(app, config, guider_upstream)
 
     app.router.add_get("/healthz", health_handler(config, guider_upstream))
 
@@ -330,7 +426,7 @@ def build_app(config: dict, args: argparse.Namespace) -> web.Application:
             )
 
     mounted = []
-    if not args.no_imageweb:
+    if not args.no_imageweb and packages:
         try:
             mounted = mount_imageweb(app, config, args.astro_ph)
         except Exception as e:                       # noqa: BLE001 — report, don't die
@@ -395,7 +491,7 @@ def main() -> None:
         ql = f", quick look /image/{inst['app']}/" if inst["quicklook"] else ""
         print(f"  {inst['app']:<10} {inst['host']}:{inst['port']}  {inst['ws_path']} ({ws}){ql}")
     for g in config["guiders"]:
-        where = "disabled" if args.no_guiders else f"→ {args.guider_host}:{args.guider_port}"
+        where = "disabled" if args.no_guiders else f"page here, channels → {args.guider_host}:{args.guider_port}/guider/{g['gcam_name']}/"
         print(f"  {g['name']:<10} {g['path']} ({where})")
     print("  /config.json, /healthz, and the SPA at /")
 

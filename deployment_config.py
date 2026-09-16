@@ -75,18 +75,24 @@ def resolve(path: Path | str, ports: dict | None = None) -> dict:
 
     guiders = []
     for g in dep.get("guiders") or []:
-        # The path is gcamweb's name for the guider, not the operational
-        # one. gcamweb's --guider only accepts gcamPG (rotator-port digit +
-        # guider number), and it serves each under /guider/<that name>/, so
-        # the URL is not ours to choose. `name` stays the lco-ansible
-        # gcam_guiders name, which is what the .app bundle is called and
-        # what the inventory cross-check matches on.
-        web_name = g.get("gcam_name") or g["name"]
+        # Two names, two jobs. `name` is the operational one -- the
+        # lco-ansible gcam_guiders name, the .app bundle, what the inventory
+        # cross-check matches on -- and it is the URL, because it says what
+        # the camera is for (pfs-sv: the PFS slit viewer). `gcam_name` is
+        # gcamweb's addressing, gcamPG (rotator-port digit + guider number),
+        # which is the only form gcamweb's --guider accepts; the gateway
+        # serves the page under `name` and proxies the live channels to
+        # gcamweb under `gcam_name`. It is required: nothing else reaches
+        # the upstream, and an operational name can never be one.
+        if not g.get("gcam_name"):
+            raise DeploymentError(
+                f"{path}: guider {g['name']!r} has no gcam_name (gcamweb's gcamPG name for it)"
+            )
         guiders.append({
             "name": g["name"],
-            "gcam_name": web_name,
+            "gcam_name": g["gcam_name"],
             "title": g.get("title") or g["name"],
-            "path": f"/guider/{web_name}/",
+            "path": f"/guider/{g['name']}/",
             "host": g.get("address") or g["host"],
             # The command port (52200+gnum) is deliberately absent: it is
             # gcam's single-client text interface and nothing on the web

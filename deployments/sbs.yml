@@ -35,8 +35,8 @@ instruments:
     # here and nothing else changes.
 
 guiders:
-  - name: pfs-sv       # the lco-ansible gcam_guiders name (gcam-pfs-sv.app)
-    gcam_name: gcam13  # what gcamweb serves it as: rotator port 1, guider 3
+  - name: pfs-sv       # the lco-ansible gcam_guiders name (gcam-pfs-sv.app); the URL
+    gcam_name: gcam13  # gcamweb's name: rotator port 1, camera 3 -- proxy target only
     title: PFS slit viewer
     ini: pfs
     gnum: 3            # → commands 52203, image server 52303
