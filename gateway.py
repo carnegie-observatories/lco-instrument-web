@@ -84,7 +84,11 @@ async def no_store(request: web.Request, handler):
 
 async def proxy_ws(request: web.Request, target: str) -> web.WebSocketResponse:
     """Bridge a client WebSocket to an upstream one, both directions."""
-    client = web.WebSocketResponse(protocols=request.headers.get("Sec-WebSocket-Protocol", "").split(", ") or ())
+    # Only advertise subprotocols the client actually offered: passing a
+    # [""] from an absent header makes the handshake negotiate an empty
+    # protocol, which clients reject.
+    offered = [p for p in request.headers.get("Sec-WebSocket-Protocol", "").split(",") if p.strip()]
+    client = web.WebSocketResponse(protocols=[p.strip() for p in offered])
     await client.prepare(request)
     session: ClientSession = request.app["session"]
 
@@ -103,7 +107,11 @@ async def proxy_ws(request: web.Request, target: str) -> web.WebSocketResponse:
                         break
 
             # Whichever side closes first ends the pair; the other pump is
-            # cancelled rather than left waiting on a dead socket.
+            # cancelled rather than left waiting on a dead socket, and then
+            # awaited so cancellation has actually landed before the
+            # finally-block closes the client. (Hygiene, not a fix for an
+            # observed bug: killing the upstream mid-connection delivers the
+            # close to the browser with or without the await.)
             done, pending = await asyncio.wait(
                 [asyncio.create_task(pump(client, upstream, "client->upstream")),
                  asyncio.create_task(pump(upstream, client, "upstream->client"))],
@@ -111,6 +119,7 @@ async def proxy_ws(request: web.Request, target: str) -> web.WebSocketResponse:
             )
             for task in pending:
                 task.cancel()
+            await asyncio.gather(*pending, return_exceptions=True)
     except (OSError, asyncio.TimeoutError) as e:
         log.warning("proxy: upstream %s unreachable: %s", target, e)
     finally:
@@ -142,15 +151,32 @@ async def proxy_http(request: web.Request, target: str) -> web.StreamResponse:
 
 
 def make_proxy(upstream_base: str):
-    """Handler proxying this request's full path+query to `upstream_base`."""
-    def target_for(request: web.Request) -> str:
-        return f"{upstream_base}{request.rel_url}"
+    """Proxy this request's path+query unchanged to `upstream_base`.
 
+    For the gcam bridge, which mounts itself at /guider/<name>/ and so
+    expects the path it was called with.
+    """
     async def handler(request: web.Request) -> web.StreamResponse:
-        target = target_for(request)
+        target = f"{upstream_base}{request.rel_url}"
         if request.headers.get("Upgrade", "").lower() == "websocket":
             return await proxy_ws(request, target.replace("http://", "ws://", 1))
         return await proxy_http(request, target)
+
+    return handler
+
+
+def make_ws_proxy(host: str, port: int):
+    """Proxy /<app>/ws to an instrument's WS server, which listens at `/`.
+
+    The path must be *rewritten*, not forwarded: the Cocoa apps' WSServer
+    serves the root, so passing /pfs/ws through gets a 404 on the
+    handshake. cloudflared has the same rewrite in its ingress rule,
+    which is why this only shows up once the gateway takes the hop over.
+    """
+    target = f"ws://{host}:{port}/"
+
+    async def handler(request: web.Request) -> web.StreamResponse:
+        return await proxy_ws(request, target)
 
     return handler
 
@@ -244,7 +270,7 @@ def build_app(config: dict, args: argparse.Namespace) -> web.Application:
         for inst in config["instruments"]:
             app.router.add_get(
                 inst["ws_path"],
-                make_proxy(f"http://{inst['host']}:{inst['port']}"),
+                make_ws_proxy(inst["host"], inst["port"]),
             )
 
     mounted = []
