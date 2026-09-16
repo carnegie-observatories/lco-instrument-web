@@ -147,16 +147,117 @@ of this plan with no working precedent anywhere in the stack, and
 Phase 5 exists to find out whether it holds before anything depends
 on it.
 
+### The SBS gateway, concretely
+
+The host exists: **`sbs-instruments-gw`**, a freshly installed KVM VM.
+
+| | |
+|---|---|
+| OS | Ubuntu 24.04.2 LTS, x86_64, kernel 6.8.0 |
+| Address | `172.16.10.120/24` on `ens18`, reached via jump host `nuc` (`172.16.10.100`) |
+| Admin | `william`, passwordless sudo |
+| Installed | Python 3.12.3 |
+| **Not** installed | `uv`, `cloudflared`, `cifs-utils` |
+
+**Data comes over SMB.** The share is
+`//wschoenell@obshome/wschoenell`, where `obshome` is
+`userdata.obs.carnegiescience.edu` (`10.7.80.3`). It is already
+mounted on the instrument Mac at `/Volumes/wschoenell` — by `obs1`,
+the account PFS runs as — so the instrument-side path is real today
+and the gateway side is a mount away. Port 445 is **reachable from
+the gateway** (verified), which settles option (a)'s data half:
+
+```yaml
+fits_root:
+  instrument: /Volumes/wschoenell/DATA
+  gateway:    /mnt/obshome/wschoenell/DATA
+```
+
+**But PFS is not writing there yet.** `/Volumes/wschoenell/DATA`
+exists and is **empty**, created at the same moment as the mount, and
+PFS's preferences (`edu.carnegiescience.obs.PFS.plist`) carry no
+data-path key at all — only CCD and window settings. So where the
+FITS lands is a provisioning decision still open, which makes both
+shapes of option (a) genuinely available:
+
+| | **(a1)** mount `obshome` on the gateway | **(a2)** share the data dir *from the Mac* |
+|---|---|---|
+| Gateway mounts | `//obshome/wschoenell` → `/mnt/obshome/...` | `//sbs-inst1/DATA` → `/mnt/sbs-inst1/...` |
+| Network needed | gateway→`10.7.80.3:445` — **already works** | gateway→`10.7.129.58:445` — **blocked today** |
+| PFS change | must be pointed at `/Volumes/wschoenell/DATA` | none; it writes where it already writes |
+| Machines in the path | three (Mac, obshome, gateway) | two (Mac, gateway) |
+| Mac-side cost | none — the share is already mounted | enable File Sharing, a sharing account, SMB load during readout |
+
+(a2)'s blocked-network row looks decisive but is not: the gateway
+needs `10.7.129.58:51603` for the control WebSocket regardless, so
+that path has to be opened for *any* version of this plan. Once it
+is, (a2) costs nothing extra and removes a machine from the
+dependency chain.
+
+**Recommendation: (a1).** It works for the data half today,
+independent of the network fix, so the file pipeline can be proven
+before the routing question is settled; a central data server is
+where observatory data should land anyway (backups, access from
+elsewhere); and it asks nothing of the observer's Mac during
+readout. (a2) stays documented as the fallback if pointing PFS at
+the share turns out to be unwelcome — it becomes free the moment the
+network is fixed.
+
+Either way the **`fits_root:` mapping is the only thing that
+changes** in the deployment file, which is the point of having it.
+
+Two consequences for the ansible role. The Mac's mount is *per-user*
+(`mounted by obs1`, and unreadable by anyone else — `ls` as another
+user is `Permission denied`), so the gateway's must be a **system**
+mount — `/etc/fstab` or a systemd `.mount` unit — with `uid`/`gid`
+pinned to the gateway service account rather than inherited. And SMB
+needs **credentials**, which must not go anywhere near
+`deployments/sbs.yml`: they belong in the ansible vault, rendered to
+a root-owned `credentials=` file, exactly as the repo already handles
+`raspberry_password` and the instrument admin passwords.
+
+### ⚠ Blocker: the gateway cannot reach the instruments
+
+Verified in both directions, and it stops Phase 5 dead:
+
+| From | To | Result |
+|---|---|---|
+| `sbs-instruments-gw` (172.16.10.120) | `sbs-inst1` (10.7.129.58) ports 22, 51603, 8080 | **unreachable**, ICMP 100% loss |
+| `sbs-inst1` | `sbs-instruments-gw` ports 22, 8080 | **unreachable** |
+| `sbs-instruments-gw` | `obshome` (10.7.80.3) port 445 | **open** |
+
+The gateway has a route to `10.7.129.58` via `172.16.10.1` and the
+Mac has one back via `10.7.128.1`, but nothing passes — the two sit on
+networks with no path between them. So the gateway can read the FITS
+bytes but cannot open the control WebSocket that tells it a frame
+exists, cannot proxy `/<app>/ws`, and cannot health-check anything.
+
+Three ways forward, in order of preference:
+
+- **Add a second interface to the VM on the instrument network.** It
+  is a KVM guest; a bridged NIC on the instrument VLAN is the
+  smallest change, needs no firewall policy, and matches what a
+  production gateway wants anyway — one foot on the instrument LAN,
+  one where the tunnel terminates.
+- **Route and firewall between the two subnets.** The correct fix if
+  the gateway should stay single-homed, but it is a network-team
+  change with a wider blast radius than this plan.
+- **Do nothing yet.** Phases 0–4 all run on the Mac and are entirely
+  unaffected. This only has to be solved before Phase 5.
+
+Nothing in this plan should be scheduled past Phase 4 until one of
+the first two lands.
+
 ### What has to be portable
 
 | Concern | macOS (test) | Linux (production) |
 |---|---|---|
 | Service manager | launchd plist + `launchctl kickstart` | systemd unit + `systemctl` |
-| Install prefix | `/opt/homebrew` (arm64) | `/usr/local` or distro paths |
+| Install prefix | `/opt/homebrew` (arm64) | `/usr/local` (Ubuntu 24.04) |
 | Runtime | uv-managed venv | same |
-| Service account | `obs1` | dedicated `gateway` user |
+| Service account | `obs1` | dedicated `gateway` user (owns the mount uid) |
 | cloudflared | root launchd job | packaged systemd unit |
-| FITS access | local disk today | NFS/SMB mount (§ above) |
+| FITS access | `/Volumes/wschoenell` (obs1's SMB mount) | `/mnt/obshome/...` (system SMB mount) |
 
 Everything above the service manager is already portable: the gateway
 is Python, `uv` runs on both, and the SPA is static files. The
@@ -496,21 +597,22 @@ Only then does the rollout plan get written.
 
 ## Open questions
 
-1. **Which machine is the SBS Linux gateway?** The SBS inventory has
-   `office_bootsrv` (Ubuntu, 10.8.80.1) and Raspberry Pi camera
-   servers, none of which is an obvious gateway. Phase 5 needs a
-   host; a VM is fine.
-2. **Who exports the FITS directory, and over what?** NFS is simpler
-   between Linux and macOS than SMB for read-only, but the
-   instrument Macs' data directories and their export policy are not
-   documented anywhere this plan could find.
-3. **Does the gateway need the observatory VPN, or does it sit
+1. **How does the gateway reach the instrument network** — a second
+   NIC on the VM, or routing between the subnets? Blocks Phase 5 and
+   nothing earlier. (§ Blocker.)
+2. **Where should PFS write its FITS?** Nowhere today. Pointing it at
+   `/Volumes/wschoenell/DATA` chooses option (a1); leaving it local
+   chooses (a2). (§ The SBS gateway, concretely.)
+3. **Which SMB account does the gateway mount as?** The Mac mounts as
+   `wschoenell`, a person. A service account is the right answer for
+   an unattended mount, and its credentials go in the ansible vault.
+4. **Does the gateway need the observatory VPN, or does it sit
    outside?** It terminates the tunnel and reaches instrument LAN
    ports; where it sits relative to the VPN boundary is a security
    decision, and
    [security-models.md](https://github.com/carnegie-observatories/lco-ansible/blob/main/docs/plans/security-models.md)
    is the right place to settle it.
-4. **What happens to `--instrument NAME@HOST:PORT` and `--guider`?**
+5. **What happens to `--instrument NAME@HOST:PORT` and `--guider`?**
    Phase 2 folds them into the deployment file. Keeping them as
    development overrides is useful; keeping them as the *only*
    interface for a one-off is what this plan is trying to end.
