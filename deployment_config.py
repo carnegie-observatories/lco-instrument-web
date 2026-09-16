@@ -90,12 +90,18 @@ def resolve(path: Path | str, ports: dict | None = None) -> dict:
         "title": dep.get("title") or dep["name"],
         "domain": dep.get("domain"),
         "gateway_port": (dep.get("gateway") or {}).get("port", 8080),
-        # Where the quick-look and guider web apps live when the page is
-        # served over plain http. Behind the tunnel they are paths on the
-        # page's own hostname and these are unused. Separate processes
-        # today; Phase 2 folds both into the gateway port, and this is the
-        # one place that changes.
-        "dev_ports": {"image": 8766, "guider": 8765},
+        # No dev_ports. Quick look and the guiders used to be separate
+        # processes on 8766 and 8765, so a page served over plain http had
+        # to address them by port; the gateway now serves both on its own
+        # origin, so "/image/<app>/" and "/guider/<name>/" are relative
+        # paths that work identically behind the tunnel and on the LAN.
+        #
+        # Leaving the ports in was not harmless: the Quick Look iframe kept
+        # pointing at 127.0.0.1:8766, where nothing listens any more, so the
+        # tab loaded a dead origin, imageweb saw no viewers, and it logged
+        # "recorded ... (no viewers; decode deferred)" for every exposure.
+        # Consumers already fall back to the relative path when this key is
+        # absent, which is the correct behaviour in every deployment shape.
         "instruments": instruments,
         "guiders": guiders,
     }

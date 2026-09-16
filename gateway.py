@@ -240,13 +240,36 @@ def mount_imageweb(app: web.Application, config: dict, astro_ph: Path) -> list[s
     for pkg in ("chz1", "core", "viewer"):
         app.router.add_static(f"/image/pkg/{pkg}/", astro_ph / "packages" / pkg)
 
-    mounted = []
+    subs = {}
     for inst in quicklook:
         sub = iw.instrument_app(inst["app"], inst["host"], inst["port"], args)
         app.router.add_get(f"/image/{inst['app']}", iw.redirect(f"/image/{inst['app']}/"))
         app.add_subapp(f"/image/{inst['app']}/", sub)
-        mounted.append(inst["app"])
-    return mounted
+        subs[inst["app"]] = sub
+
+    # imageweb's build_app() also serves /image/ and /image/instruments.json;
+    # mounting instrument_app() directly skips them, and the index is what
+    # imageweb's README documents and the landing page links to.
+    def statuses():
+        return [sub["full_status"]() | {"host": sub["control"].host, "port": sub["control"].port}
+                for sub in subs.values()]
+
+    async def index(request):
+        rows = "".join(
+            f'<li><a href="{s["name"]}/">{s["name"]}</a> — control {s["host"]}:{s["port"]}, '
+            + (f'image #{s["last_seq"]}, {s["age_s"]} s ago' if s["last_seq"] is not None else "no image yet")
+            + "</li>"
+            for s in statuses())
+        return web.Response(content_type="text/html", text=
+            f"<!doctype html><meta charset=utf-8><title>instrument quick look</title>"
+            f"<h1>instrument quick look</h1><ul>{rows}</ul>")
+
+    async def instruments_json(request):
+        return web.json_response({"prefix": "/image", "instruments": statuses()})
+
+    app.router.add_get("/image/", index)
+    app.router.add_get("/image/instruments.json", instruments_json)
+    return list(subs)
 
 
 def build_app(config: dict, args: argparse.Namespace) -> web.Application:
