@@ -147,6 +147,59 @@ of this plan with no working precedent anywhere in the stack, and
 Phase 5 exists to find out whether it holds before anything depends
 on it.
 
+### Could it just run on the Mac?
+
+Yes — natively — and that is what Phases 0–4 do. Two variants were
+considered and one is rejected.
+
+**Natively on the instrument Mac: recommended for SBS.** Every target
+becomes loopback, so the § Blocker below stops mattering; imageweb's
+"local and absolute by contract" `fits_path` holds unchanged, so
+there is no SMB mount, no `fits_root:` mapping and no credentials to
+vault. It is by a wide margin the cheapest route to a working
+deployment, and it is the shape the repo already assumes.
+
+**In Docker on the Mac: rejected.** It buys Linux parity, and pays
+for it in the wrong currency:
+
+- The Mac is an **Apple M2 with 8 GB of RAM**, shared with PFS, the
+  guider GUI and X11. Docker Desktop runs a full Linux VM that
+  reserves 2–4 GB of that — on the machine controlling the telescope.
+- **No container runtime is installed** (no docker, colima, podman or
+  orbstack). This is new infrastructure on an instrument console, not
+  reuse of something already there.
+- **The FITS bind-mount is the likely failure.** The file lives on an
+  SMB mount (`/Volumes/wschoenell`); bind-mounting a network mount
+  through Docker Desktop's file-sharing layer is exactly the case
+  that misbehaves.
+- **Container→host networking is a special case on macOS.**
+  Instruments on the host's `localhost` are reached as
+  `host.docker.internal`, and `--network host` is not properly
+  supported on Docker Desktop for Mac. Every instrument URL would
+  need a macOS-only translation — precisely the per-deployment
+  special-casing this plan exists to delete.
+
+Better parity is available for free: run the real thing on the real
+Linux VM when the network allows, rather than approximating Linux
+inside the Mac.
+
+**So why keep the Linux gateway at all?** One reason, and it is not
+performance: cloudflared terminates an internet-facing tunnel, and
+terminating it on the machine that controls the telescope is a
+security boundary worth not crossing. That argument survives
+regardless of where the gateway is convenient to run, and it is why
+the Linux host stays the production target — see
+[security-models.md](https://github.com/carnegie-observatories/lco-ansible/blob/main/docs/plans/security-models.md).
+
+Worth noting what the tunnel does *today*: the committed
+`deploy/cloudflared/sbs/config.yml` has
+`credentials-file: /Users/william/.cloudflared/…`, and cloudflared is
+installed on the **developer workstation**, not on `sbs-inst1` and
+not on the VM. The current "SBS deployment" terminates on a laptop
+and proxies to services on that laptop. Moving it onto the Mac
+(Phase 2) or the VM (Phase 5) is an improvement over both, and
+neither is the status quo.
+
 ### The SBS gateway, concretely
 
 The host exists: **`sbs-instruments-gw`**, a freshly installed KVM VM.
@@ -525,8 +578,8 @@ policy generated from the deployment file. *Verification:* the
 generated SBS config is byte-identical to the committed one, modulo
 the Phase-3 collapse.
 
-**Phase 5 — split the host.** Move the gateway off `sbs-inst1` onto a
-Linux machine: mount the instrument's data directory, set
+**Phase 5 — split the host (optional for the gate).** Move the
+gateway off `sbs-inst1` onto the Linux VM: mount the instrument's data directory, set
 `fits_root:`, move cloudflared, prove quick look still works across
 the network. This is the phase that tests § Gateway host option (a),
 and the phase most likely to send the plan back for revision.
@@ -545,11 +598,12 @@ generator diff run on every PR.
 ## Validation gate
 
 Before any other deployment is written, SBS must have run a real
-observing-shaped session on the Linux gateway:
+observing-shaped session — on the Mac gateway, with the Linux VM
+still optional:
 
 - every instrument in `sbs.yml` connects, commands ack, state updates
-- a full exposure completes and renders in quick look from the
-  mounted path
+- a full exposure completes and renders in quick look (from local
+  disk on the Mac; from the mounted path if Phase 5 has landed)
 - the guider streams
 - the gateway survives an instrument app restart, a gateway service
   restart, and a tunnel reconnect
