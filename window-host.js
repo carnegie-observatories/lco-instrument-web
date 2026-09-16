@@ -9,6 +9,11 @@
 //   - Each window's layout JSON lives under `generated/<app>/<id>.json`
 //     (or whatever path the manifest entry's `layout` field resolves
 //     to, relative to the app dir).
+//   - The manifest describes the *app*, identically at every telescope,
+//     so it carries no Quick Look tab. Whether this deployment runs a
+//     quick-look viewer for this app is a deployment fact, read from
+//     /config.json (`instruments[].quicklook`) and appended as an
+//     `embed` tab at load. See docs/plans/deployment-config-plan.md.
 //   - An entry may carry `embed` (a path, e.g. "/image/pfs/") instead
 //     of `layout`: the tab lazy-mounts an iframe on that URL — the
 //     imageweb Quick Look — and posts {quicklook: "active"|"inactive"}
@@ -102,7 +107,30 @@ const embedUrl = (path) => {
   if (window.location.protocol === "https:") return path;
   let host = "127.0.0.1";
   try { host = new URL(wsUrl).hostname || host; } catch (e) { /* keep default */ }
-  return `http://${host}:8766${path}`;
+  const port = deploymentConfig?.dev_ports?.image;
+  return port ? `http://${host}:${port}${path}` : path;
+};
+
+// The deployment config, fetched once. Null until it arrives (or if it
+// cannot be fetched — the SPA still renders every manifest window, it
+// just has no Quick Look tab to add).
+let deploymentConfig = null;
+
+const fetchDeploymentConfig = () =>
+  fetch("/config.json", { cache: "no-store" })
+    .then((r) => (r.ok ? r.json() : null))
+    .then((cfg) => { deploymentConfig = cfg; return cfg; })
+    .catch((e) => { console.warn("window-host: /config.json unavailable", e); return null; });
+
+// The Quick Look tab for `app`, if this deployment runs one.
+const quicklookWindow = (app) => {
+  const inst = (deploymentConfig?.instruments || []).find((i) => i.app === app);
+  if (!inst?.quicklook) return null;
+  return {
+    id: "quicklook",
+    title: "Quick Look",
+    embed: inst.quicklook_path || `/image/${app}/`,
+  };
 };
 
 const postQuicklook = (tab, state) => {
@@ -273,6 +301,12 @@ const loadManifestFor = (app) => {
       // switch — only act if we're still on the app this fetch was
       // initiated for.
       if (currentApp !== app) return;
+      if (manifest && Array.isArray(manifest.windows)) {
+        const ql = quicklookWindow(app);
+        if (ql && !manifest.windows.some((w) => w.id === ql.id)) {
+          manifest = { ...manifest, windows: [...manifest.windows, ql] };
+        }
+      }
       if (!manifest || !Array.isArray(manifest.windows) || manifest.windows.length === 0) {
         showPlaceholder(
           `Empty manifest for app "${app}".`,
@@ -297,11 +331,20 @@ showPlaceholder(
   "The Window view populates once the instrument app announces its identity over the control WS.",
 );
 
+// Fetch the deployment config once, up front. The manifest load waits on
+// it so the Quick Look tab (a deployment fact, not an app fact) is known
+// before the tab strip is built — otherwise the strip would be built and
+// then grow a tab, which reads as a glitch. A failed fetch resolves to
+// null and the SPA renders the manifest windows alone.
+const configReady = fetchDeploymentConfig();
+
 onHello((msg) => {
   const app = msg && msg.app && String(msg.app).toLowerCase();
   if (!app) return;
   if (app === currentApp) return;        // same app, no need to rebuild.
   teardownTabs();
   currentApp = app;
-  loadManifestFor(app);
+  configReady.then(() => {
+    if (currentApp === app) loadManifestFor(app);
+  });
 });

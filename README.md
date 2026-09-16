@@ -11,17 +11,25 @@ dev server.
 ## Quick start
 
 ```sh
-uv sync                      # once — creates .venv with pyyaml + xib2ir
-python3 server.py            # serves on http://localhost:8080/ (stdlib only)
+uv sync                          # once — creates .venv
+uv run python server.py          # serves on http://localhost:8080/
 ```
 
-The static server is stdlib-only; the [uv](https://docs.astral.sh/uv/)
-environment is for the Python tooling (`xib2ir`, the Access policy
-sync) — run those with `uv run …`.
+The server reads a **deployment file** (`deployments/<name>.yml`) and
+serves it at `/config.json`; the landing page builds itself from that,
+so which instruments and guiders appear is a property of the
+deployment, not of the HTML. With one file in `deployments/` it is
+picked automatically; otherwise name it with `--deployment`. See
+[docs/plans/deployment-config-plan.md](docs/plans/deployment-config-plan.md)
+and validate edits with:
 
-Open <http://localhost:8080/> — the landing page lists the known
-instruments (ADC 52403, DCU 51703, PFS 51603) and opens the SPA
-against the one you pick. Direct links skip the chooser:
+```sh
+uv run python tools/validate_deployments.py
+```
+
+Open <http://localhost:8080/> — the landing page lists this
+deployment's instruments and opens the SPA against the one you pick.
+Direct links skip the chooser:
 
 ```
 http://localhost:8080/app.html?host=<instrument-host>&port=<ws-port>
