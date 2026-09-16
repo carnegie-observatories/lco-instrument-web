@@ -12,8 +12,13 @@ dev server.
 
 ```sh
 uv sync                          # once — creates .venv
-uv run python server.py          # serves on http://localhost:8080/
+uv run python gateway.py         # the whole deployment on one port
 ```
+
+`gateway.py` is the front door: SPA static files, `/config.json`,
+the quick-look viewers (imageweb, in-process) and the guiders (gcam
+bridge, reverse-proxied) all on one port. `server.py` still serves the
+static files alone if that is all you want.
 
 The server reads a **deployment file** (`deployments/<name>.yml`) and
 serves it at `/config.json`; the landing page builds itself from that,
