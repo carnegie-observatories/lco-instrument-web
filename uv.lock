@@ -387,20 +387,25 @@ version = "0.1.0"
 source = { virtual = "." }
 dependencies = [
     { name = "aiohttp" },
-    { name = "imageweb" },
     { name = "jsonschema" },
     { name = "pyyaml" },
     { name = "xib2ir" },
 ]
 
+[package.optional-dependencies]
+quicklook = [
+    { name = "imageweb" },
+]
+
 [package.metadata]
 requires-dist = [
     { name = "aiohttp", specifier = ">=3.14.3" },
-    { name = "imageweb", editable = "imageweb" },
+    { name = "imageweb", marker = "extra == 'quicklook'", editable = "imageweb" },
     { name = "jsonschema", specifier = ">=4.26.0" },
     { name = "pyyaml", specifier = ">=6.0" },
     { name = "xib2ir", editable = "tools/xib2ir" },
 ]
+provides-extras = ["quicklook"]
 
 [[package]]
 name = "multidict"
