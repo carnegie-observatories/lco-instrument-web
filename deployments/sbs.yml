@@ -1,0 +1,51 @@
+# SBS — the test deployment.
+#
+# A development Mac standing in for a summit machine, running the full
+# stack end to end so a deployment can be rehearsed before it reaches a
+# telescope. See docs/plans/deployment-config-plan.md.
+#
+# Scope today: PFS and its slit-viewer guider, and nothing else. That
+# matches lco-ansible's inventory_sbs.yaml, which installs PFS alone on
+# sbs-inst1 and declares exactly one guider. The committed cloudflared
+# ingress and the old landing page also mention ADC and DCU; those are
+# leftovers from a developer-laptop setup where all three ran locally,
+# and they are deliberately absent here.
+
+name: sbs
+title: SBS test deployment
+domain: sbs.chimera.observer
+
+# The gateway runs natively on the instrument Mac for now; every target
+# below is therefore loopback. `address:` is what the gateway dials,
+# `host:` is the lco-ansible inventory hostname the entry is checked
+# against — they differ because `sbs-inst1` has no DNS record.
+gateway:
+  host: sbs-inst1
+  port: 8080
+
+instruments:
+  - app: pfs
+    title: Planet Finder Spectrograph
+    host: sbs-inst1
+    address: 127.0.0.1
+    # port omitted → 51603, from instruments/ports.yml (PROJECT_ID 16)
+    quicklook: true
+    # No fits_root: the gateway is the instrument Mac, so imageweb reads
+    # the exposure_complete path directly. A split host adds the mapping
+    # here and nothing else changes.
+
+guiders:
+  - name: pfs-sv
+    title: PFS slit viewer
+    ini: pfs
+    gnum: 3            # → commands 52203, image server 52303
+    host: sbs-inst1
+    address: 127.0.0.1
+    tcs_mode: 0        # no TCS at SBS
+
+# Moved verbatim from deploy/access-policies.yml. That file keeps the
+# other telescopes until they get deployment files of their own.
+access:
+  - "*@carnegiescience.edu"
+  - "hreggiani@gmail.com"
+  - "ph.silva@gmail.com"

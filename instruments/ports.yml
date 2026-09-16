@@ -1,0 +1,46 @@
+# WS control ports for the Cocoa instrument apps.
+#
+# Each app computes its own port as
+#
+#     50001 + 100 * PROJECT_ID + 2
+#
+# (see AppDelegate.m in adc/dcu/pfs), where PROJECT_ID is the value in
+# that app's `src/<App>/main.h`. Both numbers are recorded here: the
+# derivation is the contract, the literal port is what the gateway
+# dials, and keeping them side by side makes a wrong entry obvious.
+#
+# `ws_server: false` means the app has no embedded WS server yet — the
+# port is what it *will* listen on once migrated, not something you can
+# connect to today. A deployment file may only reference an app with
+# `ws_server: true`.
+#
+# Source of truth is main.h. Do not copy these from the port table in
+# docs/plans/ws-migration-plan.md: that table omits PFS entirely and
+# lists Swope as PROJECT_ID 12 / 51203, taken from the legacy server's
+# `src/Server/ccd.h` (0x000c). The Cocoa app's main.h says 19, so a
+# migrated Swope following the formula above will listen on 51903.
+
+formula: "50001 + 100 * project_id + 2"
+
+apps:
+  adc:       { project_id: 24, ws: 52403, ws_server: true }
+  dcu:       { project_id: 17, ws: 51703, ws_server: true }
+  pfs:       { project_id: 16, ws: 51603, ws_server: true }
+
+  # Not yet migrated — ports are predictions from main.h.
+  ldss3:     { project_id:  6, ws: 50603, ws_server: false }
+  mike:      { project_id:  8, ws: 50803, ws_server: false }
+  fourstar:  { project_id: 11, ws: 51103, ws_server: false }
+  mage:      { project_id: 15, ws: 51503, ws_server: false }
+  ifum:      { project_id: 18, ws: 51803, ws_server: false }
+  m2fs:      { project_id: 18, ws: 51803, ws_server: false }   # shares IFUM's id
+  swope:     { project_id: 19, ws: 51903, ws_server: false }   # not 51203 — see above
+  henrietta: { project_id: 28, ws: 52803, ws_server: false }
+
+# Guider (gcam) ports, for reference: gcam compiles PROJECT_ID 22, so a
+# guider with `gnum: N` listens on 52200+N for commands and 52300+N for
+# its image server. gnum comes from lco-ansible's
+# roles/gcam/defaults/main.yml `gcam_ini_settings[<ini>].gnum`.
+guiders:
+  command_base: 52200
+  image_base: 52300
