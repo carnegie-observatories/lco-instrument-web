@@ -1,0 +1,55 @@
+name: deployments
+
+# Two drift checks, both cheap, both catching the failure mode this
+# configuration exists to prevent: a deployment file that stops describing
+# the deployment. A wrong host or a stale instrument should fail review,
+# not a night.
+on:
+  pull_request:
+    paths:
+      - "deployments/**"
+      - "instruments/ports.yml"
+      - "deploy/**"
+      - "tools/validate_deployments.py"
+      - "tools/generate_deploy_artifacts.py"
+      - "deployment_config.py"
+      - ".github/workflows/deployments.yml"
+  push:
+    branches: [main]
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # The inventory is the authority on which machines exist and what runs
+      # on them, so the cross-check needs it checked out beside us. It is a
+      # private repo; without a token the step below still runs the schema
+      # and reference checks and skips only the inventory half.
+      - name: Check out lco-ansible
+        uses: actions/checkout@v4
+        continue-on-error: true
+        with:
+          repository: carnegie-observatories/lco-ansible
+          path: lco-ansible
+          token: ${{ secrets.LCO_ANSIBLE_TOKEN }}
+
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+
+      - name: Validate deployment files
+        run: |
+          if [ -d lco-ansible ]; then
+            uv run python tools/validate_deployments.py --inventory lco-ansible
+          else
+            echo "::warning::lco-ansible not available; inventory cross-check skipped"
+            uv run python tools/validate_deployments.py --no-inventory
+          fi
+
+      # The committed cloudflared config and Access policy must match what
+      # the deployment files generate. Editing the generated file by hand is
+      # the drift this catches.
+      - name: Check generated artifacts are current
+        run: uv run python tools/generate_deploy_artifacts.py --check
