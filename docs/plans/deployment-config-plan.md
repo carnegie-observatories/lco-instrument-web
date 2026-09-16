@@ -15,42 +15,63 @@ places:
 | Tunnel ingress | [deploy/cloudflared/sbs/config.yml](../../deploy/cloudflared/sbs/config.yml) | one rule per instrument, per guider, per viewer |
 | Access allow-list | [deploy/access-policies.yml](../../deploy/access-policies.yml) | `clay` / `baade` / `swope` / `sbs` |
 
-Only the last one is actually per-deployment. Standing up Clay today
-means editing HTML by hand, writing a second cloudflared config, and
-starting three processes with hand-written flags — with nothing that
-says which instruments Clay is *supposed* to have.
+Only the last one is actually per-deployment. Standing up a second
+telescope today means editing HTML by hand, writing a second
+cloudflared config, and starting three processes with hand-written
+flags — with nothing that says which instruments that telescope is
+*supposed* to have.
 
 Meanwhile the deployment facts already exist, in
 [lco-ansible](https://github.com/carnegie-observatories/lco-ansible)'s
-inventory: `inventory_lco.yaml` groups hosts by telescope (`baade`,
-`clay`, `swope`), each group carrying an `instruments:` list, and
-hosts carrying `gcam_guiders:` entries with names, ini profiles and
-camera hosts. That repo deploys the Cocoa apps and the guider GUIs —
-but not the web surface. Its own SBS inventory says so:
+inventory: `inventory_lco.yaml` groups hosts by telescope, each group
+carrying an `instruments:` list, and hosts carrying `gcam_guiders:`
+entries with names, ini profiles and camera hosts. That repo deploys
+the Cocoa apps and the guider GUIs — but not the web surface. Its own
+SBS inventory says so:
 
 > the guider-camera web interfaces this Mac is meant to exercise
 > alongside PFS come from lco-instrument-web (SPA + gcam bridge),
 > which this repo does not deploy yet.
 
-This plan closes that gap: one configuration file per deployment,
-one gateway service that reads it, and an ansible role that installs
-both.
+This plan closes that gap: one configuration file per deployment, one
+gateway service that reads it, and an ansible role that installs both
+— **on SBS only**, until it is proven there.
+
+## Scope: SBS first, and only SBS
+
+The work lands and is validated on the SBS test deployment before any
+telescope is touched. Concretely:
+
+- Phase 0–6 produce exactly one deployment file, `deployments/sbs.yml`.
+- `clay`, `baade` and `swope` are **not** written, not generated, not
+  deployed. What each will need is recorded in an appendix at the end
+  of this plan so the research is not lost, but nothing acts on it.
+- The schema is designed for many deployments from day one — that is
+  the point of the exercise — but it is exercised by one.
+- After SBS is validated end to end (§ Validation gate), a follow-up
+  plan covers the rollout, informed by whatever SBS taught us.
+
+SBS already has a tunnel, a DNS record, an Access application and a
+committed cloudflared config, so it is the cheapest possible place to
+get this wrong.
 
 ## Goals & non-goals
 
 **Goals:**
 
 - One file per deployment, declaring every instrument, guider and
-  viewer on it. Adding a telescope is adding a file; adding an
-  instrument to a telescope is one entry in that file.
+  viewer on it. Adding an instrument is one entry in that file.
 - The SPA is data-driven — the landing page and the connect strings
   come from the deployment config at runtime, not from edited HTML.
-- One **gateway service** per deployment, configured by that file,
-  fronting the instruments, the quick-look viewers and the guiders.
+- One **gateway service**, configured by that file, fronting the
+  instruments, the quick-look viewers and the guiders.
+- The gateway runs on **Linux in production and macOS for test**,
+  from the same codebase, with the platform difference confined to
+  service management.
 - The tunnel ingress and the Access policy are *generated* from the
   same file, so they cannot drift from the SPA's idea of the
   deployment.
-- Each deployment keeps **its own Cloudflare subdomain**
+- The deployment keeps **its own Cloudflare subdomain**
   (`<name>.chimera.observer`), one Access application per subdomain.
 - Deployed by lco-ansible, following that repo's existing role /
   playbook / inventory-group conventions.
@@ -67,52 +88,119 @@ both.
   `*.chimera.observer` one level deep only, so instruments stay
   paths on the telescope hostname
   ([deploy-cloudflare.md § Domain layout](../deploy-cloudflare.md)).
+- Rolling out to Clay, Baade or Swope. Separate plan, after the gate.
 - Secrets. Tunnel credentials and the Access API token stay out of
   these files, as they are today.
+
+## Gateway host: Linux in production, macOS for test
+
+The production gateway is a **separate Linux machine** — not the
+instrument Mac. That is a better place for it (it is not competing
+with the observer's desktop, it can be rebuilt without touching an
+instrument, and cloudflared is a first-class systemd service there),
+but it changes three things that are currently implicit.
+
+**1. The gateway is now across the network from the instruments.**
+Today every target is `127.0.0.1`. On a separate host the gateway
+reaches instrument WS ports over the LAN, so those ports must be
+reachable from the gateway host, and `gateway.host ≠ instrument host`
+becomes the normal case rather than an edge case. The deployment
+schema already carries a `host:` per instrument, so this is a
+network/firewall task, not a design change.
+
+**2. cloudflared moves to the gateway host.** At SBS it runs on the
+Mac today. On Linux it becomes a packaged systemd unit instead of a
+`launchctl kickstart` of a root launchd job. The committed
+`deploy/cloudflared/sbs/config.yml` still describes the ingress; only
+`credentials-file:` and the install location change, and that file is
+already documented as per-Mac by nature.
+
+**3. Quick look breaks, and this is the one real blocker.**
+[imageweb](../../imageweb/README.md) is a read-only client of the
+instrument's control WS: on `exposure_complete` it takes the event's
+`fits_path` and opens it — `pyfits.open(path)` in
+[source.py:153](../../imageweb/imageweb/source.py#L153). That path is
+"local and absolute by contract"
+([image-viewer-plan.md](image-viewer-plan.md) § Decided). A gateway
+on another machine has no such file.
+
+Three ways out, in order of preference:
+
+- **(a) Make the path resolve on the gateway.** Export the
+  instrument's data directory (NFS or SMB) and mount it on the
+  gateway, with a `fits_roots:` mapping in the deployment file
+  translating the instrument-local prefix to the gateway mount point.
+  No Cocoa change, no protocol change, one mount per instrument host.
+  **Recommended.**
+- **(b) Run a per-instrument imageweb sidecar on the instrument Mac**
+  and have the gateway proxy `/image/<app>/` to it. Preserves the
+  local-disk contract exactly, at the cost of re-introducing the
+  per-instrument processes this plan is consolidating away — and of
+  needing the ansible role on the Macs too.
+- **(c) Ship the bytes over the WS.** Cleanest conceptually, but it
+  is a Cocoa change and the migration plan explicitly moved image
+  transfer *out* of the apps and into the gateway. Rejected for this
+  plan.
+
+Option (a) is assumed below. **It is untested** — it is the one part
+of this plan with no working precedent anywhere in the stack, and
+Phase 5 exists to find out whether it holds before anything depends
+on it.
+
+### What has to be portable
+
+| Concern | macOS (test) | Linux (production) |
+|---|---|---|
+| Service manager | launchd plist + `launchctl kickstart` | systemd unit + `systemctl` |
+| Install prefix | `/opt/homebrew` (arm64) | `/usr/local` or distro paths |
+| Runtime | uv-managed venv | same |
+| Service account | `obs1` | dedicated `gateway` user |
+| cloudflared | root launchd job | packaged systemd unit |
+| FITS access | local disk today | NFS/SMB mount (§ above) |
+
+Everything above the service manager is already portable: the gateway
+is Python, `uv` runs on both, and the SPA is static files. The
+platform split is genuinely confined to "how does this process get
+started and kept alive", which is exactly where ansible should absorb
+it.
 
 ## The deployment file
 
 `deployments/<name>.yml` in this repo. One per deployment; the name
-is the Cloudflare subdomain label.
+is the Cloudflare subdomain label. Day one, there is one of them:
 
 ```yaml
-# deployments/clay.yml
-name: clay
-title: Magellan Clay
-domain: clay.chimera.observer
+# deployments/sbs.yml
+name: sbs
+title: SBS test deployment
+domain: sbs.chimera.observer
 
 gateway:
-  host: clay-inst1            # ansible inventory hostname
+  host: sbs-gateway           # ansible inventory hostname
   port: 8080                  # the one local port the tunnel targets
 
 instruments:
   - app: pfs                  # instruments/<app>/ supplies the UI
     title: Planet Finder Spectrograph
-    host: clay-inst1
+    host: sbs-inst1
     # port omitted → derived from the PROJECT_ID table (pfs → 51603)
     quicklook: true           # FITS producer; gets /image/pfs/
-  - app: adc
-    host: clay-inst1
-  - app: dcu
-    host: clay-inst1
-  - app: mike
-    host: clay-inst1
-    quicklook: true
+    fits_root:                # § Gateway host, option (a)
+      instrument: /Users/obs1/data
+      gateway: /mnt/sbs-inst1/data
 
 guiders:
-  - name: clay-nase-pg
-    title: NASE principal guider
-    ini: nase
-    gnum: 12
-    host: clay-gcam12
-  - name: clay-nase-sh
-    title: NASE Shack-Hartmann
-    ini: nase
-    gnum: 11
-    host: clay-gcam11
+  - name: pfs-sv
+    title: PFS slit viewer
+    ini: pfs
+    gnum: 3
+    host: sbs-inst1
+    tcs_mode: 0               # no TCS at SBS
 
 access:
   - "*@carnegiescience.edu"
+  - "hreggiani@gmail.com"
+  - "ph.silva@gmail.com"
 ```
 
 Notes on the shape:
@@ -123,8 +211,8 @@ Notes on the shape:
   fourstar 51103, mike 50803, pfs 51603, swope 51203, mage 51503,
   dcu 51703, ifum/m2fs 51803, adc 52403, henrietta 52803). That table
   becomes a checked-in `instruments/ports.yml` that both the gateway
-  and the generators read. An explicit `port:` in a deployment file
-  overrides it, for a machine running a non-standard build.
+  and the generators read. An explicit `port:` overrides it, for a
+  machine running a non-standard build.
 - **Guider ports are derived the same way** — gcam compiles
   `PROJECT_ID 22`, so commands are `52200 + gnum` and the image
   server `52300 + gnum`. `gnum` is the one number that must be
@@ -134,38 +222,15 @@ Notes on the shape:
   sub-tab is added to that instrument's window list at runtime
   instead of being frozen into `instruments/pfs/manifest.json`, which
   is shared by every telescope that runs PFS.
+- **`fits_root:` is omitted when the gateway is the instrument host**
+  — which is how the Mac test target will run at first, keeping
+  Phases 1–4 free of the mount question entirely.
 - **`access:` subsumes `deploy/access-policies.yml`.** That file's
   per-telescope allowed-lists move into the matching deployment file,
   and `sync-access-policies.py` reads `deployments/*.yml` instead.
-  One less place a telescope is half-declared.
-
-### Which deployments exist on day one
-
-| File | Instruments | Guiders | Notes |
-|---|---|---|---|
-| `sbs.yml` | PFS | `pfs-sv` (simulator, `tcs_mode: 0`) | test deployment; already has a tunnel + Access app |
-| `clay.yml` | ADC, DCU, PFS, MIKE, MagE, LDSS3C, IFUM, M2FS | `clay-nase-pg`, `clay-nase-sh` | inventory group `clay` lists nine apps incl. GuidePaddle |
-| `baade.yml` | — see below | `baade-gcam01` (IMACS PG), `baade-gcam02` (IMACS SH) | |
-| `swope.yml` | Swope, Henrietta (`hen-drp`) | none | Henrietta is a host-level override in the inventory |
-
-Two facts to settle while writing these, not after:
-
-- **Baade has no `instruments:` list in the inventory at all** — the
-  group defines boot servers and the two IMACS guider cameras and
-  nothing else. Its instruments are IMACS and FourStar, both
-  explicitly out of scope for the WS migration (IMACS is C
-  end-to-end; FourStar is a C daemon, though
-  [ws-migration-fourstar-plan.md](ws-migration-fourstar-plan.md) now
-  exists). So `baade.yml` ships with `instruments: []` and its two
-  guiders — a real, useful deployment consisting of guiders and
-  nothing else, which is a good forcing function for not assuming
-  every deployment has instruments.
-- **GuidePaddle is in Clay's inventory list but is a TCS client, not
-  a server.** It has no WS surface and must not appear in
-  `clay.yml`. The inventory list is "apps the auto-updater installs",
-  which is a superset of "apps with a browser surface" — the two
-  lists are related but not equal, which is exactly why the
-  deployment file is authored rather than derived.
+  One less place a deployment is half-declared. The other three
+  telescopes' entries move across unchanged when their files are
+  written; until then `access-policies.yml` keeps them.
 
 ## Where the config lives, and how it stays true
 
@@ -179,24 +244,24 @@ what runs on them*, so the two must be checked against each other.
 The check is mechanical and belongs in CI:
 
 ```
-deployments/clay.yml            inventory_lco.yaml (group: clay)
-  instruments[].app        ⊆    vars.instruments[].name    (lowercased)
+deployments/sbs.yml             inventory_sbs.yaml (group: sbs)
+  instruments[].app        ⊆    hosts[].instruments[].name  (lowercased)
   instruments[].host       ∈    group hosts
   guiders[].name           ≡    hosts[].gcam_guiders[].name
   gateway.host             ∈    group hosts
 ```
 
-Subset, not equality, for instruments — GuidePaddle and any app
-without a WS surface is legitimately absent from the web config. A
-*superset* is always an error: a deployment file naming an app the
-telescope does not install is a typo or a stale entry.
+Subset, not equality, for instruments — an app without a WS surface
+is legitimately absent from the web config. A *superset* is always an
+error: a deployment file naming an app the host does not install is a
+typo or a stale entry.
 
 This is the one genuinely contestable decision in the plan. The
 alternative — generate `deployments/*.yml` from the inventory — was
-rejected because the mapping needs human judgment at three points
-(GuidePaddle, `quicklook:`, and guider titles), and a generator with
-three hand-maintained exception lists is a worse artifact than a
-hand-written file with an automated check.
+rejected because the mapping needs human judgment (which apps have a
+browser surface, `quicklook:`, guider titles, the FITS mount
+mapping), and a generator with that many exception lists is a worse
+artifact than a hand-written file with an automated check.
 
 ## The gateway service
 
@@ -216,7 +281,7 @@ landing page, and a process's command line.
 file, owning every path on the hostname.**
 
 ```
-lco-gateway --deployment deployments/clay.yml
+lco-gateway --deployment deployments/sbs.yml
 
   /                     SPA static files (this repo)
   /config.json          the deployment, as the SPA consumes it
@@ -228,24 +293,22 @@ lco-gateway --deployment deployments/clay.yml
 
 What this buys:
 
-- **The tunnel ingress collapses to one rule per deployment** —
-  everything on the hostname goes to `127.0.0.1:8080`. Adding an
-  instrument stops touching cloudflared entirely, which removes the
-  single most error-prone step in the current runbook.
-- **One launchd service** to install, start and check, instead of
-  three with an undocumented start order.
+- **The tunnel ingress collapses to one rule** — everything on the
+  hostname goes to the gateway. Adding an instrument stops touching
+  cloudflared entirely, which removes the most error-prone step in
+  the current runbook.
+- **One service to install, start and check** per platform, instead
+  of three with an undocumented start order.
 - **The SPA stops guessing.** `/config.json` is served by the process
-  that knows the deployment, so the landing page, the sub-tab strip
-  and the connect strings all come from one source.
+  that knows the deployment.
 
 The costs, stated plainly:
 
-- **An extra hop on the instrument WebSocket.** Frames are small and
-  the hop is loopback-to-LAN on the same site, but it is a real
-  addition to a path that currently goes browser → cloudflared →
-  instrument. It also makes the gateway a single point of failure for
-  every instrument on the telescope, where today a crashed
-  static-file server leaves the WS endpoints up.
+- **An extra hop on the instrument WebSocket**, and on a separate
+  gateway host that hop is now LAN rather than loopback. It also
+  makes the gateway a single point of failure for every instrument on
+  the telescope, where today a crashed static-file server leaves the
+  WS endpoints up.
 - **WS proxying has sharp edges** — subprotocol negotiation, ping /
   pong passthrough, half-close, and backpressure on the `logs` topic,
   which is the highest-volume thing on the wire.
@@ -259,105 +322,164 @@ generated rather than hand-written.
 
 ## Generated artifacts
 
-Both generators are pure functions of `deployments/<name>.yml` and
-write files that are committed and reviewable — the existing
-convention for the cloudflared config, which is versioned precisely
-so "which path → which port" stays reviewable.
+Both generators are pure functions of `deployments/sbs.yml` and write
+files that are committed and reviewable — the existing convention for
+the cloudflared config, which is versioned precisely so "which path →
+which port" stays reviewable.
 
-- `deploy/cloudflared/<name>/config.yml` — one catch-all rule once
+- `deploy/cloudflared/sbs/config.yml` — one catch-all rule once
   Phase 3 lands; until then, the same per-instrument rules written
   today, generated instead of typed. The `tunnel:` UUID and
-  `credentials-file:` are per-Mac and are preserved from the existing
-  file rather than generated.
+  `credentials-file:` are per-host and are preserved from the
+  existing file rather than generated.
 - Cloudflare Access — `sync-access-policies.py` reads
-  `deployments/*.yml` and keeps its current behaviour, including the
-  refusal to push an empty allowed-list without `--allow-lockout`.
+  `deployments/*.yml` for the deployments that have files and
+  `access-policies.yml` for the rest, keeping its current behaviour
+  including the refusal to push an empty allowed-list without
+  `--allow-lockout`.
 
 ## Ansible integration
 
-Following the conventions already in lco-ansible:
+Following the conventions already in lco-ansible, with one addition.
 
-- **Inventory group.** A `gateway_computers` aggregator group,
-  with per-telescope leaf groups (`clay_gateway_computers`, …), the
-  same shape as `gcam_computers` / `instrumentation_computers`. At
-  SBS and Clay the gateway Mac is the instrument Mac; the group
-  exists so it need not be.
-- **Role `gateway`.** Installs the runtime (uv + this repo at a
-  pinned ref), templates the deployment file and a launchd plist,
-  installs the cloudflared config, starts the service. Modelled on
-  the `gcam` role: `defaults/main.yml` carries versions and prefixes,
-  a template per config file, and post-tasks that assert the thing is
-  actually running rather than trusting the play.
-- **Playbook `playbooks/gateway_mac.yml`**, `hosts: gateway_computers`,
-  with post-task assertions on `/healthz` and a debug task reporting
-  the deployment URL — matching `gcam_mac.yml`'s "report how to start
-  each guider" ending.
+**The platform split.** Today that repo splits platforms *by
+playbook*: `boot_server.yml`, `zwo_server_*.yml` and
+`poe_tool_deploy.yml` are Linux and use `systemd`; `instrument_mac.yml`,
+`gcam_mac.yml` and `henrietta_mac.yml` are macOS and use launchd. No
+role does both. The gateway is the first thing that must, so the
+split moves inside the role:
+
+```
+roles/gateway/
+  defaults/main.yml           versions, prefixes, ports
+  tasks/main.yml              platform-independent: fetch, venv, config
+  tasks/service-launchd.yml   included when ansible_system == 'Darwin'
+  tasks/service-systemd.yml   included when ansible_system == 'Linux'
+  templates/
+    deployment.yml.j2
+    com.carnegie.lco-gateway.plist.j2
+    lco-gateway.service.j2
+```
+
+`tasks/main.yml` ends with
+
+```yaml
+- ansible.builtin.include_tasks: "service-{{ 'launchd' if ansible_system == 'Darwin' else 'systemd' }}.yml"
+```
+
+so everything above that line is written once and the divergence is a
+single template plus a start/enable task. Both service files take the
+same variables (exec path, deployment file, service user, log path),
+which keeps the two templates comparable at review time.
+
+The rest follows existing practice:
+
+- **Inventory group** `gateway_computers`, with per-deployment leaf
+  groups (`sbs_gateway_computers`, …), the same shape as
+  `gcam_computers` / `instrumentation_computers`.
+- **Playbook `playbooks/gateway.yml`** — deliberately *not*
+  `gateway_mac.yml`, since it targets both platforms. Post-task
+  assertions on `/healthz` and a debug task reporting the deployment
+  URL, matching `gcam_mac.yml`'s "report how to start each guider"
+  ending.
 - **Which deployment file a host gets** comes from a
-  `gateway_deployment: clay` group var, defaulting to the telescope
-  group name.
-
-Delivery of the code follows the existing instrument-app model:
-`instrument-updater.sh` pulls **release assets**, not git checkouts,
-so the gateway ships as a versioned release artifact and the role
-pins a version + SHA256 exactly as `gcam` does with `gcam_bin_url`.
+  `gateway_deployment: sbs` group var, defaulting to the leaf group's
+  deployment name.
+- **Delivery** follows the instrument-app model: `instrument-updater.sh`
+  pulls **release assets**, not git checkouts, so the gateway ships as
+  a versioned release artifact and the role pins a version + SHA256
+  exactly as `gcam` does with `gcam_bin_url`.
 
 ## Phases
 
 Each phase is one commit on the plan branch; each is independently
-useful and independently revertible.
+useful and independently revertible. Every phase targets SBS.
 
-**Phase 0 — schema and the four files.** `deployments/*.yml` for sbs,
-clay, baade, swope; `instruments/ports.yml`; a JSON Schema; a
-validator. Nothing consumes them yet. Verification: the validator
-passes, and the inventory cross-check passes against a current
-`lco-ansible` checkout.
+**Phase 0 — schema and the SBS file.** `deployments/sbs.yml`;
+`instruments/ports.yml`; a JSON Schema; a validator. Nothing consumes
+them yet. *Verification:* the validator passes, and the inventory
+cross-check passes against a current `lco-ansible` checkout.
 
 **Phase 1 — the SPA reads the config.** `index.html` renders its
 cards from `/config.json` (falling back to the static file when
 served by `server.py`); `ws.js` resolves host/port/path from it;
 `quicklook:` drives the Quick Look sub-tab instead of the frozen
-`manifest.json` entry. Verification: SBS looks identical to today,
+`manifest.json` entry. *Verification:* SBS looks identical to today,
 with nothing instrument-specific left in `index.html`.
 
 **Phase 2 — the gateway service.** `lco-gateway` subsumes
 `server.py`, `imageweb` and the gcam bridge in one process, serving
 static files, `/config.json`, `/image/*` and `/guider/*`. WS still
-routed by cloudflared. Verification: SBS runs on one process and one
-port; quick look and both test guiders work through the tunnel.
+routed by cloudflared. Still on the Mac, still all-loopback.
+*Verification:* SBS runs on one process and one port; quick look and
+the guider work through the tunnel.
 
 **Phase 3 — WS proxy (flagged).** `/<app>/ws` proxied in-process;
-cloudflared reduced to a single rule. Verification: a full PFS
+cloudflared reduced to a single rule. *Verification:* a full PFS
 exposure through the proxy, the `logs` topic under load, and a
 deliberate instrument restart to confirm reconnect still works.
 
-**Phase 4 — generators.** cloudflared config and Access policies
-generated from the deployment files; `access-policies.yml` retired.
-Verification: the generated SBS config is byte-identical to the
-committed one, modulo the Phase-3 collapse.
+**Phase 4 — generators.** cloudflared config and the SBS Access
+policy generated from the deployment file. *Verification:* the
+generated SBS config is byte-identical to the committed one, modulo
+the Phase-3 collapse.
 
-**Phase 5 — ansible role and SBS rollout.** Role, playbook, inventory
-group; deployed to `sbs-inst1`. Verification: a from-scratch run on a
-clean Mac brings up `sbs.chimera.observer` with no manual steps.
+**Phase 5 — split the host.** Move the gateway off `sbs-inst1` onto a
+Linux machine: mount the instrument's data directory, set
+`fits_root:`, move cloudflared, prove quick look still works across
+the network. This is the phase that tests § Gateway host option (a),
+and the phase most likely to send the plan back for revision.
+*Verification:* PFS exposure → quick look renders on a gateway that
+has never had the FITS file on its own disk.
 
-**Phase 6 — Clay, Baade, Swope.** One tunnel, one DNS record, one
-Access app and one playbook run each. Verification: each subdomain
-serves its own instruments and nobody else's.
+**Phase 6 — ansible role and playbook.** Role with the launchd /
+systemd split, playbook, inventory group; deployed to both the Mac
+and the Linux gateway from the same role. *Verification:* a
+from-scratch run on a clean host of each platform brings up
+`sbs.chimera.observer` with no manual steps.
 
 **Phase 7 — drift checks in CI.** The inventory cross-check and the
-generator diff run on every PR, so a deployment file that stops
-matching the inventory fails review rather than a night.
+generator diff run on every PR.
+
+## Validation gate
+
+Before any other deployment is written, SBS must have run a real
+observing-shaped session on the Linux gateway:
+
+- every instrument in `sbs.yml` connects, commands ack, state updates
+- a full exposure completes and renders in quick look from the
+  mounted path
+- the guider streams
+- the gateway survives an instrument app restart, a gateway service
+  restart, and a tunnel reconnect
+- `/healthz` correctly reports a deliberately-stopped instrument
+
+Only then does the rollout plan get written.
 
 ## Risks
 
+- **Option (a) may not hold.** If mounting the instrument's data
+  directory on the gateway is unacceptable — export policy, latency
+  on large FITS, an instrument that writes to a path it will not
+  share — Phase 5 fails and quick look falls back to option (b), a
+  sidecar per instrument Mac. That is a material change to the
+  "one service" story, which is why it is phased before the ansible
+  work rather than after.
 - **A gateway outage takes every instrument's browser surface with
-  it** once Phase 3 lands. Mitigation: the direct
+  it** once Phase 3 lands, and a separate gateway host adds a machine
+  that can fail independently. Mitigation: the direct
   `?host=…&port=…` connect string keeps working from the
-  observatory VPN and is the documented fallback; `/healthz` and the
-  launchd `KeepAlive` cover the common case.
-- **The deployment file drifts from reality** — an instrument moves
-  host, a guider is renumbered. Mitigation: Phase 7's CI check, plus
-  `/healthz` reporting per-target reachability so a wrong host shows
-  up as a red card on the landing page rather than a silent failure.
+  observatory VPN and is the documented fallback; `/healthz` plus the
+  service manager's restart policy cover the common case.
+- **The Linux path is unexercised until Phase 5.** Phases 1–4 all run
+  on the Mac, so the first four phases prove nothing about the
+  production platform. Mitigation is to keep the platform difference
+  to the service manager and nothing else — if Phase 5 needs code
+  changes beyond mounts and a unit file, the abstraction was wrong.
+- **The deployment file drifts from reality.** Mitigation: Phase 7's
+  CI check, plus `/healthz` reporting per-target reachability so a
+  wrong host shows up as a red card on the landing page rather than a
+  silent failure.
 - **Two copies of the shared plans.** `ws-migration-plan.md`,
   `ws-ui-conversion-plan.md` and the step-0 audits are currently
   tracked in **both** this repo and lco-ansible, with independent
@@ -369,21 +491,53 @@ matching the inventory fails review rather than a night.
   `cert.pem` are gitignored, and the deployment files add no secrets.
   Separately and urgently: this working tree contains `.secrets` and
   a `.history/` directory holding timestamped copies of it. Neither
-  belongs in a repo that is about to grow per-site configuration —
-  worth clearing before Phase 0 regardless of this plan.
+  belongs in a repo about to grow per-site configuration — worth
+  clearing before Phase 0 regardless of this plan.
 
 ## Open questions
 
-1. **Is the gateway Mac the instrument Mac?** At SBS and Clay today,
-   yes. If Baade's gateway should be a separate machine — it has no
-   instrument Mac in the inventory, only boot and camera servers —
-   that changes the inventory group's membership, not the design.
-2. **Does Swope's Henrietta get its own deployment or share Swope's?**
-   `hen-drp` overrides `instruments:` at host level for the updater.
-   A single `swope.yml` listing both apps is simpler; two subdomains
-   is more faithful to "one deployment, one Access policy" if the
-   allowed-lists should differ.
-3. **What happens to `--instrument NAME@HOST:PORT` and `--guider`?**
+1. **Which machine is the SBS Linux gateway?** The SBS inventory has
+   `office_bootsrv` (Ubuntu, 10.8.80.1) and Raspberry Pi camera
+   servers, none of which is an obvious gateway. Phase 5 needs a
+   host; a VM is fine.
+2. **Who exports the FITS directory, and over what?** NFS is simpler
+   between Linux and macOS than SMB for read-only, but the
+   instrument Macs' data directories and their export policy are not
+   documented anywhere this plan could find.
+3. **Does the gateway need the observatory VPN, or does it sit
+   outside?** It terminates the tunnel and reaches instrument LAN
+   ports; where it sits relative to the VPN boundary is a security
+   decision, and
+   [security-models.md](https://github.com/carnegie-observatories/lco-ansible/blob/main/docs/plans/security-models.md)
+   is the right place to settle it.
+4. **What happens to `--instrument NAME@HOST:PORT` and `--guider`?**
    Phase 2 folds them into the deployment file. Keeping them as
-   overrides is useful for development; keeping them as the *only*
-   interface for a one-off is what the plan is trying to end.
+   development overrides is useful; keeping them as the *only*
+   interface for a one-off is what this plan is trying to end.
+
+## Appendix — the other deployments, for later
+
+Not in scope. Recorded so the research survives to the rollout plan.
+
+| Deployment | Instruments (from inventory) | Guiders | Notes |
+|---|---|---|---|
+| `clay` | ADC, DCU, PFS, MIKE, MagE, LDSS3C, IFUM, M2FS | `clay-gcam11` (NASE SH), `clay-gcam12` (NASE PG) | group `clay` lists nine apps including GuidePaddle |
+| `baade` | *none declared* | `baade-gcam01` (IMACS PG), `baade-gcam02` (IMACS SH) | |
+| `swope` | Swope; Henrietta on `hen-drp` | none | Henrietta is a host-level `instruments:` override |
+
+Two findings worth carrying forward:
+
+- **Baade has no `instruments:` list in the inventory at all** — the
+  group defines boot servers and the two IMACS guider cameras and
+  nothing else. Its instruments are IMACS and FourStar, both outside
+  the WS migration (IMACS is C end-to-end; FourStar is a C daemon,
+  though [ws-migration-fourstar-plan.md](ws-migration-fourstar-plan.md)
+  now exists). `baade.yml` would be a deployment of guiders and
+  nothing else — a good test that the schema does not assume
+  instruments exist.
+- **GuidePaddle is in Clay's inventory list but is a TCS client, not
+  a server.** It has no WS surface and must not appear in a
+  deployment file. The inventory list is "apps the auto-updater
+  installs", which is a superset of "apps with a browser surface" —
+  related but not equal, which is why the deployment file is authored
+  rather than derived.
