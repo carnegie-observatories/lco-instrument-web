@@ -244,7 +244,7 @@ def main() -> int:
             f"{i['app']}:{resolved_port(i, ports)}" for i in (dep.get("instruments") or [])
         ) or "none"
         guiders = ", ".join(
-            f"{g['name']}:{52200 + g['gnum']}" for g in (dep.get("guiders") or [])
+            f"{g['name']} (gcam image port {52300 + g['gnum']})" for g in (dep.get("guiders") or [])
         ) or "none"
         print(f"  {path.name}: {dep.get('domain', '?')} — instruments [{insts}] guiders [{guiders}]")
 

@@ -11,7 +11,7 @@ with a single front door, configured entirely by
     /image/<app>/         quick-look viewer   — imageweb, in-process
     /guider/<name>/       web guider          — gcam bridge, proxied
     /<app>/ws             instrument control  — proxied, --proxy-ws only
-    /healthz              per-target reachability
+    /healthz              per-target liveness, over each target's own WebSocket
 
 Two kinds of mounting, and the difference is deliberate. imageweb is a
 member of this repo's uv workspace, so its instrument apps are built
@@ -38,7 +38,7 @@ import json
 import logging
 from pathlib import Path
 
-from aiohttp import ClientSession, ClientTimeout, WSMsgType, web
+from aiohttp import ClientError, ClientSession, ClientTimeout, WSMsgType, web
 
 import deployment_config
 
@@ -185,27 +185,60 @@ def make_ws_proxy(host: str, port: int):
 # health
 # --------------------------------------------------------------------------
 
-async def reachable(host: str, port: int, timeout: float = 2.0) -> bool:
+# The rule: the gateway never opens a connection to a TCP text command
+# interface -- not gcam's command port (52200+gnum, single-client: a
+# probe there takes the one slot from operations tooling, or reports the
+# guider down because that tooling holds it), not an instrument's. Every
+# liveness question is asked over the WebSocket interface the browser
+# itself uses, and answered by the first frame that interface sends
+# unprompted. There is no raw-socket code in this file; keep it that way.
+
+async def ws_first_frame(session: ClientSession, url: str, timeout: float = 3.0) -> tuple[bool, str | dict]:
+    """Open a WebSocket, take its first text frame as JSON, close.
+
+    (True, frame) when the server spoke; (False, why) when it did not.
+    A socket that accepts but never sends is reported down: the
+    question is whether the app answers, not whether a port is open.
+    """
+    async def go():
+        async with session.ws_connect(url, timeout=ClientTimeout(total=timeout)) as ws:
+            msg = await ws.receive()
+            if msg.type != WSMsgType.TEXT:
+                return False, f"first frame was {msg.type.name}, not text"
+            return True, json.loads(msg.data)
     try:
-        reader, writer = await asyncio.wait_for(asyncio.open_connection(host, port), timeout)
-        writer.close()
-        await writer.wait_closed()
-        return True
-    except (OSError, asyncio.TimeoutError):
-        return False
+        return await asyncio.wait_for(go(), timeout)
+    except asyncio.TimeoutError:
+        return False, f"no frame within {timeout:g} s"
+    except (OSError, ClientError, ValueError) as e:
+        return False, f"{type(e).__name__}: {e}"
 
 
 def health_handler(config: dict, guider_upstream: tuple[str, int] | None):
-    async def handler(request: web.Request) -> web.Response:
-        targets = [("instrument", i["app"], i["host"], i["port"]) for i in config["instruments"]]
-        targets += [("guider", g["name"], g["host"], g["command_port"]) for g in config["guiders"]]
-        if guider_upstream:
-            targets.append(("bridge", "gcam", *guider_upstream))
+    """One check per target. An instrument proves itself with the `hello`
+    its WS server sends on connect (app, version); a guider with the
+    first message of gcamweb's status channel, which carries gcam's
+    state as seen from the image port gcamweb is designed to hold. The
+    guider check proves the bridge too, so there is no separate one.
+    gcamweb's status socket counts the probe as a status listener only,
+    never as a frame viewer: gcam sees nothing."""
 
-        results = await asyncio.gather(*(reachable(h, p) for _, _, h, p in targets))
+    targets = [("instrument", i["app"], f"ws://{i['host']}:{i['port']}/") for i in config["instruments"]]
+    if guider_upstream:
+        bridge = "ws://%s:%d" % guider_upstream
+        targets += [("guider", g["name"], f"{bridge}/guider/{g['gcam_name']}/status") for g in config["guiders"]]
+
+    def detail(kind: str, frame: dict) -> str:
+        if kind == "instrument":
+            return " ".join(str(frame.get(k)) for k in ("app", "version") if frame.get(k)) or frame.get("type", "?")
+        return f"gcam {frame.get('gcam', '?')}"
+
+    async def handler(request: web.Request) -> web.Response:
+        results = await asyncio.gather(*(ws_first_frame(request.app["session"], url) for _, _, url in targets))
         checks = [
-            {"kind": kind, "name": name, "target": f"{host}:{port}", "up": up}
-            for (kind, name, host, port), up in zip(targets, results)
+            {"kind": kind, "name": name, "target": url, "up": up,
+             "detail": detail(kind, got) if up else got}
+            for (kind, name, url), (up, got) in zip(targets, results)
         ]
         ok = all(c["up"] for c in checks)
         return web.json_response(

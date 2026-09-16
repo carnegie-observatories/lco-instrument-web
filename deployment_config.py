@@ -48,7 +48,6 @@ def resolve(path: Path | str, ports: dict | None = None) -> dict:
     dep = load(Path(path))
     ports = ports if ports is not None else load_ports()
     apps = ports.get("apps") or {}
-    guider_base = (ports.get("guiders") or {}).get("command_base", 52200)
     image_base = (ports.get("guiders") or {}).get("image_base", 52300)
 
     instruments = []
@@ -89,7 +88,10 @@ def resolve(path: Path | str, ports: dict | None = None) -> dict:
             "title": g.get("title") or g["name"],
             "path": f"/guider/{web_name}/",
             "host": g.get("address") or g["host"],
-            "command_port": guider_base + g["gnum"],
+            # The command port (52200+gnum) is deliberately absent: it is
+            # gcam's single-client text interface and nothing on the web
+            # side may ever dial it. The image port is what gcamweb holds,
+            # and what the inventory's gateway_gcamweb_guiders must agree with.
             "image_port": image_base + g["gnum"],
         })
 

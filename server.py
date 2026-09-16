@@ -89,7 +89,7 @@ def main() -> None:
         ql = " + quick look" if inst["quicklook"] else ""
         print(f"  {inst['app']:<10} {inst['host']}:{inst['port']}  {inst['ws_path']}{ql}")
     for g in config["guiders"]:
-        print(f"  {g['name']:<10} {g['host']}:{g['command_port']}  {g['path']}")
+        print(f"  {g['name']:<10} {g['path']}  (gcamweb {g['gcam_name']})")
     HTTPServer(addr, NoStoreHandler).serve_forever()
 
 
