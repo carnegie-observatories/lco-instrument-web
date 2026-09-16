@@ -76,10 +76,18 @@ def resolve(path: Path | str, ports: dict | None = None) -> dict:
 
     guiders = []
     for g in dep.get("guiders") or []:
+        # The path is gcamweb's name for the guider, not the operational
+        # one. gcamweb's --guider only accepts gcamPG (rotator-port digit +
+        # guider number), and it serves each under /guider/<that name>/, so
+        # the URL is not ours to choose. `name` stays the lco-ansible
+        # gcam_guiders name, which is what the .app bundle is called and
+        # what the inventory cross-check matches on.
+        web_name = g.get("gcam_name") or g["name"]
         guiders.append({
             "name": g["name"],
+            "gcam_name": web_name,
             "title": g.get("title") or g["name"],
-            "path": f"/guider/{g['name']}/",
+            "path": f"/guider/{web_name}/",
             "host": g.get("address") or g["host"],
             "command_port": guider_base + g["gnum"],
             "image_port": image_base + g["gnum"],
