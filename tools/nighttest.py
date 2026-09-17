@@ -353,7 +353,7 @@ class Recorder:
                 m = json.loads(p["payload"])
             except ValueError:
                 return
-            self.rec(name, m.pop("ev", "hook"), **fields(m))
+            self.rec(name, m.pop("ev", "hook"), ch=m.pop("ch", None), **fields(m))
 
         cdp.on("Runtime.bindingCalled", on_binding)
         cdp.on("Network.webSocketCreated", on_ws_created)
