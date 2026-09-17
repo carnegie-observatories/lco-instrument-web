@@ -225,6 +225,24 @@ the same ansible run as the chz1 change; the check is the same — no
 a reload. The cloudflared log at those three timestamps would still say
 which hop did it (`/opt/cloudflared/log/cloudflared.log` on sbs-inst1).
 
+Fourth time at 09:58:51–54, to the second (opened 09:38:51–54). Rule
+confirmed; fix still undeployed at that point.
+
+### Finding 3 — two isolated 1006s on the long-lived sockets (open)
+
+At 10:03:08.95 the guider frame socket (opened 08:58:46, age 64 min)
+closed with 1006; the viewer reconnected in 1.0 s, gcamweb replayed the
+newest frame, and the browser never saw gcam #114046 and #114048 — the
+only two guider frames dropped so far in the run (a 1.8 s gap at 2 fps).
+The status channel saw it too (`clients` 1 → 0 → 1). At 10:05:40.57 the
+imageweb status socket (age 67 min) closed with 1006 and came back on
+its 3 s retry. Nothing else moved: no PFS `hello`, so no gateway restart,
+and the other sockets were untouched. These are the two sockets that
+carry client-to-server traffic all the time, so they are outside both
+rules above. No pattern yet; with two events at ~1 h of age it could be a
+per-connection lifetime somewhere, or two Wi-Fi hiccups. Recorded and
+left open; `report` counts them under `ws_closes` and `dropped_est`.
+
 Recorder restarts: 08:54:29 (stop) and 08:55–08:56 (two attempts; the
 first failed on a CDP parameter name). Each restart reloads every page
 once, so the file carries an extra `navigated`/`hello` per page there —
