@@ -80,7 +80,7 @@ viewer/
   quicklook.html    <body data-kind="quicklook">  — its strip, its panel toggle
   guider.html       <body data-kind="guider">     — its strip: + roi, every
   app.js            the one assembly
-  viewer.css        one sheet (#panel, not #hdr / #guider)
+  viewer.css        one sheet (#info-panel, not #hdr / #guider — nor #panel, which the viewer chrome owns)
   panels/header.js  quick look   — moved from imageweb/static/
   panels/guider.js  the guider   — restored from zwo 1f47b40
   favicon.svg
@@ -329,7 +329,7 @@ with, and the validator cross-checks it.
    playbook's report line, and the one change here that removes a
    hazard rather than adds a feature — it ships first and alone.
 1. **Extract the shared assembly.** Pure move + rename (`#hdr`/`#guider`
-   → `#panel`), quick look unchanged in behaviour. *Exit:* `/image/pfs/`
+   → `#info-panel`), quick look unchanged in behaviour. *Exit:* `/image/pfs/`
    on SBS still renders a live frame, header panel intact.
 2. **The guider page.** Restore `panels/guider.js` and the guide box
    from zwo `1f47b40`; gateway serves `/guider/<name>/` and proxies the

@@ -726,14 +726,15 @@ body.cut-column #experiments { right: 194px; }
    lives on the LEFT, and stops short of the bottom, so it can never cover the panner and the
    magnifier (bottom right) or the readout bar (bottom left). The controls panel (`p`) sits beside
    it rather than under it. */
-#panel { top: 40px; left: 12px; max-height: calc(100vh - 120px); }
+#info-panel { top: 40px; left: 12px; max-height: calc(100vh - 120px); }
 #controls { top: 40px; left: 404px; max-height: calc(100vh - 52px); }
 /* The guider panel is the narrower of the two (316px against 380px), so the controls sit closer. */
 body[data-kind="guider"] #controls { left: 340px; }
 
-/* -- ours: the panel (header or guider) ----------------------------------------------------------- */
+/* -- ours: the info panel (header or guider). Not `#panel`: the viewer chrome owns that id for one
+   of its measurement panels, and a second element with it is invisible to getElementById. ------ */
 
-#panel {
+#info-panel {
   position: fixed;
   width: 380px;
   overflow: auto;
@@ -746,8 +747,8 @@ body[data-kind="guider"] #controls { left: 340px; }
   font: 11.5px var(--mono);
   color: var(--fg);
 }
-#panel[hidden] { display: none; }
-#panel header {
+#info-panel[hidden] { display: none; }
+#info-panel header {
   display: flex;
   justify-content: space-between;
   align-items: baseline;
@@ -757,30 +758,30 @@ body[data-kind="guider"] #controls { left: 340px; }
   border-bottom: 1px solid var(--line);
   color: var(--accent);
 }
-#panel header span { color: var(--dim); font-size: 10.5px; font-variant-numeric: tabular-nums; }
-#panel header .bad { color: var(--bad); }
-#panel header .warn { color: var(--warn); }
-#panel h4 {
+#info-panel header span { color: var(--dim); font-size: 10.5px; font-variant-numeric: tabular-nums; }
+#info-panel header .bad { color: var(--bad); }
+#info-panel header .warn { color: var(--warn); }
+#info-panel h4 {
   margin: 10px 0 4px;
   font: 500 10px/1.4 var(--mono);
   text-transform: uppercase;
   letter-spacing: .07em;
   color: var(--dim);
 }
-#panel dl {
+#info-panel dl {
   display: grid;
   grid-template-columns: max-content 1fr 1.6fr;
   gap: 1px 8px;
   margin: 0;
   align-items: baseline;
 }
-#panel dt { color: var(--dim); white-space: nowrap; }
-#panel dd { margin: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-#panel dd.v { text-align: right; font-variant-numeric: tabular-nums; color: var(--fg); }
-#panel dd.c { color: var(--dim); font-size: 10px; }
+#info-panel dt { color: var(--dim); white-space: nowrap; }
+#info-panel dd { margin: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+#info-panel dd.v { text-align: right; font-variant-numeric: tabular-nums; color: var(--fg); }
+#info-panel dd.c { color: var(--dim); font-size: 10px; }
 /* Stale: the served flag says these are not being updated. Greyed, never hidden. */
-#panel .stale { opacity: .4; }
-#panel .banner {
+#info-panel .stale { opacity: .4; }
+#info-panel .banner {
   margin: 6px 0 0;
   padding: 4px 8px;
   border-radius: 4px;
@@ -788,16 +789,16 @@ body[data-kind="guider"] #controls { left: 340px; }
   color: var(--bad);
   font-size: 10.5px;
 }
-#panel .banner[hidden] { display: none; }
+#info-panel .banner[hidden] { display: none; }
 
-#panel .spark {
+#info-panel .spark {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 6px;
   margin-top: 4px;
 }
-#panel .spark figure { margin: 0; }
-#panel .spark canvas {
+#info-panel .spark figure { margin: 0; }
+#info-panel .spark canvas {
   display: block;
   width: 100%;
   height: 44px;
@@ -805,15 +806,15 @@ body[data-kind="guider"] #controls { left: 340px; }
   border: 1px solid var(--line);
   border-radius: 4px;
 }
-#panel .spark figcaption {
+#info-panel .spark figcaption {
   display: flex;
   justify-content: space-between;
   font-size: 10px;
   color: var(--dim);
   font-variant-numeric: tabular-nums;
 }
-#panel .spark figcaption b { color: var(--fg); font-weight: 500; }
-body[data-kind="guider"] #panel { width: 316px; }
+#info-panel .spark figcaption b { color: var(--fg); font-weight: 500; }
+body[data-kind="guider"] #info-panel { width: 316px; }
 
 /* -- ours: what is drawn on the frame ----------------------------------------------------------------- */
 

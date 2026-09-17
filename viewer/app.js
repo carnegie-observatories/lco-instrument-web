@@ -81,7 +81,10 @@ const pannerRect = $("panner-rect");
 const pannerCrop = $("panner-crop");
 const magBox = $("mag-box");
 const paneEls = { panner: $("pane-panner"), magnifier: $("pane-mag") };
-const panelEl = $("panel");
+// "info-panel", not "panel": the viewer chrome mounts its own #panel (a measurement panel, hidden),
+// and getElementById returns the first -- the guider layer once landed in it, invisibly, while our
+// section sat empty at the top left.
+const panelEl = $("info-panel");
 
 const writeBar = mountBar($("bar"));
 const updatePanel = mountPanel(panelEl);
