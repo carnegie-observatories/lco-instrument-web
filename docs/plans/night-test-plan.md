@@ -115,7 +115,41 @@ First minute, from `report`:
 | `pfs:quicklook` | frame `pfs #6` (2800×1330 bin 4, 0.77 MB, complete), decode 833 ms; status `age_s` counting up from the last readout |
 | `pfs:camera` | hello once, 85 state messages/min (`exposure` 1 Hz, `disk` every ~3 s), exposure id 7 running, 300 s, loop 4 of 90 |
 
-No console errors, exceptions, crashes or socket closes in the first hour.
+No console errors, exceptions or crashes in the first hour.
+
+### Finding 1 — the frame socket dies every idle 125 s (fixed, deploy pending)
+
+The Quick Look's frame socket (`/image/pfs/ws`) closed at 08:31:10,
+08:35:12 and 08:37:19 UTC: each time 125 s after the last frame it had
+received, with `clients` dropping 1 → 0 → 1 on the status channel and no
+error on either side. The viewer reconnected a second later, sent its
+`config`, and imageweb replayed the newest frame (`seq` back to 1, same
+FITS id, 0.77 MB again). Nothing was lost — delivery is seq-keyed — but
+the page spent a second per cycle "disconnected — retrying", and every
+five-minute exposure cost two reconnects and 1.5 MB of replay. The
+guider's socket never showed it because gcam was streaming at 2 fps; an
+idle guider would.
+
+Cause: Cloudflare closes a WebSocket that carries no data in either
+direction for ~100 s (documented under "Idle timeout" in
+developers.cloudflare.com/network/websockets). chz1's stream socket had no
+heartbeat; imageweb's and gcamweb's *status* sockets already had
+`heartbeat=20`, which is why they never dropped.
+
+Fix (astro-ph `8574e61`, branch `chz1-stream`): `heartbeat=20` on the
+stream socket, so aiohttp pings every 20 s and the browser pongs. One
+handler serves both imageweb and gcamweb, so both frame sockets are
+covered. Alongside it, chz1's `pyproject.toml` now keys uv's cache on
+`python/*.py`: consumers install chz1 as a directory dependency, and uv
+was rebuilding it only when `pyproject.toml` changed — the fix would have
+rsynced to the gateway and never entered its venv (verified locally:
+`uv sync --frozen` reinstalled chz1 once after the change, and was quiet
+the second time).
+
+Deploy: the usual `playbooks/gateway.yml` run (rsyncs astro-ph, `uv sync`
+reinstalls chz1, restarts the gateway and gcamweb). The recorder will
+show the restart as one `ws_close`/`ws_open` on every socket, and then no
+further `ws_close` on `/image/pfs/ws` between readouts. Not run yet.
 
 _(Final figures to be added when the run ends.)_
 
