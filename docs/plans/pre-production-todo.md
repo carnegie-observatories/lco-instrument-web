@@ -1,6 +1,6 @@
 # Pre-production: what has to merge or change so nothing is rsynced
 
-State on 2026-09-17. Today `playbooks/gateway.yml` installs the gateway
+State on 2026-09-17, updated the same evening after the merges below. Today `playbooks/gateway.yml` installs the gateway
 from git, cloudflared from brew/apt with vaulted credentials, and gcam from
 a pinned zwo release — and then rsyncs two working trees from the control
 laptop: the astro-ph checkout (viewer packages, built by hand; chz1 as a
@@ -17,7 +17,8 @@ rsync cannot go. Everything else is polish that the same run should carry.
 
 - [ ] **Merge `chz1-stream` (PR #1).** `chz1.stream` is the server both
       imageweb and gcamweb embed and it exists only on that branch; the
-      heartbeat fix is on it too. Blocker.
+      heartbeat fix is on it too. Description complete (both commits,
+      RFC, night-test evidence); awaiting review. Blocker.
 - [ ] **Publish chz1 as a Python package, or make it git-installable.**
       imageweb and gcamweb both carry `chz1 = { path = "../../…/astro-ph/packages/chz1" }`
       — a relative path into a checkout that must sit beside the consumer.
@@ -50,12 +51,11 @@ rsync cannot go. Everything else is polish that the same run should carry.
 
 ## zwo (carnegie-observatories/zwo, public) — gcamweb
 
-- [ ] **Merge PR #35** (`feature/gcam-web-viewer`, mergeable, no review
-      yet). It carries `src/web/gcamweb` and `docs/plans/gcam-web-viewer.md`.
-      Blocker.
-- [ ] **Cut a release that includes it** (v1.1 is a pre-release with only
-      the gcam/zwoserver `.run` assets). Then gcamweb installs like gcam
-      does: either
+- [x] **PR #35 merged** (2026-09-17 21:23 UTC, `18235f3`): `src/web/gcamweb`
+      and `docs/plans/gcam-web-viewer.md` are on `main`.
+- [x] **v1.1.1 pre-release cut** on `main` with release notes for gcamweb;
+      the CI builds the `.run` assets and ghcr images on publish. gcamweb
+      can now install from the tag like gcam does: either
       - `uv tool install "gcamweb @ git+https://github.com/carnegie-observatories/zwo@v1.2#subdirectory=src/web"`
         (public repo, no token), or
       - a `gcamweb-<ver>.whl` asset built by the zwo CI and fetched with
@@ -67,14 +67,12 @@ rsync cannot go. Everything else is polish that the same run should carry.
 
 ## lco-instrument-web (carnegie-observatories/lco-instrument-web, public)
 
-- [ ] **Merge `plan/deployment-config` into `main`** — 34 commits: the
-      deployment config, the gateway, the viewer assembly, the guider
-      pages, the night-test recorder, the gateway heartbeat. The SBS
-      inventory pins `gateway_version: plan/deployment-config`; after the
-      merge pin a tag (`v0.2.0`) instead of a branch. Blocker for "pinned",
-      not for "no rsync".
-- [ ] Push the three commits still local (ssh agent was down): report,
-      plan, close-code summary.
+- [x] **`plan/deployment-config` merged into `main`** (`3ae40f4`, 36
+      commits: deployment config, gateway, viewer assembly, guider pages,
+      night-test recorder, gateway heartbeat, plans and report). The
+      feature branches were already in. Pushed.
+- [ ] Pin a tag (`v0.2.0`) in `inventory_sbs.yaml` instead of
+      `gateway_version: plan/deployment-config`.
 - [ ] Repoint imageweb's `chz1` source from the relative path to the tag,
       and regenerate `uv.lock` (`uv lock`), so `uv sync --frozen` on the
       host resolves without an astro-ph checkout beside it.
@@ -88,17 +86,20 @@ rsync cannot go. Everything else is polish that the same run should carry.
       deprecated argument of the wrong type; use `ClientWSTimeout` or the
       session default.
 - [ ] Tag a release and note it in `docs/deploy-cloudflare.md`.
-- [ ] Commit or drop the three modified/untracked plan files sitting in
-      the working tree (`image-viewer-plan.md`, `ws-migration-plan.md`,
-      `ws-migration-fourstar-plan.md`).
+- [x] The three pending plan files (`image-viewer-plan.md`,
+      `ws-migration-plan.md`, `ws-migration-fourstar-plan.md`) committed
+      with the merge.
 
 ## lco-ansible (carnegie-observatories/lco-ansible, private)
 
-- [ ] **Merge `feature/gateway-role` into `main`** — 5 commits: gateway
-      role, cloudflared role, gcamweb tasks, `/healthz` reporting, tunnel
-      post-checks. Also commit or drop the working-tree edits to
-      `inventory_lco.yaml`, `playbooks/zwo_server_deploy.yml`,
-      `instrument-updater.sh`, `uv.lock`.
+- [ ] **Merge PR #1** (`feature/gateway-role`, squashed to one commit
+      `d26ae18`: gateway role, cloudflared role, gcamweb tasks, `/healthz`
+      reporting, tunnel post-checks). Still to commit separately: the
+      working-tree edits to `inventory_lco.yaml` (zwoserver v1.0.7 pin),
+      `playbooks/zwo_server_deploy.yml` / `zwo_server_install.yml`
+      (`/etc/hosts` on the Pi, iftop), `instrument-updater.sh` (artifact
+      nesting), `uv.lock`, and the untracked
+      `docs/plans/gcam-simulator-deployment.md`.
 - [ ] **Replace the astro-ph synchronize** (`roles/gateway/tasks/main.yml`)
       with the package installs from the astro-ph section: `npm install`
       of the three JS packages at pinned versions into `gateway_root/pkg`,
@@ -130,11 +131,14 @@ rsync cannot go. Everything else is polish that the same run should carry.
 ## Instrument apps (obs1 / sbs-inst1)
 
 - [ ] PFS on the test host reports `0.0.0-d48a6d1`: a development build.
-      The `instruments` role already has an updater that pulls tagged
-      `.app` builds from GitHub releases; pre-production should run a
-      tagged PFS build the same way, and the `hello.version` the gateway's
-      `/healthz` reports should be that tag. Same for any other instrument
-      the deployment file lists.
+      PR #8 (calibration window) has its review comments addressed and
+      the AI-attributed empty commit removed; after re-review and merge,
+      cut the PFS release the `instruments` role's updater pulls, and
+      pin it so the `hello.version` in `/healthz` is that tag. Five
+      small unpushed fixes from an earlier pass sit on the local branch
+      `fix/post-calibration-polish` (WS option accessors main-thread
+      safe, graph redisplay on main, secure restorable state, Logger.h
+      nullability, Settings menu rename) — their own PR after #8.
 - [ ] The instrument's WS server is the one thing the night test could not
       measure the far side of; with the heartbeat on the proxy the browser
       side is covered, but a `heartbeat`/ping on the Cocoa `WSServer`
