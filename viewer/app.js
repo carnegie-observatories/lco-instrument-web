@@ -919,9 +919,11 @@ function reportRate(header, geom, bytes) {
   const c = header.crop;
   const of = c && c.n > 1 ? ` (centre 1/${c.n} of ${c.src_w}×${c.src_h}${header.bin > 1 ? `, bin ${header.bin}` : ""})`
     : header.bin > 1 ? ` (bin ${header.bin})` : "";
-  $("strip-rate").textContent =
+  const text =
     `${rate}${geom.w}×${geom.h}${of} · ${(bytes / 1e6).toFixed(2)} MB/frame` +
     `${header.qstep ? ` · q step ${header.qstep}` : " · lossless"}`;
+  $("strip-rate").textContent = text;
+  $("strip-rate").title = text;   // the strip truncates this in a narrow window; hover reads it whole
 }
 
 let retry = null;

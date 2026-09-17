@@ -699,6 +699,18 @@ body.cut-column #experiments { right: 194px; }
   background: var(--panel);
   border-bottom: 1px solid var(--line);
   backdrop-filter: blur(6px);
+  /* One line, 30px, always: everything below is pinned relative to that height. A narrow window
+     (a split view) used to wrap the strip into a 200px block that painted over the panel. Only the
+     rate readout may shrink; it truncates with an ellipsis and carries the full text as a title. */
+  height: 30px;
+  box-sizing: border-box;
+  flex-wrap: nowrap;
+  white-space: nowrap;
+  /* Narrower still than the controls need, the strip scrolls sideways rather than dropping its
+     right-hand buttons off the edge; the scrollbar itself is hidden (a 30px strip has no room). */
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: none;
   font: 12px var(--mono);
   color: var(--fg);
 }
@@ -720,7 +732,9 @@ body.cut-column #experiments { right: 194px; }
 #strip button.on { color: #0a0a0c; background: var(--accent); border-color: var(--accent); }
 #strip a { color: var(--dim); text-decoration: none; }
 #strip a:hover { color: var(--accent); }
-#strip-rate { font-variant-numeric: tabular-nums; }
+#strip::-webkit-scrollbar { display: none; }
+#strip > * { flex-shrink: 0; }
+#strip-rate { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; font-variant-numeric: tabular-nums; }
 
 /* The strip takes the top 30px, so everything pinned to the top steps down. The panel
    lives on the LEFT, and stops short of the bottom, so it can never cover the panner and the
