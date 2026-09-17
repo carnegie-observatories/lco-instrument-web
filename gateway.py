@@ -96,7 +96,12 @@ async def proxy_ws(request: web.Request, target: str) -> web.WebSocketResponse:
     # [""] from an absent header makes the handshake negotiate an empty
     # protocol, which clients reject.
     offered = [p for p in request.headers.get("Sec-WebSocket-Protocol", "").split(",") if p.strip()]
-    client = web.WebSocketResponse(protocols=[p.strip() for p in offered])
+    # heartbeat: a ping to the browser every 20 s, answered by a pong. The instrument and
+    # status channels flow one way -- the browser subscribes once and never speaks again --
+    # and the night test of 2026-09-17 saw exactly those sockets cut (1006) twenty minutes
+    # after they were opened, every time, while every socket with client-to-server traffic
+    # lived. The pongs are that traffic.
+    client = web.WebSocketResponse(protocols=[p.strip() for p in offered], heartbeat=20)
     await client.prepare(request)
     session: ClientSession = request.app["session"]
 
