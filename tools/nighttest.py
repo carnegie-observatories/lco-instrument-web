@@ -251,7 +251,12 @@ class Recorder:
         """Attach, record until the connection drops, reattach. Runs for the whole test."""
         name = page["name"]
         while not self.stop.is_set():
-            target = next((t for t in await self.targets() if page_key(t["url"]) == page_key(page["url"])), None)
+            try:
+                target = next((t for t in await self.targets() if page_key(t["url"]) == page_key(page["url"])), None)
+            except Exception as e:  # Chrome itself is away (restarting); keep trying
+                self.rec(name, "chrome_unreachable", error=repr(e))
+                await asyncio.sleep(5)
+                continue
             if target is None:
                 self.rec(name, "target_missing")
                 try:
