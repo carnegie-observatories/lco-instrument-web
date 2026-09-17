@@ -280,13 +280,14 @@ class Recorder:
 
     async def attach(self, cdp: CDP, page: dict) -> None:
         name, kind = page["name"], page["kind"]
-        sockets: dict[str, str] = {}  # requestId -> channel (last path segment of the ws url)
+        sockets: dict[str, str] = {}  # requestId -> channel (the ws url's path)
 
         def channel(p) -> str:
             return sockets.get(p.get("requestId"), "?")
 
         def on_ws_created(p):
-            sockets[p["requestId"]] = urlparse(p["url"]).path.rsplit("/", 1)[-1]
+            # The whole path: the SPA's Quick Look tab has /pfs/ws and /image/pfs/ws side by side.
+            sockets[p["requestId"]] = urlparse(p["url"]).path
             self.rec(name, "ws_open", ch=sockets[p["requestId"]], url=p["url"])
 
         def on_ws_closed(p):
@@ -340,6 +341,16 @@ class Recorder:
             if not f.get("parentId"):
                 self.rec(name, "navigated", url=f.get("url"))
 
+        def on_binding(p):
+            if p.get("name") != "__nighttest":
+                return
+            try:
+                m = json.loads(p["payload"])
+            except ValueError:
+                return
+            self.rec(name, m.pop("ev", "hook"), **fields(m))
+
+        cdp.on("Runtime.bindingCalled", on_binding)
         cdp.on("Network.webSocketCreated", on_ws_created)
         cdp.on("Network.webSocketClosed", on_ws_closed)
         cdp.on("Network.webSocketFrameError", on_ws_error)
@@ -353,6 +364,11 @@ class Recorder:
         cdp.on("Inspector.targetCrashed", lambda p: self.rec(name, "crash"))
         for dom in ("Network", "Runtime", "Log", "Page", "Performance", "Inspector"):
             await cdp.call(f"{dom}.enable")
+        # The Network domain says a socket closed, not why. The page itself sees the close code and
+        # reason (1006: the connection died without a close frame; 1000/1001: the other side said
+        # goodbye), so a hook on WebSocket reports them through a binding, on every document load.
+        await cdp.call("Runtime.addBinding", name="__nighttest")
+        await cdp.call("Page.addScriptToEvaluateOnNewDocument", expression=WS_HOOK)
         # DevTools reports only WebSockets opened after Network.enable: reload so every socket is seen.
         await cdp.call("Page.reload")
         self.rec(name, "reloaded")
@@ -364,7 +380,7 @@ class Recorder:
         except ValueError:
             self.rec(name, "text", ch=ch, bytes=len(data))
             return
-        if ch == "status":
+        if ch.endswith("/status"):
             self.rec(name, "status", **fields(m, skip=("cards", "comments")))
             return
         t = m.get("type")
@@ -433,6 +449,23 @@ class Recorder:
 
 
 RESERVED = ("t", "iso", "page", "ev", "ch")
+
+# Runs before any page script (main document and same-origin iframes alike): wraps WebSocket so
+# each close reports its code, reason and cleanliness. `ch` matches the Network domain's channel.
+WS_HOOK = """(() => {
+  const Native = WebSocket;
+  const send = (o) => { try { __nighttest(JSON.stringify(o)); } catch (e) {} };
+  const Hooked = function (url, protocols) {
+    const ws = protocols === undefined ? new Native(url) : new Native(url, protocols);
+    const ch = new URL(url, location.href).pathname;
+    ws.addEventListener("close", (e) => send({ ev: "ws_closed", ch, code: e.code, reason: e.reason, clean: e.wasClean }));
+    ws.addEventListener("error", () => send({ ev: "ws_onerror", ch }));
+    return ws;
+  };
+  Hooked.prototype = Native.prototype;
+  for (const k of ["CONNECTING", "OPEN", "CLOSING", "CLOSED"]) Hooked[k] = Native[k];
+  window.WebSocket = Hooked;
+})();"""
 
 
 def fields(m: dict, skip=()) -> dict:
