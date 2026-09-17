@@ -196,14 +196,34 @@ untouched both times. What is known:
   moments (`/image/pfs/ws` is re-made every 2 min by finding 1, the
   guider frame socket a second later than the rest).
 
-Hypothesis: sockets that arrive together are placed on the same one of
-cloudflared's four connections to the edge, and that connection was
-reset — all its streams die at once, everything on the other three
-connections lives. A ~30 min period would fit an edge-side rotation.
-Verification needs the host: `/opt/cloudflared/log/cloudflared.log` on
-sbs-inst1 at 08:49:02 and 09:18:47 UTC (a "connection … terminated /
-registered" pair), and `cloudflared tunnel info` — one connection
-younger than the others. If periodic, the next one is due near 09:48:30.
+**Third time at 09:38:49**, and the rule is now exact — each of the
+three sockets dies **20 minutes after it was opened**:
+
+| opened | closed | lifetime |
+|---|---|---|
+| 08:29:02 (reload) | 08:49:02 | 20:00 |
+| 08:58:46 (reload) | 09:18:47 | 20:01 |
+| 09:18:49 (reconnect) | 09:38:49 | 20:00 |
+
+and the discriminator is not when a socket was opened but **whether the
+browser ever sends on it**. The three victims are the one-way channels:
+the SPA sends `subscribe` once and then only listens; the guider's
+status channel sends nothing at all. Every survivor carries
+client-to-server bytes: the guider frame socket acks every frame, the
+imageweb status socket pongs its server heartbeat every 20 s, and
+`/image/pfs/ws` never lived 20 minutes. Something in the path (the
+edge or the tunnel; the gateway has no such timer, and the operator's
+own tabs on the same channels have the same traffic pattern, so they
+must be dropping too, unnoticed, every 20 minutes) closes a WebSocket
+that has carried no client-originated data for 20 minutes.
+
+Fix (`5ef8747`): `heartbeat=20` on the gateway's proxied sockets
+(`proxy_ws`), the same one line as finding 1 on the other side of the
+gateway. The browser's pongs are the missing direction. Deployed with
+the same ansible run as the chz1 change; the check is the same — no
+`ws_closed` on `/pfs/ws` or `/guider/pfs-sv/status` twenty minutes after
+a reload. The cloudflared log at those three timestamps would still say
+which hop did it (`/opt/cloudflared/log/cloudflared.log` on sbs-inst1).
 
 Recorder restarts: 08:54:29 (stop) and 08:55–08:56 (two attempts; the
 first failed on a CDP parameter name). Each restart reloads every page
