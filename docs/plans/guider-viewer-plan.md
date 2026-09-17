@@ -1,8 +1,8 @@
 # The web guider page — Plan
 
-**Status:** implemented 2026-09-16 (Phases 0–3; the `roi`/`every`
-setters wait on zwo PR #35 and the selects stay disabled until gcamweb
-answers). Decisions below settled with W.S. the same day. Supersedes the one-line disposition in
+**Status:** implemented 2026-09-16; complete 2026-09-17, when zwo
+PR #35 (`4ce4694`) restored the `roi`/`every` setters and the selects
+came alive on SBS. Decisions below settled with W.S. on 2026-09-16. Supersedes the one-line disposition in
 [zwo's gcam-web-viewer.md](../../../zwo/docs/plans/gcam-web-viewer.md)
 ("the viewer page ships with the instrument SPA instead of this
 repository") by saying *where* in this repo, and what it costs.
