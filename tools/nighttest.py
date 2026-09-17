@@ -575,6 +575,11 @@ def report(path: str, as_json: bool) -> None:
         p: dict = {"records": len(rs)}
         p["ws_opens"] = dict(Counter(r["ch"] for r in by["ws_open"]))
         p["ws_closes"] = dict(Counter(r["ch"] for r in by["ws_close"]))
+        closes = defaultdict(Counter)
+        for r in by["ws_closed"]:
+            closes[r.get("ch") or r.get("m_ch") or "?"][f'{r.get("code")}{"" if r.get("clean") else " unclean"}'] += 1
+        if closes:
+            p["close_codes"] = {ch: dict(c) for ch, c in closes.items()}
         p["attach"] = {"attached": len(by["attached"]), "detached": len(by["detached"]),
                        "target_missing": len(by["target_missing"]), "crashes": len(by["crash"]),
                        "navigations": len(by["navigated"]), "loads": len(by["loaded"])}

@@ -239,9 +239,20 @@ imageweb status socket (age 67 min) closed with 1006 and came back on
 its 3 s retry. Nothing else moved: no PFS `hello`, so no gateway restart,
 and the other sockets were untouched. These are the two sockets that
 carry client-to-server traffic all the time, so they are outside both
-rules above. No pattern yet; with two events at ~1 h of age it could be a
-per-connection lifetime somewhere, or two Wi-Fi hiccups. Recorded and
-left open; `report` counts them under `ws_closes` and `dropped_est`.
+rules above.
+
+Then at 10:20:28.75–29.01 three sockets died within 260 ms: the imageweb
+status socket (age 15 min), the guider frame socket (17 min) and the
+guider status socket (88 s — reopened at 10:19:00 after the 20-minute
+cut). Both PFS sockets, made at 10:18:55, survived. So this class has
+nothing to do with age or with who sends: a subset of connections is
+reset from the far side in the same instant, at 10:03:08, 10:05:40 and
+10:20:28. The client cannot tell which subset or why (CF-RAY only names
+the colo, LAX); cloudflared's own log is the place — a subset of streams
+dying together is what a reset of one of its four edge connections looks
+like, and the operator's own tabs would be hit the same way. Left open;
+`report` lists closes per channel with their codes, and the guider's
+`dropped_est` carries the frames lost across each reconnect.
 
 Recorder restarts: 08:54:29 (stop) and 08:55–08:56 (two attempts; the
 first failed on a CDP parameter name). Each restart reloads every page
