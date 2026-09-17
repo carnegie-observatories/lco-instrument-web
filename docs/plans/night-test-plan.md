@@ -54,11 +54,20 @@ command interface holds here too.
        "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" \
          --user-data-dir="$HOME/Library/Application Support/Google/Chrome-nighttest" \
          --remote-debugging-port=9222 --no-first-run \
+         --disable-backgrounding-occluded-windows --disable-renderer-backgrounding \
+         --disable-background-timer-throttling \
          'https://sbs.chimera.observer/app.html?ws_path=%2Fpfs%2Fws&tab=camera' \
          'https://sbs.chimera.observer/app.html?ws_path=%2Fpfs%2Fws&tab=quicklook' \
          'https://sbs.chimera.observer/guider/pfs-sv/'
 
    Log in to Access in that window. The recorder waits for the login.
+
+   The three `--disable-…` flags matter on a desktop someone is using:
+   Chrome marks a window covered by any other application's window as
+   hidden, the viewer then pauses ("paused (not visible)"), and the test
+   records nothing from it. With the flags an occluded window stays
+   `visible`; only a minimised one is hidden. (Learned on the first run:
+   by 08:55 both SPA windows were under the operator's own windows.)
 
 2. Record. It finds every `sbs.chimera.observer` tab and classifies it by
    URL (SPA + tab, `/image/<inst>/`, `/guider/<name>/`), gives each its own
@@ -150,6 +159,31 @@ Deploy: the usual `playbooks/gateway.yml` run (rsyncs astro-ph, `uv sync`
 reinstalls chz1, restarts the gateway and gcamweb). The recorder will
 show the restart as one `ws_close`/`ws_open` on every socket, and then no
 further `ws_close` on `/image/pfs/ws` between readouts. Not run yet.
+
+### Finding 2 — three sockets dropped together at 08:49:02 (open)
+
+Both SPA sockets (`/pfs/ws`, camera and Quick Look pages) and the guider's
+status socket closed within 400 ms of each other; the guider's frame socket
+(connection seq 2349 → 2350 unbroken) and both imageweb sockets did not,
+so the gateway did not restart. PFS logged `4 WS clients connected` when
+our two came back, and nothing for the operator's own tabs, so the drop
+was confined to the test Chrome. All three pages recovered on their own
+(SPA hello after 2.4 s, status after 3 s). Cause unknown: the Network
+domain reports a close without its code. From 08:56 the recorder installs
+a WebSocket hook on every document (`ws_closed` records: code, reason,
+`wasClean`), so the next such event says which side closed and how; 1006
+would mean the connection died under the page, a clean 1000/1001 a peer
+that said goodbye.
+
+Recorder restarts: 08:54:29 (stop) and 08:55–08:56 (two attempts; the
+first failed on a CDP parameter name). Each restart reloads every page
+once, so the file carries an extra `navigated`/`hello` per page there —
+not the pages' doing.
+
+The camera-tab window reports `visibilityState: hidden` in every metrics
+sample: it sits bottom-left of the 2×2 tiling and is covered by another
+application's window. The SPA does not pause when hidden, so its data are
+unaffected; a viewer page in that position would have stopped.
 
 _(Final figures to be added when the run ends.)_
 
