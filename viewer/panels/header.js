@@ -6,7 +6,8 @@
 // message: the control-WS connection, the exposure/readout topics (pushed by the Cocoa app),
 // and the frame's age. See docs/plans/image-viewer-plan.md, "display verbatim, derive nothing".
 //
-// `mountHeaderPanel(root)` fills the element and returns `update({ fits, status, ageS })`.
+// `mountPanel(root)` fills the element and returns `update({ meta, status, ageS })`, `meta` being the
+// frame header's `fits` object. The same signature as panels/guider.js: app.js picks one by page kind.
 
 const fmt = (v) => {
   if (v === null || v === undefined) return "—";
@@ -16,7 +17,7 @@ const fmt = (v) => {
 
 const pct = (v) => (typeof v === "number" ? `${Math.round(v * 100)}%` : null);
 
-export function mountHeaderPanel(root) {
+export function mountPanel(root) {
   root.innerHTML = `
     <header><b>image</b><span id="hp-state">—</span></header>
     <p class="banner" id="hp-banner" hidden></p>
@@ -64,7 +65,7 @@ export function mountHeaderPanel(root) {
 
   /// `fits` is the frame header's object: { id, path, cards, comments }. `status` is the
   /// bridge's /status message, or null. `ageS` is seconds since the page received the frame.
-  return function update({ fits, status, ageS }) {
+  return function update({ meta: fits, status, ageS }) {
     if (fits && cardsFor !== (fits.id ?? fits.path)) {
       cardsFor = fits.id ?? fits.path;
       rebuildCards(fits);

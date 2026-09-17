@@ -18,7 +18,9 @@ The chosen design:
 
 **Lead rollout: ADC and DCU first.** They have the smallest external command surface (3 commands each) and produce no FITS, so the lead PR is a clean validation of the WSServer + InstrumentService + InstrumentRouter framework with minimal per-instrument complexity. Once that ships and is stable, the migration extends to Henrietta + Swope, then LDSS3 + MagE + MIKE (direct fits), then IFUM + M2FS once their legacy handlers are caught up.
 
-**Out of scope for this plan:** FourStar (its command server lives in a separate C daemon, `src/StarServer/starserver.c`, not the Cocoa AppDelegate) and IMACS (also C-based). Both warrant their own migration plans when the time comes; the protocol design (project rules, message envelope, image-transfer port scheme) carries over but the implementation files do not.
+**FourStar is in scope** (re-added 2026-08-31; an earlier revision excluded it on the belief that its command server lives in the C daemon `src/StarServer/starserver.c` — that described the v2.2 Carbon app. The v3 rewrite is a Cocoa app of exactly the PFS shape; StarServer is the *detector* server the GUI dials as an outbound client, and v3 has no legacy TCP command server at all, so its WS interface is net-new surface with no parity constraint). Per-app plan: [ws-migration-fourstar-plan.md](ws-migration-fourstar-plan.md).
+
+**Out of scope for this plan:** IMACS (C end-to-end; warrants its own migration plan when the time comes — the protocol design carries over, the implementation files do not).
 
 ### Operating assumptions (settled)
 
@@ -102,8 +104,9 @@ Rollout order (confirmed):
 2. **Henrietta + Swope.** Full exposure/wheel coverage; first FITS-producing instruments — their `exposure_complete` events make them the first gateway-served instruments (§ Image transfer).
 3. **LDSS3, MagE, MIKE.** Direct fits; mostly mechanical translation of their existing `tcpip_handler:` to InstrumentService methods.
 4. **IFUM, M2FS.** Only after their legacy handlers are caught up to LDSS3/MagE/MIKE parity. Catching them up is a separate, mechanical PR per instrument (copy LDSS3 handler shape, wire to existing `CCD_Controller`).
+5. **FourStar.** The v3 Cocoa rewrite takes the standard port (no legacy TCP server to run in parallel; four FITS files per exposure — the multi-file `exposure_complete` extension). Own plan: [ws-migration-fourstar-plan.md](ws-migration-fourstar-plan.md).
 
-**Out of scope: FourStar and IMACS.** Both are C-based — FourStar's command server lives in `src/StarServer/starserver.c` (separate daemon from the Cocoa GUI); IMACS is C end-to-end. The protocol design and port scheme below carry over to them, but the implementation is a separate work item using a C-side WS library, not Apple's `Network.framework`. Plan that when the time comes.
+**Out of scope: IMACS.** C end-to-end; the protocol design and port scheme below carry over, but the implementation is a separate work item using a C-side WS library, not Apple's `Network.framework`. Plan that when the time comes.
 
 **Out of scope: GuidePaddle.** It's a *client* of a remote TCS, not an instrument server. Nothing to migrate.
 
@@ -112,6 +115,7 @@ Per-instrument port assignments (control WS = `+2`; no per-instrument image port
 | Instrument | PROJECT_ID | Legacy TCP | WS control |
 |------------|------------|------------|------------|
 | LDSS3      |  6         | 50601      | 50603      |
+| FourStar   | 11         | — (none)   | 51103      |
 | MIKE       |  8         | 50801      | 50803      |
 | Swope      | 12         | 51201      | 51203      |
 | MagE       | 15         | 51501      | 51503      |
@@ -121,7 +125,7 @@ Per-instrument port assignments (control WS = `+2`; no per-instrument image port
 | ADC        | 24         | 52401      | 52403      |
 | Henrietta  | 28         | 52801      | 52803      |
 
-(IFUM and M2FS share `PROJECT_ID = 18` in their respective `main.h`. Pre-existing collision; if both run on the same host one needs a fresh ID. Not introduced by this plan but worth surfacing.)
+(IFUM and M2FS share `PROJECT_ID = 18` in their respective `main.h`. Pre-existing collision; if both run on the same host one needs a fresh ID. Not introduced by this plan but worth surfacing. FourStar has no legacy TCP server — 51101/51102 are its StarGUI/StarServer detector-link ports, and its localhost *simulator* ports currently overlap 51103; relocation is covered in [ws-migration-fourstar-plan.md](ws-migration-fourstar-plan.md) § Port assignment.)
 
 ## WebSocket protocol
 

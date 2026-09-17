@@ -316,14 +316,28 @@ uv run python deploy/sync-access-policies.py --telescope clay
 Until this step the tunnel is publicly reachable — run the sync
 before sharing any hostname.
 
-### 6. Run as a service
+### 6. Run as a service — via ansible
+
+The connector is deployed by lco-ansible's `roles/cloudflared`, applied
+by `playbooks/gateway.yml` on the gateway host, so the deployment has a
+record: the tunnel UUID and hostname are inventory vars on the host,
+the tunnel's `<UUID>.json` is `cloudflared_tunnel_credentials` in
+`host_vars/<host>/secrets.yaml` (vaulted), and the one-rule ingress is
+templated from the gateway's own bind/port. The role installs the
+binary, `/opt/cloudflared/{config.yml,<UUID>.json}`, and a launchd job
+(`com.carnegie.cloudflared`, running as the gateway's service account)
+or a systemd unit; logs go to `/opt/cloudflared/log/cloudflared.log`.
 
 ```sh
-sudo cloudflared service install
+cd ~/workspace/lco-ansible
+uv run ansible-playbook -i inventory_<telescope>.yaml -l <host> playbooks/gateway.yml
 ```
 
-Installs a launchd job so the tunnel survives reboots. Logs go to
-`/Library/Logs/com.cloudflare.cloudflared.err.log`.
+Do **not** also run `sudo cloudflared service install` on a host the
+role manages: it would start a second connector on the same tunnel with
+its own config. `cert.pem` never goes to the server — it is the
+account's management credential; running a tunnel needs only the
+tunnel's own secret.
 
 ### 7. Connect
 
@@ -353,43 +367,23 @@ the safest place for it (the alternative, proxying WebSockets
 through the Python static server, would put hand-rolled proxy code
 in the control path for no gain).
 
-## Mounting a whole web app under a path (guider)
+## The guider pages
 
-Some services are not SPA instruments but complete web apps of their
-own — the gcam web guider (`http://127.0.0.1:8765/`) is one. They
-stay on the telescope hostname, under a path prefix, so the
-telescope's Access app already covers them and neither DNS nor the
-policy changes. cloudflared forwards the path **unchanged** (there is
-no prefix stripping), so the app itself must serve under the prefix
-— the gcam bridge does: one process, one `--guider gcamPG[@HOST[:PORT]]`
-flag per camera, each mounted at `/guider/gcamPG/` (list at `/guider/`,
-JSON at `/guider/guiders.json`, packages shared at `/guider/pkg/`).
-Two pieces:
+The web guiders are pages of the gateway itself, not a mounted app:
+`viewer/guider.html` is served at `/guider/<name>/` under the guider's
+operational name (`pfs-sv`, the PFS slit viewer), and only the live
+channels — `ws`, `status`, `every`, `roi` — are reverse-proxied to
+gcamweb under its own `gcamPG` name (`/guider/gcam13/…`). gcamweb
+serves no pages since zwo `5fcc1fa`; the rename between the two names
+happens in `gateway.py` and nowhere else. The viewer packages come from
+a single `/pkg/` mount shared with quick look.
 
-1. **Ingress rule**, before the SPA catch-all, in
-   `deploy/cloudflared/<telescope>/config.yml` (then install it):
-
-   ```yaml
-   - hostname: sbs.chimera.observer
-     path: ^/guider(/.*)?$
-     service: http://127.0.0.1:8765
-   ```
-2. **Landing-page card per guider**, `data-path="/guider/gcam03/"` —
-   on HTTPS it links to the path; on plain HTTP straight to
-   `127.0.0.1:8765/guider/gcam03/`. Adding a guider = a `--guider` flag
-   on the bridge + a card; the ingress rule already covers `/guider/*`.
-
-The mounted app must be prefix- and HTTPS-clean: page-relative URLs
-(`../pkg/…`, not `/pkg/…`) and `wss:` when the page is `https:`. The
-gcam bridge is; `cloudflared tunnel ingress rule
-https://sbs.chimera.observer/guider/pkg/chz1/index.js` should hit
-the guider rule, and `…/guider/gcam03` (no slash) redirects to
-`…/gcam03/`.
-
-A guider whose camera is on a *different* Mac should run its own
-bridge there (single `--guider`) behind a cloudflared replica with
-its own `^/guider/gcamPG(/.*)?$` rule, so frames never cross the LAN
-in cleartext — the same replica pattern as the instruments.
+Nothing here touches the tunnel: the one ingress rule already sends
+every path on the hostname to the gateway, and the telescope's Access
+app already covers `/guider/*`. Adding a guider is an entry in
+`deployments/<name>.yml` (with its `gcam_name`) and a `--guider` flag
+on gcamweb via `gateway_gcamweb_guiders` in the inventory. Design:
+[docs/plans/guider-viewer-plan.md](plans/guider-viewer-plan.md).
 
 ## Test telescope walkthrough (SBS)
 
@@ -419,10 +413,8 @@ cloudflared tunnel route dns sbs-telescope sbs.chimera.observer
 export CLOUDFLARE_API_TOKEN=...
 uv run python deploy/sync-access-policies.py --telescope sbs
 
-# 6. run
-cloudflared tunnel run sbs-telescope     # foreground for a test box;
-                                         # `sudo cloudflared service install`
-                                         # if it should persist
+# 6. run -- foreground on a test box; the real thing is ansible (step 6 above):
+cloudflared tunnel run sbs-telescope
 ```
 
 Then, with the instrument app + `python3 server.py` running:

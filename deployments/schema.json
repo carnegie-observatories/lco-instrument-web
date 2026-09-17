@@ -1,0 +1,178 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/carnegie-observatories/lco-instrument-web/deployments/schema.json",
+  "title": "LCO instrument-web deployment",
+  "description": "One telescope or test deployment: its Cloudflare subdomain, its gateway, and the instruments and guiders present on it.",
+  "type": "object",
+  "required": [
+    "name",
+    "domain",
+    "gateway"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "name": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9-]*$",
+      "description": "Deployment id; also the Cloudflare subdomain label and the filename stem."
+    },
+    "title": {
+      "type": "string",
+      "description": "Human name for the landing page."
+    },
+    "domain": {
+      "type": "string",
+      "pattern": "^[a-z0-9-]+(\\.[a-z0-9-]+)+$",
+      "description": "Fully qualified hostname. One Access application covers it; instruments are paths on it, never subdomains."
+    },
+    "gateway": {
+      "type": "object",
+      "required": [
+        "host"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "host": {
+          "$ref": "#/$defs/inventoryHost"
+        },
+        "address": {
+          "$ref": "#/$defs/address"
+        },
+        "port": {
+          "$ref": "#/$defs/port",
+          "default": 8080
+        }
+      }
+    },
+    "instruments": {
+      "type": "array",
+      "default": [],
+      "items": {
+        "type": "object",
+        "required": [
+          "app",
+          "host"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "app": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9]*$",
+            "description": "Key into instruments/ports.yml; also the instruments/<app>/ UI directory and the /<app>/ws path."
+          },
+          "title": {
+            "type": "string"
+          },
+          "host": {
+            "$ref": "#/$defs/inventoryHost"
+          },
+          "address": {
+            "$ref": "#/$defs/address"
+          },
+          "port": {
+            "$ref": "#/$defs/port",
+            "description": "Overrides the derived port from instruments/ports.yml. Only for a non-standard build."
+          },
+          "quicklook": {
+            "type": "boolean",
+            "default": false,
+            "description": "FITS producer: mount /image/<app>/ and add a Quick Look sub-tab."
+          },
+          "fits_root": {
+            "type": "object",
+            "required": [
+              "instrument",
+              "gateway"
+            ],
+            "additionalProperties": false,
+            "description": "Path translation when the gateway is not the instrument host. Omit when they are the same machine.",
+            "properties": {
+              "instrument": {
+                "type": "string",
+                "pattern": "^/"
+              },
+              "gateway": {
+                "type": "string",
+                "pattern": "^/"
+              }
+            }
+          }
+        }
+      }
+    },
+    "guiders": {
+      "type": "array",
+      "default": [],
+      "items": {
+        "type": "object",
+        "required": [
+          "name",
+          "ini",
+          "gnum",
+          "host",
+          "gcam_name"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "name": {
+            "type": "string",
+            "pattern": "^[a-z0-9][a-z0-9-]*$",
+            "description": "Must match an lco-ansible gcam_guiders[].name; also the /guider/<name>/ path, since it names what the camera is for (pfs-sv: the PFS slit viewer) where gcam's numbering cannot -- guiders 1-2 are the telescope's, 3 and up are the instrument's own cameras."
+          },
+          "title": {
+            "type": "string"
+          },
+          "ini": {
+            "type": "string",
+            "description": "Key into lco-ansible gcam_ini_settings."
+          },
+          "gnum": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 99,
+            "description": "Guider number: commands on 52200+gnum, image server on 52300+gnum."
+          },
+          "host": {
+            "$ref": "#/$defs/inventoryHost"
+          },
+          "address": {
+            "$ref": "#/$defs/address"
+          },
+          "tcs_mode": {
+            "type": "integer",
+            "description": "gcamzwo -t: 0 offline, 1 Baade, 2 Clay, else a TCSIS simulator."
+          },
+          "gcam_name": {
+            "type": "string",
+            "pattern": "^gcam[0-9][1-3]$",
+            "description": "gcamweb's name for this guider: gcamPG, rotator-port digit + guider number 1-3, the only form gcamweb's --guider accepts. The gateway proxies /guider/<name>/{ws,status,every,roi} to gcamweb's /guider/<gcam_name>/...; it never appears in a URL an operator sees. Required: it is the only thing that reaches the upstream."
+          }
+        }
+      }
+    },
+    "access": {
+      "type": "array",
+      "description": "Cloudflare Access allowed list. Either a whole-domain wildcard (*@example.edu, the only wildcard form Access supports) or an exact address. An empty list locks the deployment down to nobody.",
+      "items": {
+        "type": "string",
+        "pattern": "^(\\*@[a-z0-9.-]+\\.[a-z]{2,}|[^@\\s*]+@[a-z0-9.-]+\\.[a-z]{2,})$"
+      }
+    }
+  },
+  "$defs": {
+    "inventoryHost": {
+      "type": "string",
+      "pattern": "^[a-zA-Z0-9][a-zA-Z0-9._-]*$",
+      "description": "An lco-ansible inventory hostname. Checked to exist; not necessarily resolvable in DNS."
+    },
+    "address": {
+      "type": "string",
+      "description": "What the gateway actually dials, when the inventory hostname does not resolve. Defaults to host."
+    },
+    "port": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 65535
+    }
+  }
+}

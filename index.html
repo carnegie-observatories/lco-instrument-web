@@ -15,67 +15,23 @@
   </header>
 
   <main class="landing">
+    <h1 class="landing-title" id="deployment-title">LCO Instruments</h1>
     <p class="landing-hint muted">
-      Pick an instrument to open its control surface. Each card opens
-      the SPA against that instrument's WebSocket server
-      (port <code>50001 + PROJECT_ID×100 + 2</code>). Assumes the
-      instrument host is reachable — over the observatory VPN, or via
-      a Cloudflare-Access-fronted tunnel; see
-      <a href="https://github.com/carnegie-observatories/lco-ansible/blob/main/docs/plans/security-models.md">
-      security-models.md</a> for either deployment.
+      Pick an instrument to open its control surface. This page is built
+      from <code>/config.json</code> — the deployment file for this
+      site — so the cards below are exactly the instruments and guiders
+      this deployment declares. See
+      <a href="https://github.com/carnegie-observatories/lco-ansible/blob/main/docs/plans/security-models.md">security-models.md</a>
+      for how the connection is secured.
     </p>
 
-    <section class="instrument-grid">
-      <a class="instrument-card" href="app.html?host=localhost&port=52403" data-app="adc">
-        <h2>ADC</h2>
-        <div class="instrument-port">port 52403</div>
-        <p class="muted">Atmospheric Dispersion Compensator — lens A/B encoders,
-          insertion, telescope readback, run/pause.</p>
-      </a>
-
-      <a class="instrument-card" href="app.html?host=localhost&port=51703" data-app="dcu">
-        <h2>DCU</h2>
-        <div class="instrument-port">port 51703</div>
-        <p class="muted">Diffuser Calibration Unit — FFS and MCal drops with
-          brake interlocks, 8 lamps, quartz level readout.</p>
-      </a>
-
-      <a class="instrument-card" href="app.html?host=localhost&port=51603" data-app="pfs">
-        <h2>PFS</h2>
-        <div class="instrument-port">port 51603</div>
-        <p class="muted">Planet Finder Spectrograph — Camera window
-          (exposure + mechanics + PMT + focus) and Calibration list.</p>
-      </a>
-
-      <a class="instrument-card" href="http://127.0.0.1:8766/image/pfs/" data-path="/image/pfs/">
-        <h2>PFS quick look</h2>
-        <div class="instrument-port">http://127.0.0.1:8766/image/pfs/</div>
-        <p class="muted">Science-frame viewer — imageweb gateway. Streams each
-          readout to the browser; also embedded as the Quick Look tab in the
-          PFS SPA. All instruments: <code>/image/</code>.</p>
-      </a>
-
-      <a class="instrument-card" href="http://127.0.0.1:8765/guider/gcam03/" data-path="/guider/gcam03/">
-        <h2>gcam03</h2>
-        <div class="instrument-port">http://127.0.0.1:8765/guider/gcam03/</div>
-        <p class="muted">Web guider — gcam bridge, test setup. A whole web
-          app under its own path on this hostname, not a WS endpoint.
-          All guiders: <code>/guider/</code>.</p>
-      </a>
-
-      <a class="instrument-card" href="http://127.0.0.1:8765/guider/gcam41/" data-path="/guider/gcam41/">
-        <h2>gcam41</h2>
-        <div class="instrument-port">http://127.0.0.1:8765/guider/gcam41/</div>
-        <p class="muted">Web guider — gcam bridge, test setup. Same bridge
-          process as gcam03; one <code>--guider</code> flag per camera.</p>
-      </a>
-    </section>
+    <section class="instrument-grid" id="instrument-grid"></section>
 
     <details class="advanced">
       <summary>Advanced — connect to a custom host/port</summary>
       <form id="custom-form">
         <label>host <input name="host" value="localhost" required></label>
-        <label>port <input name="port" type="number" placeholder="52403" min="1" max="65535"></label>
+        <label>port <input name="port" type="number" placeholder="WS port" min="1" max="65535"></label>
         <label>ws path <input name="ws_path" placeholder="/adc/ws (tunnel)"></label>
         <button type="submit">Open</button>
       </form>
@@ -88,39 +44,107 @@
   </main>
 
   <script>
-    // Tunnel-aware instrument cards. When this page is served over
-    // HTTPS — i.e., via a telescope's Cloudflare hostname such as
-    // sbs.chimera.observer — rewrite each card to path-mode:
-    // app.html?ws_path=/<app>/ws. ws.js connects
-    // wss://<page-host>/<app>/ws; the tunnel's ingress rule maps the
-    // path to the instrument's local WS port. Paths, not subdomains:
-    // Cloudflare Universal SSL covers *.chimera.observer one level
-    // deep only, so <app>.<telescope>.chimera.observer has no TLS
-    // cert. On plain HTTP (observatory LAN / local dev) the static
-    // host+port hrefs stand. Adding an instrument = one new card +
-    // one tunnel ingress rule; Access already covers the hostname.
+    // Build the landing page from /config.json — this deployment's
+    // instruments and guiders, resolved to ports and paths by
+    // deployment_config.py. Nothing instrument-specific lives in this
+    // file; adding an instrument is an entry in deployments/<name>.yml.
+    //
+    // Two connect shapes, chosen by how this page was served:
+    //   https  — behind the tunnel, where instruments are PATHS on the
+    //            page's own hostname (Universal SSL covers
+    //            *.chimera.observer one level deep only, so
+    //            <app>.<telescope>.… has no cert). Use ws_path, and let
+    //            whole web apps (quick look, guiders) keep their path.
+    //   http   — LAN or local dev: dial host:port directly, and reach
+    //            the web apps on their own ports.
     (function () {
-      if (window.location.protocol !== "https:") return;
-      for (const card of document.querySelectorAll(".instrument-card[data-app]")) {
-        const app = card.dataset.app;
-        const wsPath = `/${app}/ws`;
-        card.href = `app.html?ws_path=${encodeURIComponent(wsPath)}`;
-        const portEl = card.querySelector(".instrument-port");
-        if (portEl) portEl.textContent = wsPath;
-      }
+      const grid = document.getElementById("instrument-grid");
+      const tunnel = window.location.protocol === "https:";
 
-      // Whole web apps (data-path): services with their own UI, such
-      // as the gcam guiders, live under a path prefix on the same
-      // telescope hostname (/guider/<gcamPG>/). cloudflared forwards
-      // the path unchanged, so the app serves itself under that prefix
-      // (gcam bridge: one --guider gcamPG flag per camera; the list is
-      // at /guider/). Same hostname ⇒ the telescope's Access app
-      // already covers it; no DNS or policy change.
-      for (const card of document.querySelectorAll(".instrument-card[data-path]")) {
-        card.href = card.dataset.path;
-        const portEl = card.querySelector(".instrument-port");
-        if (portEl) portEl.textContent = card.dataset.path;
-      }
+      const card = ({ href, name, sub, desc, external }) => {
+        const a = document.createElement("a");
+        a.className = "instrument-card";
+        a.href = href;
+        if (external) a.target = "_blank";
+        const h = document.createElement("h2");
+        h.textContent = name;
+        const d = document.createElement("div");
+        d.className = "instrument-port";
+        d.textContent = sub;
+        const p = document.createElement("p");
+        p.className = "muted";
+        p.textContent = desc;
+        a.append(h, d, p);
+        return a;
+      };
+
+      const fail = (msg) => {
+        grid.innerHTML = "";
+        const p = document.createElement("p");
+        p.className = "muted";
+        p.textContent = msg;
+        grid.appendChild(p);
+      };
+
+      fetch("/config.json", { cache: "no-store" })
+        .then((r) => { if (!r.ok) throw new Error(`${r.status} ${r.statusText}`); return r.json(); })
+        .then((cfg) => {
+          const title = document.getElementById("deployment-title");
+          if (title && cfg.title) title.textContent = cfg.title;
+          if (cfg.name) document.title = `LCO Instruments — ${cfg.name}`;
+
+          // Behind the tunnel a web app is a path on this hostname. On
+          // plain http it is its own origin on its own port — and if the
+          // config does not say which, fall back to the relative path
+          // rather than inventing a port number here.
+          const devPorts = cfg.dev_ports || {};
+          const webAppUrl = (path, devPort) =>
+            (tunnel || !devPort)
+              ? path
+              : `http://${window.location.hostname || "127.0.0.1"}:${devPort}${path}`;
+
+          for (const inst of cfg.instruments || []) {
+            const href = tunnel
+              ? `app.html?ws_path=${encodeURIComponent(inst.ws_path)}`
+              : `app.html?host=${encodeURIComponent(inst.host)}&port=${inst.port}`;
+            grid.appendChild(card({
+              href,
+              name: inst.app.toUpperCase(),
+              sub: tunnel ? inst.ws_path : `${inst.host}:${inst.port}`,
+              desc: inst.title,
+            }));
+          }
+
+          for (const inst of (cfg.instruments || []).filter((i) => i.quicklook)) {
+            grid.appendChild(card({
+              href: webAppUrl(inst.quicklook_path, devPorts.image),
+              name: `${inst.app.toUpperCase()} quick look`,
+              sub: inst.quicklook_path,
+              desc: "Science-frame viewer — streams each readout to the browser. "
+                  + "Also embedded as the Quick Look tab in the SPA.",
+              external: true,
+            }));
+          }
+
+          for (const g of cfg.guiders || []) {
+            grid.appendChild(card({
+              href: webAppUrl(g.path, devPorts.guider),
+              name: g.name,
+              sub: g.path,
+              desc: `${g.title} — live frames, guider state and the guide box.`,
+              external: true,
+            }));
+          }
+
+          if (!grid.childElementCount) {
+            fail("This deployment declares no instruments or guiders.");
+          }
+        })
+        .catch((e) => {
+          console.error("landing: /config.json", e);
+          fail(`Could not load /config.json (${e.message}). `
+             + "The server must be started with a deployment file.");
+        });
     })();
 
     // Handle the custom-connect form. Prefer localStorage-remembered

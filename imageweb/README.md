@@ -43,10 +43,13 @@ frame at once.
 | `/image/` | the list of instruments (and `/image/instruments.json`) |
 | `/image/pfs/` | the quick-look viewer for that instrument |
 | `/image/pfs/ws`, `…/status` | its frame stream and status channel |
-| `/image/pkg/{chz1,core,viewer}/` | the JS packages, from the astro-ph checkout |
+| `/pkg/{chz1,core,viewer}/` | the JS packages, from the astro-ph checkout — at the root, shared with the guider pages |
 
 The prefix (`--prefix`, default `/image`) is the server's business
-alone: the page uses only URLs relative to its own directory.
+alone: the page uses only URLs relative to its own directory. The page
+itself is not this package's: it is the repository's `viewer/`, one
+assembly serving quick look here and the guiders on the gateway
+([docs/plans/guider-viewer-plan.md](../docs/plans/guider-viewer-plan.md)).
 
 ## Data on the wire
 

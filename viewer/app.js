@@ -1,14 +1,19 @@
-// instrument quick look — the full viewer, assembled from @astro-ph-labs/{core,viewer} and @astro-ph-labs/chz1.
+// The stream viewer — one assembly, two pages, assembled from @astro-ph-labs/{core,viewer} and
+// @astro-ph-labs/chz1.
 //
-// This is gcamweb's viewer assembly (zwo/src/web/gcamweb/static/app.js) with the guider layer
-// replaced by the header panel, and the stream gated on visibility: the frame WS exists only
-// while this page is being looked at (standalone, or embedded as the SPA's Quick Look tab).
-// Everything that *decides* something about pixels — the view transform, imexam, limits, the
-// renderer — is the package's. What is here is wiring. Design and the "display verbatim,
-// derive nothing" rule: docs/plans/image-viewer-plan.md.
+//   quicklook.html  <body data-kind="quicklook">  science frames from imageweb, the header panel
+//   guider.html     <body data-kind="guider">     gcam frames from gcamweb, the guider panel and
+//                                                 the guide box, the shared every/roi controls
+//
+// The two were one file once (zwo/src/web/gcamweb/static/app.js), copied here for quick look
+// with the guider layer swapped for a header panel; gcamweb then dropped its pages. This is the
+// two re-converged: `KIND` selects the panel module, the guide box, and the few strings that
+// differ. Everything that *decides* something about pixels — the view transform, imexam,
+// limits, the renderer — is the package's. What is here is wiring. Design and the "display
+// verbatim, derive nothing" rule: docs/plans/guider-viewer-plan.md, image-viewer-plan.md.
 //
 // No worker and no build step: `createRenderer` drives a main-thread WebGPU canvas, decoding runs
-// in chz1's pooled workers, and an import map resolves the packages off the bridge's mounts.
+// in chz1's pooled workers, and an import map resolves the packages off the server's /pkg/ mount.
 
 import * as A from "@astro-ph-labs/core/analysis.js";
 import * as Cur from "@astro-ph-labs/core/cursor.js";
@@ -37,15 +42,20 @@ import {
 } from "@astro-ph-labs/core/view.js";
 import { Chz1Stream } from "@astro-ph-labs/chz1";
 import { loadWasm } from "@astro-ph-labs/chz1/wasm-loader.js";
-import { mountHeaderPanel } from "./header-panel.js";
+
+// -- which page this is -------------------------------------------------------------------------------
+
+const KIND = document.body.dataset.kind === "guider" ? "guider" : "quicklook";
+// Only the panel this page needs is fetched; the other never leaves the server.
+const { mountPanel } = await import(KIND === "guider" ? "./panels/guider.js" : "./panels/header.js");
 
 // -- the furniture ---------------------------------------------------------------------------------
 
 mountViewerChrome(document.body);
 
 const $ = (id) => document.getElementById(id);
-// Every URL is relative to this page's own directory (<prefix>/<gnum>/): the bridge decides the
-// prefix, the page never sees it. `here` drops the query string; `wsUrl` keeps the page's scheme,
+// Every URL is relative to this page's own directory (<prefix>/<name>/): the server decides the
+// prefix, the page never sees it — it only knows it is two levels deep, which puts /pkg/ at ../../. `here` drops the query string; `wsUrl` keeps the page's scheme,
 // so a page served over https (a tunnel, a proxy) opens wss and is not blocked as mixed content.
 const here = new URL(".", location.href);
 const url = (path) => new URL(path, here);
@@ -54,7 +64,8 @@ const wsUrl = (path) => {
   u.protocol = location.protocol === "https:" ? "wss:" : "ws:";
   return u;
 };
-// The instrument's name is this page's directory: <prefix>/pfs/ -> "pfs".
+// The name is this page's directory: /image/pfs/ -> "pfs", /guider/pfs-sv/ -> "pfs-sv" (the
+// camera's function, not gcamweb's gcamPG number — the gateway keeps that on the proxy side).
 const NAME = here.pathname.split("/").filter(Boolean).pop() ?? "";
 const canvas = $("view");
 const overlay = $("overlay");
@@ -70,10 +81,13 @@ const pannerRect = $("panner-rect");
 const pannerCrop = $("panner-crop");
 const magBox = $("mag-box");
 const paneEls = { panner: $("pane-panner"), magnifier: $("pane-mag") };
-const hdrEl = $("hdr");
+// "info-panel", not "panel": the viewer chrome mounts its own #panel (a measurement panel, hidden),
+// and getElementById returns the first -- the guider layer once landed in it, invisibly, while our
+// section sat empty at the top left.
+const panelEl = $("info-panel");
 
 const writeBar = mountBar($("bar"));
-const updateHdr = mountHeaderPanel(hdrEl);
+const updatePanel = mountPanel(panelEl);
 
 function fatal(msg) {
   $("fatal-msg").textContent = `${msg} — this viewer needs a WebGPU-capable browser.`;
@@ -121,9 +135,10 @@ new ResizeObserver(() => {
 let frame = null;   // { name, w, h, stats, header }
 let pixels = null;  // Uint16Array, w*h
 let img = null;     // { w, h }
-let fitsHdr = null; // the header's `fits` object of the frame on screen
-let bin = 1;        // the header's bin factor
-let srcDims = null; // { w, h } of the source frame, before binning
+let meta = null;    // what the panel shows: the header's `guider` (gcamweb) or `fits` (imageweb) object
+let bin = 1;        // the header's bin factor: image px = (served px - crop offset) / bin
+let crop = { x0: 0, y0: 0, n: 1 }; // gcamweb's centre crop, from the header; imageweb never crops
+let srcDims = null; // { w, h } of the served frame before binning (imageweb: the full frame)
 
 function adoptFrame(header, geom, src) {
   const w = geom.w, h = geom.h;
@@ -131,9 +146,10 @@ function adoptFrame(header, geom, src) {
   pixels.set(src);
   const newGeometry = !img || img.w !== w || img.h !== h;
   frame = { name: header.name, w, h, stats: header.stats, header };
-  fitsHdr = header.fits ?? null;
+  meta = (KIND === "guider" ? header.guider : header.fits) ?? null;
   bin = header.bin ?? 1;
-  srcDims = { w: header.src_w ?? w * bin, h: header.src_h ?? h * bin };
+  crop = header.crop ?? { x0: 0, y0: 0, n: 1 };
+  srcDims = { w: header.src_w ?? crop.w ?? w * bin, h: header.src_h ?? crop.h ?? h * bin };
   img = { w, h };
 
   if (newGeometry) {
@@ -185,7 +201,7 @@ const limitsScope = () => (localLimits ? "crop" : "frame");
 
 // -- pan, zoom and the pointer -----------------------------------------------------------------------
 
-const SENSITIVITY_KEY = "imageweb.viewer.zoomSensitivity";
+const SENSITIVITY_KEY = "viewer.zoomSensitivity";
 let sensitivity = clampSensitivity(Number(localStorage.getItem(SENSITIVITY_KEY)));
 function setSensitivity(s) {
   sensitivity = clampSensitivity(s);
@@ -491,8 +507,25 @@ function drawOverlay() {
     const g = Ov.graticule(pixelProjection(), box, { tolerance: 0.5, format: Ov.angleFormatter({ frame: "image" }) });
     appendShapes(overlay, Ov.gridShapes(g, { className: "ov-grid-image" }));
   }
+  if (KIND === "guider") drawGuideBox();
   for (const ch of imexam.open()) drawModeMarkers(ch);
   if (channels.point.mode) drawLeaderIfPlaced();
+}
+
+/// The guide box, from the served cards only: centre GDBOXX/GDBOXY and side GDBOXSZ, in gcam's
+/// (unbinned) pixels, offset by gcamweb's crop and divided by the frame's bin factor — display
+/// geometry, not a derivation. The measured centroid is *not* drawn: gcam serves only its offset
+/// from the box (GDDX/GDDY), and adding them here would be client-side arithmetic — see the plan.
+function drawGuideBox() {
+  const c = meta?.cards;
+  if (!c || typeof c.GDBOXX !== "number" || typeof c.GDBOXY !== "number" || !c.GDBOXSZ) return;
+  const half = c.GDBOXSZ / 2 / bin;
+  const cx = (c.GDBOXX - crop.x0) / bin, cy = (c.GDBOXY - crop.y0) / bin;
+  const pts = [P(cx - half, cy - half), P(cx + half, cy - half), P(cx + half, cy + half), P(cx - half, cy + half)];
+  add("polygon", {
+    points: pts.map((p) => p.map((v) => v.toFixed(1)).join(",")).join(" "),
+    class: `gdbox${Number(c.GDGUIDE) !== 0 ? "" : " off"}`,
+  });
 }
 
 function drawModeMarkers(ch) {
@@ -713,11 +746,11 @@ function refreshControls() {
 }
 
 mountHelp(helpEl, {
-  title: "instrument quick look — every control",
+  title: `${KIND === "guider" ? "web guider" : "instrument quick look"} — every control`,
   groups: [
     ...bindingsFor(VIEWER_BINDINGS, "stream").filter(([title]) => title !== "sky"),
     ["this page", [
-      ["k", "the header panel"],
+      ["k", KIND === "guider" ? "the guider panel" : "the header panel"],
       ["shift + G", "the pixel grid over the frame"],
     ]],
   ],
@@ -748,7 +781,7 @@ addEventListener("keydown", (e) => {
     case "C": toggleCursor(); break;
     case "h": toggleHistogram(); break;
     case "p": controlsEl.hidden = !controlsEl.hidden; if (!controlsEl.hidden) refreshControls(); break;
-    case "k": toggleHdr(); break;
+    case "k": togglePanel(); break;
     case "G": grid = grid === "pixel" ? "none" : "pixel"; drawOverlay(); break;
     case "n": setPane("panner", !paneOn.panner); break;
     case "g": setPane("magnifier", !paneOn.magnifier); break;
@@ -766,11 +799,11 @@ function cycleColormap(dir) {
   viewDirty = true;
   refreshControls();
 }
-function toggleHdr() {
-  hdrEl.hidden = !hdrEl.hidden;
-  $("hdr-toggle").classList.toggle("on", !hdrEl.hidden);
+function togglePanel() {
+  panelEl.hidden = !panelEl.hidden;
+  $("panel-toggle").classList.toggle("on", !panelEl.hidden);
 }
-$("hdr-toggle").addEventListener("click", toggleHdr);
+$("panel-toggle").addEventListener("click", togglePanel);
 $("help-toggle").addEventListener("click", () => { helpEl.hidden = !helpEl.hidden; });
 
 // -- the stream -------------------------------------------------------------------------------------------------
@@ -784,10 +817,29 @@ const qp = new URLSearchParams(location.search);
 if (qp.has("workers")) $("workers").value = qp.get("workers");
 if (qp.has("tier")) $("tier").value = qp.get("tier");
 
-const wasm = await loadWasm(url("../pkg/chz1/ts/src/pkg/decoder.wasm"));
+// gcamweb's per-guider settings: the frame stride and the centre crop. Unlike the tier, these
+// are SHARED by every viewer of this guider — they act at the source (`every` gates the pull,
+// `roi` crops before publish), so one operator's choice is everyone's. The strip says so. No
+// URL parameter sets them: with shared semantics a bookmark that POSTs on load is a remote
+// control for everyone else's stream. The selects mirror /status; gcamweb answers the setters
+// only from zwo PR #35 on — until then the probe 404s and the selects stay disabled.
+const SHARED = ["every", "roi"];
+if (KIND === "guider") {
+  const set = async (name, n) => {
+    const r = await fetch(url(`${name}?n=${n}`), { method: "POST" });
+    $(name).value = String((await r.json())[name]);
+  };
+  const probe = await fetch(url("every")).catch(() => null);
+  for (const name of SHARED) {
+    if (probe?.ok) $(name).addEventListener("change", () => set(name, $(name).value));
+    else { $(name).disabled = true; $(name).title = "needs a gcamweb with runtime setters (zwo PR #35)"; }
+  }
+}
+
+const wasm = await loadWasm(url("../../pkg/chz1/ts/src/pkg/decoder.wasm"));
 const stream = new Chz1Stream({
   wasm,
-  spawnDecoder: () => new Worker(url("../pkg/chz1/ts/src/decode-worker.js"), { type: "module" }),
+  spawnDecoder: () => new Worker(url("../../pkg/chz1/ts/src/decode-worker.js"), { type: "module" }),
 });
 stream.unshuffle = "cpu"; // the pixels arrive reconstructed; the renderer takes them as pixels
 
@@ -798,10 +850,12 @@ const stripState = (s) => ($("strip-state").textContent = s);
 
 // -- transfer gating: the frame WS exists only while this page is being looked at ---------------
 //
-// Two signals, ANDed: the browser tab's own visibility, and — when embedded as the SPA's Quick
-// Look tab — the host's postMessage. The viewer state and the last frame stay on screen; only
-// the socket comes and goes. Latest-frame replay on the bridge makes reactivation cost one
-// reconnect, never a stale view. Design: image-viewer-plan.md § The Quick Look tab.
+// Two signals, ANDed: the browser tab's own visibility, and — for quick look embedded as the
+// SPA's tab — the host's postMessage. The viewer state and the last frame stay on screen; only
+// the socket comes and goes. Latest-frame replay on the server makes reactivation cost one
+// reconnect, never a stale view. Design: image-viewer-plan.md § The Quick Look tab. The guider
+// page is never embedded, so it listens to visibility alone — and a hidden guider tab is the
+// more expensive thing to leave streaming, at 1–5 Hz.
 let tabActive = true;   // the embedding host's tab state (standalone: always true)
 const isActive = () => tabActive && !document.hidden;
 
@@ -815,7 +869,7 @@ function applyActive() {
   else disconnect();
 }
 addEventListener("visibilitychange", applyActive);
-addEventListener("message", (e) => {
+if (KIND === "quicklook") addEventListener("message", (e) => {
   const q = e.data?.quicklook;
   if (q === "active" || q === "inactive") { tabActive = q === "active"; applyActive(); }
 });
@@ -844,7 +898,7 @@ function connect() {
       while (arrivals.length > 20) arrivals.shift();
       reportRate(header, geom, buf.byteLength);
       stripState("connected");   // clear the "no image yet" notice on the first frame
-      updateHdr({ fits: fitsHdr, status, ageS: 0 });
+      updatePanel({ meta, status, ageS: 0 });
     }).catch((err) => {
       stripState(`decode failed: ${err?.message ?? err}`);
       console.error(err);
@@ -865,9 +919,11 @@ function reportRate(header, geom, bytes) {
   const c = header.crop;
   const of = c && c.n > 1 ? ` (centre 1/${c.n} of ${c.src_w}×${c.src_h}${header.bin > 1 ? `, bin ${header.bin}` : ""})`
     : header.bin > 1 ? ` (bin ${header.bin})` : "";
-  $("strip-rate").textContent =
+  const text =
     `${rate}${geom.w}×${geom.h}${of} · ${(bytes / 1e6).toFixed(2)} MB/frame` +
     `${header.qstep ? ` · q step ${header.qstep}` : " · lossless"}`;
+  $("strip-rate").textContent = text;
+  $("strip-rate").title = text;   // the strip truncates this in a narrow window; hover reads it whole
 }
 
 let retry = null;
@@ -876,7 +932,7 @@ stream.on("status", (s) => {
   // Before the first readout the canvas is black by design — say so, or the
   // page reads as broken.
   stripState(s.error ?? (s.connected
-    ? (frame ? "connected" : "connected — no image yet; waiting for a readout")
+    ? (frame ? "connected" : KIND === "guider" ? "connected — no frame yet" : "connected — no image yet; waiting for a readout")
     : "disconnected — retrying"));
   $("strip-state").classList.toggle("bad", !!s.error);
   if (s.connected) { retryDelay = 1000; return; }
@@ -917,18 +973,22 @@ function connectStatus() {
   statusSocket.onmessage = (e) => {
     status = JSON.parse(e.data);
     const ageS = lastFrameAt === null ? null : (performance.now() - lastFrameAt) / 1e3;
-    updateHdr({ fits: fitsHdr, status, ageS });
+    // The shared selects show what gcamweb is doing, unless the operator is on one right now.
+    if (KIND === "guider") for (const k of SHARED) {
+      if (status[k] != null && document.activeElement !== $(k)) $(k).value = String(status[k]);
+    }
+    updatePanel({ meta, status, ageS });
   };
   statusSocket.onclose = () => setTimeout(connectStatus, 3000);
 }
 
 // -- go --------------------------------------------------------------------------------------------------------
 
-globalThis.__viewer = { flush, renderer: () => renderer, frame: () => frame, view: () => view, fits: () => fitsHdr, status: () => status };
+globalThis.__viewer = { flush, renderer: () => renderer, frame: () => frame, view: () => view, meta: () => meta, status: () => status };
 
-if (NAME) { $("strip-title").textContent = NAME; document.title = `${NAME} — quick look`; }
+if (NAME) { $("strip-title").textContent = NAME; document.title = `${NAME} — ${KIND === "guider" ? "web guider" : "quick look"}`; }
 refreshControls();
-updateHdr({ fits: null, status: null, ageS: null });
+updatePanel({ meta: null, status: null, ageS: null });
 pump();
 applyActive();
 connectStatus();

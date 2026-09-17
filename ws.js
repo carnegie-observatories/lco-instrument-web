@@ -8,6 +8,7 @@
 // Connect-string resolution. Two deployment shapes:
 //   Direct (VPN / LAN):         app.html?host=obs1&port=51603
 //     → ws://obs1:51603/
+//   Neither given:              no connection; see below.
 //   Cloudflare Tunnel + Access: app.html?ws_path=/adc/ws
 //     (page served over https from the telescope hostname, e.g.
 //      sbs.chimera.observer; host defaults to the page host)
@@ -25,11 +26,16 @@ const portStr = params.get("port");
 const wsPath = params.get("ws_path");
 const isHttps = window.location.protocol === "https:";
 const scheme = isHttps ? "wss:" : "ws:";
+// No instrument default. The landing page builds every link from
+// /config.json and always supplies either host+port or ws_path, so an
+// app.html with neither is a hand-typed URL or a stale bookmark — and
+// guessing an instrument there is how you end up connected to the wrong
+// telescope. `url` is null in that case; app.js reports it.
 export const url = portStr
   ? `${scheme}//${host}:${parseInt(portStr, 10)}${wsPath || "/"}`
   : wsPath
     ? `${scheme}//${host}${wsPath}`                 // tunnel mode
-    : `${scheme}//${host}:52403/`;                  // legacy local-dev default (ADC)
+    : null;
 
 let ws = null;
 let reconnectTimer = null;
@@ -130,6 +136,13 @@ const dispatch = (msg) => {
 };
 
 export const connect = () => {
+  if (!url) {
+    fire(connListeners, "no instrument selected", "err");
+    fire(logListeners, "error",
+      "No instrument in the URL. Open this page from the landing page, " +
+      "or add ?host=<host>&port=<ws port> (LAN) or ?ws_path=/<app>/ws (tunnel).");
+    return;
+  }
   fire(connListeners, "connecting…", "warn");
   ws = new WebSocket(url);
 

@@ -1,9 +1,10 @@
-/* instrument quick look — this page's own sheet (adapted from gcamweb's viewer.css).
+/* The stream viewer — this page's own sheet, for both quicklook.html and guider.html.
  *
  * The furniture rules (#bar, #panes, #controls, the inspectors, #histpanel, #help, #fatal) are
  * @astro-ph-labs/viewer's example stylesheet, taken as-is so the package's panels look as their author
  * laid them out. The `.ov-*` overlay colours come from the package's own overlay.css through the
- * `--ov-*` tokens below. What is ours is at the bottom: the stream strip and the header panel.
+ * `--ov-*` tokens below. What is ours is at the bottom: the stream strip, the panel (header or
+ * guider — one box, two widths), and the guide box drawn on the frame.
  */
 
 :root {
@@ -698,6 +699,18 @@ body.cut-column #experiments { right: 194px; }
   background: var(--panel);
   border-bottom: 1px solid var(--line);
   backdrop-filter: blur(6px);
+  /* One line, 30px, always: everything below is pinned relative to that height. A narrow window
+     (a split view) used to wrap the strip into a 200px block that painted over the panel. Only the
+     rate readout may shrink; it truncates with an ellipsis and carries the full text as a title. */
+  height: 30px;
+  box-sizing: border-box;
+  flex-wrap: nowrap;
+  white-space: nowrap;
+  /* Narrower still than the controls need, the strip scrolls sideways rather than dropping its
+     right-hand buttons off the edge; the scrollbar itself is hidden (a 30px strip has no room). */
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: none;
   font: 12px var(--mono);
   color: var(--fg);
 }
@@ -719,18 +732,23 @@ body.cut-column #experiments { right: 194px; }
 #strip button.on { color: #0a0a0c; background: var(--accent); border-color: var(--accent); }
 #strip a { color: var(--dim); text-decoration: none; }
 #strip a:hover { color: var(--accent); }
-#strip-rate { font-variant-numeric: tabular-nums; }
+#strip::-webkit-scrollbar { display: none; }
+#strip > * { flex-shrink: 0; }
+#strip-rate { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; font-variant-numeric: tabular-nums; }
 
-/* The strip takes the top 30px, so everything pinned to the top steps down. The header panel
+/* The strip takes the top 30px, so everything pinned to the top steps down. The panel
    lives on the LEFT, and stops short of the bottom, so it can never cover the panner and the
    magnifier (bottom right) or the readout bar (bottom left). The controls panel (`p`) sits beside
    it rather than under it. */
-#hdr { top: 40px; left: 12px; max-height: calc(100vh - 120px); }
+#info-panel { top: 40px; left: 12px; max-height: calc(100vh - 120px); }
 #controls { top: 40px; left: 404px; max-height: calc(100vh - 52px); }
+/* The guider panel is the narrower of the two (316px against 380px), so the controls sit closer. */
+body[data-kind="guider"] #controls { left: 340px; }
 
-/* -- ours: the header panel ----------------------------------------------------------------------- */
+/* -- ours: the info panel (header or guider). Not `#panel`: the viewer chrome owns that id for one
+   of its measurement panels, and a second element with it is invisible to getElementById. ------ */
 
-#hdr {
+#info-panel {
   position: fixed;
   width: 380px;
   overflow: auto;
@@ -743,8 +761,8 @@ body.cut-column #experiments { right: 194px; }
   font: 11.5px var(--mono);
   color: var(--fg);
 }
-#hdr[hidden] { display: none; }
-#hdr header {
+#info-panel[hidden] { display: none; }
+#info-panel header {
   display: flex;
   justify-content: space-between;
   align-items: baseline;
@@ -754,30 +772,30 @@ body.cut-column #experiments { right: 194px; }
   border-bottom: 1px solid var(--line);
   color: var(--accent);
 }
-#hdr header span { color: var(--dim); font-size: 10.5px; font-variant-numeric: tabular-nums; }
-#hdr header .bad { color: var(--bad); }
-#hdr header .warn { color: var(--warn); }
-#hdr h4 {
+#info-panel header span { color: var(--dim); font-size: 10.5px; font-variant-numeric: tabular-nums; }
+#info-panel header .bad { color: var(--bad); }
+#info-panel header .warn { color: var(--warn); }
+#info-panel h4 {
   margin: 10px 0 4px;
   font: 500 10px/1.4 var(--mono);
   text-transform: uppercase;
   letter-spacing: .07em;
   color: var(--dim);
 }
-#hdr dl {
+#info-panel dl {
   display: grid;
   grid-template-columns: max-content 1fr 1.6fr;
   gap: 1px 8px;
   margin: 0;
   align-items: baseline;
 }
-#hdr dt { color: var(--dim); white-space: nowrap; }
-#hdr dd { margin: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-#hdr dd.v { text-align: right; font-variant-numeric: tabular-nums; color: var(--fg); }
-#hdr dd.c { color: var(--dim); font-size: 10px; }
+#info-panel dt { color: var(--dim); white-space: nowrap; }
+#info-panel dd { margin: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+#info-panel dd.v { text-align: right; font-variant-numeric: tabular-nums; color: var(--fg); }
+#info-panel dd.c { color: var(--dim); font-size: 10px; }
 /* Stale: the served flag says these are not being updated. Greyed, never hidden. */
-#hdr .stale { opacity: .4; }
-#hdr .banner {
+#info-panel .stale { opacity: .4; }
+#info-panel .banner {
   margin: 6px 0 0;
   padding: 4px 8px;
   border-radius: 4px;
@@ -785,5 +803,35 @@ body.cut-column #experiments { right: 194px; }
   color: var(--bad);
   font-size: 10.5px;
 }
-#hdr .banner[hidden] { display: none; }
+#info-panel .banner[hidden] { display: none; }
 
+#info-panel .spark {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+  margin-top: 4px;
+}
+#info-panel .spark figure { margin: 0; }
+#info-panel .spark canvas {
+  display: block;
+  width: 100%;
+  height: 44px;
+  background: #0a0a0c;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+}
+#info-panel .spark figcaption {
+  display: flex;
+  justify-content: space-between;
+  font-size: 10px;
+  color: var(--dim);
+  font-variant-numeric: tabular-nums;
+}
+#info-panel .spark figcaption b { color: var(--fg); font-weight: 500; }
+body[data-kind="guider"] #info-panel { width: 316px; }
+
+/* -- ours: what is drawn on the frame ----------------------------------------------------------------- */
+
+/* The guide box, exactly where gcam says it is. Amber when guiding, dim otherwise. */
+#overlay .gdbox { fill: none; stroke: var(--warn); stroke-width: 1.4; opacity: .9; }
+#overlay .gdbox.off { stroke: var(--dim); opacity: .6; stroke-dasharray: 4 4; }

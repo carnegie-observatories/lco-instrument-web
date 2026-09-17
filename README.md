@@ -11,17 +11,31 @@ dev server.
 ## Quick start
 
 ```sh
-uv sync                      # once — creates .venv with pyyaml + xib2ir
-python3 server.py            # serves on http://localhost:8080/ (stdlib only)
+uv sync                          # once — creates .venv
+uv run python gateway.py         # the whole deployment on one port
 ```
 
-The static server is stdlib-only; the [uv](https://docs.astral.sh/uv/)
-environment is for the Python tooling (`xib2ir`, the Access policy
-sync) — run those with `uv run …`.
+`gateway.py` is the front door: SPA static files, `/config.json`,
+the quick-look viewers (imageweb, in-process) and the guider pages
+(`viewer/`, with the live channels reverse-proxied from gcamweb) all
+on one port. `server.py` still serves the static files alone if that
+is all you want.
 
-Open <http://localhost:8080/> — the landing page lists the known
-instruments (ADC 52403, DCU 51703, PFS 51603) and opens the SPA
-against the one you pick. Direct links skip the chooser:
+The server reads a **deployment file** (`deployments/<name>.yml`) and
+serves it at `/config.json`; the landing page builds itself from that,
+so which instruments and guiders appear is a property of the
+deployment, not of the HTML. With one file in `deployments/` it is
+picked automatically; otherwise name it with `--deployment`. See
+[docs/plans/deployment-config-plan.md](docs/plans/deployment-config-plan.md)
+and validate edits with:
+
+```sh
+uv run python tools/validate_deployments.py
+```
+
+Open <http://localhost:8080/> — the landing page lists this
+deployment's instruments and opens the SPA against the one you pick.
+Direct links skip the chooser:
 
 ```
 http://localhost:8080/app.html?host=<instrument-host>&port=<ws-port>
@@ -62,6 +76,7 @@ an instance parked on the Camera tab transfers no pixels — and
 | `instruments/<app>/`       | per-app `manifest.json` + `bindings/*.yml` |
 | `generated/<app>/`         | per-window layout JSON, produced by xib2ir — committed, don't hand-edit |
 | `tools/xib2ir/`            | XIB → layout-JSON converter (Python, stdlib-only) |
+| `tools/nighttest.py`       | night-test recorder over Chrome's DevTools port; `report` reads the file back (docs/plans/night-test-plan.md) |
 | `imageweb/`                | science-frame quick-look gateway (control-WS triggered CHZ1 streaming + viewer) |
 | `docs/plans/`              | design plans (protocol, XIB conversion, per-app audits) |
 

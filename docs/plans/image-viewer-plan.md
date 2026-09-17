@@ -393,6 +393,15 @@ by gcamweb.
   runs on that same Mac and opens it directly. If a future instrument
   writes to a NAS not mounted identically, add a `--data-root-map`
   remap flag then, not now.
+- **Multi-file exposures: `fits_paths` (ordered list) becomes the
+  canonical event key; `fits_path` is a deprecated single-file
+  alias.** imageweb is the event's only consumer, so no polymorphism
+  and no permanent dual-key: the gateway normalises `fits_path` to a
+  one-element list on ingest until the PFS app emits `fits_paths`
+  itself, and mosaic instruments (FourStar: 4 FITS per exposure) send
+  only the list — one event, one assembled mosaic frame. Decided in
+  [ws-migration-fourstar-plan.md](ws-migration-fourstar-plan.md)
+  § Quick Look, which also settles the header-combination rule.
 - **`--keep N` deferred.** One decoded frame in memory; multi-loop
   sequences simply replace it. No history until operators ask.
 - **Transport sharing: standardized copy now, upstream later.** The

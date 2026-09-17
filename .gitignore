@@ -12,3 +12,6 @@ __pycache__/
 # deploy/cloudflared/<telescope>/; tunnel credentials never are.
 deploy/cloudflared/**/*.json
 cert.pem
+
+# night-test recordings (tools/nighttest.py)
+runs/
