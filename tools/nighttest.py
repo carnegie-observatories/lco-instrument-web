@@ -368,7 +368,7 @@ class Recorder:
         # reason (1006: the connection died without a close frame; 1000/1001: the other side said
         # goodbye), so a hook on WebSocket reports them through a binding, on every document load.
         await cdp.call("Runtime.addBinding", name="__nighttest")
-        await cdp.call("Page.addScriptToEvaluateOnNewDocument", expression=WS_HOOK)
+        await cdp.call("Page.addScriptToEvaluateOnNewDocument", source=WS_HOOK)
         # DevTools reports only WebSockets opened after Network.enable: reload so every socket is seen.
         await cdp.call("Page.reload")
         self.rec(name, "reloaded")
