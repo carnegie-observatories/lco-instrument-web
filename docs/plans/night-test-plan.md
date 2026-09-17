@@ -1,9 +1,10 @@
 # Simulated night test — recording what the browser sees
 
-Status: recorder implemented and running (`tools/nighttest.py`, 2026-09-17).
-First run against SBS: PFS exposing 90 × 300 s, with the SPA (camera tab),
-the SPA's Quick Look tab and the `pfs-sv` guider viewer open through the
-Cloudflare tunnel. Results below are updated as the run proceeds.
+Status: recorder implemented (`tools/nighttest.py`); first run complete
+2026-09-17 08:29–16:09 UTC against SBS — PFS exposing 90 × 300 s, with the
+SPA (camera tab), the SPA's Quick Look tab and the `pfs-sv` guider viewer
+open through the Cloudflare tunnel. Three findings, two fixed in code and
+awaiting deploy, one open; results and the verification step are below.
 
 ## Why
 
@@ -264,7 +265,51 @@ sample: it sits bottom-left of the 2×2 tiling and is covered by another
 application's window. The SPA does not pause when hidden, so its data are
 unaffected; a viewer page in that position would have stopped.
 
-_(Final figures to be added when the run ends.)_
+### Results — 08:29 to 16:09 UTC, 7.67 h, 248 271 records
+
+Run ended at 16:09 UTC when PFS reported loop 91 of 90, `running:
+false`. `runs/nighttest-20260917.jsonl` (92 MB) and
+`runs/nighttest-20260917-report.json` are the deliverables; the recorder
+saw exposures 7 → 94 (88 ids, 86 `exposure_complete` events).
+
+**Guider `pfs-sv`.** 54 894 frames, 1.14 GB, 1.99 fps for 7.7 h (roi 4
+→ 2 at the operator's hand mid-run, so 125×125 then 250×250, bin 2).
+gcam `streaming` in 27 418 of 27 425 status samples. Camera-sequence
+gaps: 157 frames missing out of 55 051, but 147 of them are the three
+page reloads the recorder itself caused (08:55–08:59; steps of 67, 43,
+37); the network cost **10 frames** across the finding-3 resets (a
+2- or 3-frame step at each, ~1 s at 2 fps). Lag p50 0.10 s, p90 0.51 s,
+p99 0.61 s, max 5.4 s (one event). Decode p50 0.7 ms, p99 3 ms.
+
+**Quick Look.** 261 frames received for **88 distinct readouts** (FITS
+#6 → #93, every one of them): 173 were finding-1 replays, 156 MB of the
+223 MB total — 70 % of the quick-look's bandwidth for the night went
+into re-sending a frame the page already had. Decode p50 26 ms (bin 4);
+the one lossless 11200×5320 frame the operator requested took 1.85 s.
+`status.age_s` max 320 s, one exposure: no readout was missed.
+
+**Instrument SPA.** 74 state messages/min, flat all night; `hello` 26
+times on the camera page = 22 twenty-minute cuts + 3 reloads + 1. Both
+SPA pages recovered from every cut in 2–3 s, no command failed, no
+console error.
+
+**Page health.** JS heap 1.3–3.1 MB on every page, first → last flat or
+down; DOM nodes flat; zero crashes, zero renderer detaches; the two
+one-off errors at the 08:58 reload (§ above) never recurred.
+
+**Socket closes, all code 1006, by class:**
+
+| class | count | fix |
+|---|---|---|
+| finding 1: `/image/pfs/ws` idle 125 s | 163 | chz1 heartbeat (PR astro-ph #1) |
+| finding 2: one-way socket cut at 20:00 of age | 57 | gateway `proxy_ws` heartbeat (`5ef8747`) |
+| finding 3: subset resets, any socket, any age | 21 in 14 events | open — cloudflared log on sbs-inst1 |
+
+Neither fix was deployed during the run, so every number above is the
+*before* picture; the same recorder, run again after the ansible
+deploy, should show classes 1 and 2 at zero and class 3 unchanged.
+That is the verification step, and it is one command per side
+(`record`, then `report`).
 
 ## Limits, and what would fix them
 
