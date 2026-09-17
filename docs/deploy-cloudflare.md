@@ -316,14 +316,28 @@ uv run python deploy/sync-access-policies.py --telescope clay
 Until this step the tunnel is publicly reachable — run the sync
 before sharing any hostname.
 
-### 6. Run as a service
+### 6. Run as a service — via ansible
+
+The connector is deployed by lco-ansible's `roles/cloudflared`, applied
+by `playbooks/gateway.yml` on the gateway host, so the deployment has a
+record: the tunnel UUID and hostname are inventory vars on the host,
+the tunnel's `<UUID>.json` is `cloudflared_tunnel_credentials` in
+`host_vars/<host>/secrets.yaml` (vaulted), and the one-rule ingress is
+templated from the gateway's own bind/port. The role installs the
+binary, `/opt/cloudflared/{config.yml,<UUID>.json}`, and a launchd job
+(`com.carnegie.cloudflared`, running as the gateway's service account)
+or a systemd unit; logs go to `/opt/cloudflared/log/cloudflared.log`.
 
 ```sh
-sudo cloudflared service install
+cd ~/workspace/lco-ansible
+uv run ansible-playbook -i inventory_<telescope>.yaml -l <host> playbooks/gateway.yml
 ```
 
-Installs a launchd job so the tunnel survives reboots. Logs go to
-`/Library/Logs/com.cloudflare.cloudflared.err.log`.
+Do **not** also run `sudo cloudflared service install` on a host the
+role manages: it would start a second connector on the same tunnel with
+its own config. `cert.pem` never goes to the server — it is the
+account's management credential; running a tunnel needs only the
+tunnel's own secret.
 
 ### 7. Connect
 
@@ -399,10 +413,8 @@ cloudflared tunnel route dns sbs-telescope sbs.chimera.observer
 export CLOUDFLARE_API_TOKEN=...
 uv run python deploy/sync-access-policies.py --telescope sbs
 
-# 6. run
-cloudflared tunnel run sbs-telescope     # foreground for a test box;
-                                         # `sudo cloudflared service install`
-                                         # if it should persist
+# 6. run -- foreground on a test box; the real thing is ansible (step 6 above):
+cloudflared tunnel run sbs-telescope
 ```
 
 Then, with the instrument app + `python3 server.py` running:
