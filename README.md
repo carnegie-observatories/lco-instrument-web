@@ -76,6 +76,7 @@ an instance parked on the Camera tab transfers no pixels — and
 | `instruments/<app>/`       | per-app `manifest.json` + `bindings/*.yml` |
 | `generated/<app>/`         | per-window layout JSON, produced by xib2ir — committed, don't hand-edit |
 | `tools/xib2ir/`            | XIB → layout-JSON converter (Python, stdlib-only) |
+| `tools/nighttest.py`       | night-test recorder over Chrome's DevTools port; `report` reads the file back (docs/plans/night-test-plan.md) |
 | `imageweb/`                | science-frame quick-look gateway (control-WS triggered CHZ1 streaming + viewer) |
 | `docs/plans/`              | design plans (protocol, XIB conversion, per-app audits) |
 
