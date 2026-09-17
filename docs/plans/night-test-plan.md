@@ -175,6 +175,36 @@ a WebSocket hook on every document (`ws_closed` records: code, reason,
 would mean the connection died under the page, a clean 1000/1001 a peer
 that said goodbye.
 
+**Repeat at 09:18:47**, 29 min 45 s after the first: the same three
+sockets (`/pfs/ws` on both SPA pages, `/guider/pfs-sv/status`), all with
+code 1006 and `wasClean: false`, within 620 ms; the guider frame socket
+and both imageweb sockets survived again, and PFS's count line (`3 WS
+clients connected` as ours came back) shows the operator's own tabs were
+untouched both times. What is known:
+
+- Chrome opens each WebSocket on its own TCP connection: every handshake
+  captured is `HTTP/1.1 101 Switching Protocols` from `Server: cloudflare`
+  (CF-RAY `…-LAX`), no HTTP/2 multiplexing. So three separate TCP
+  connections to the edge died in the same second, twice.
+- The gateway's proxy leg is not it: aiohttp 3.14 turns the
+  `ClientTimeout(total=10)` passed to `ws_connect` into a `ws_close`
+  value only, `ws_receive` stays `None`, so nothing there times out a
+  socket. (That argument is the wrong type and deprecated; a separate
+  tidy-up.)
+- The three victims were created within the same second (the page
+  reloads at 08:29:02 and 08:58:46); the survivors were created at other
+  moments (`/image/pfs/ws` is re-made every 2 min by finding 1, the
+  guider frame socket a second later than the rest).
+
+Hypothesis: sockets that arrive together are placed on the same one of
+cloudflared's four connections to the edge, and that connection was
+reset — all its streams die at once, everything on the other three
+connections lives. A ~30 min period would fit an edge-side rotation.
+Verification needs the host: `/opt/cloudflared/log/cloudflared.log` on
+sbs-inst1 at 08:49:02 and 09:18:47 UTC (a "connection … terminated /
+registered" pair), and `cloudflared tunnel info` — one connection
+younger than the others. If periodic, the next one is due near 09:48:30.
+
 Recorder restarts: 08:54:29 (stop) and 08:55–08:56 (two attempts; the
 first failed on a CDP parameter name). Each restart reloads every page
 once, so the file carries an extra `navigated`/`hello` per page there —
