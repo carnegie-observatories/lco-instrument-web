@@ -4,7 +4,8 @@ Status: recorder implemented (`tools/nighttest.py`); first run complete
 2026-09-17 08:29–16:09 UTC against SBS — PFS exposing 90 × 300 s, with the
 SPA (camera tab), the SPA's Quick Look tab and the `pfs-sv` guider viewer
 open through the Cloudflare tunnel. Three findings, two fixed in code and
-awaiting deploy, one open; results and the verification step are below.
+awaiting deploy, one open; results and the verification step are below,
+and the write-up is `docs/reports/night-test-2026-09-17.md`.
 
 ## Why
 
