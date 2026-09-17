@@ -39,17 +39,22 @@ jobs:
         with:
           enable-cache: true
 
+      # --no-project: the validators need pyyaml and jsonschema, nothing
+      # else. Syncing the whole project would pull imageweb's chz1, a path
+      # dependency into an astro-ph checkout the runner does not have (see
+      # docs/plans/pre-production-todo.md).
+
       - name: Validate deployment files
         run: |
           if [ -d lco-ansible ]; then
-            uv run python tools/validate_deployments.py --inventory lco-ansible
+            uv run --no-project --with pyyaml --with jsonschema python tools/validate_deployments.py --inventory lco-ansible
           else
             echo "::warning::lco-ansible not available; inventory cross-check skipped"
-            uv run python tools/validate_deployments.py --no-inventory
+            uv run --no-project --with pyyaml --with jsonschema python tools/validate_deployments.py --no-inventory
           fi
 
       # The committed cloudflared config and Access policy must match what
       # the deployment files generate. Editing the generated file by hand is
       # the drift this catches.
       - name: Check generated artifacts are current
-        run: uv run python tools/generate_deploy_artifacts.py --check
+        run: uv run --no-project --with pyyaml --with jsonschema python tools/generate_deploy_artifacts.py --check
