@@ -32,12 +32,14 @@ setView(initial || DEFAULT_VIEW);
 
 // UI scale slider — drives a single CSS variable (--ui-scale) on the root,
 // which renderer.js's .window-scale-wrap / .window-frame rules read.
-// ADC is 480×294 and DCU is 677×144; at 1× both windows are tiny on a
-// modern 4K display, so default to 1.5×.
-const SCALE_KEY     = "lco_ui_scale";
-const DEFAULT_SCALE = 1.5;
+// Starts at 1× -- the window at the size its XIB gives it -- and the
+// operator's own setting is kept per browser. The key was renamed when the
+// default went from 1.5 to 1: the old code stored the default on every load,
+// so every browser held a "chosen" 1.5 that was never chosen.
+const SCALE_KEY     = "lco_ui_scale_v2";
+const DEFAULT_SCALE = 1.0;
 
-const applyScale = (scale) => {
+const applyScale = (scale, { persist = false } = {}) => {
   const s = Number(scale);
   const clamped = Number.isFinite(s) ? Math.min(3, Math.max(1, s)) : DEFAULT_SCALE;
   document.documentElement.style.setProperty("--ui-scale", String(clamped));
@@ -45,12 +47,12 @@ const applyScale = (scale) => {
   if (readout) readout.textContent = `${clamped.toFixed(1)}×`;
   const slider = document.getElementById("ui-scale");
   if (slider && Number(slider.value) !== clamped) slider.value = String(clamped);
-  try { localStorage.setItem(SCALE_KEY, String(clamped)); } catch (e) { /* ignore */ }
+  if (persist) { try { localStorage.setItem(SCALE_KEY, String(clamped)); } catch (e) { /* ignore */ } }
 };
 
 const scaleSlider = document.getElementById("ui-scale");
 if (scaleSlider) {
-  scaleSlider.addEventListener("input", () => applyScale(scaleSlider.value));
+  scaleSlider.addEventListener("input", () => applyScale(scaleSlider.value, { persist: true }));
 }
 
 let initialScale = null;

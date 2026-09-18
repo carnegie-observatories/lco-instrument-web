@@ -372,8 +372,8 @@ ol#log[data-min-level="error"] li[data-level="warn"]                        { di
    renderer.js per-app, --ui-scale is set on the document root by the
    header slider. */
 .window-scale-wrap {
-  width:  calc(var(--frame-w, 480px) * var(--ui-scale, 1.5));
-  height: calc(var(--frame-h, 294px) * var(--ui-scale, 1.5));
+  width:  calc(var(--frame-w, 480px) * var(--ui-scale, 1));
+  height: calc(var(--frame-h, 294px) * var(--ui-scale, 1));
   margin: 16px auto;
 }
 
@@ -391,7 +391,7 @@ ol#log[data-min-level="error"] li[data-level="warn"]                        { di
   font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", Helvetica, Arial, sans-serif;
   font-size: 13px;
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
-  transform: scale(var(--ui-scale, 1.5));
+  transform: scale(var(--ui-scale, 1));
   transform-origin: top left;
 }
 
