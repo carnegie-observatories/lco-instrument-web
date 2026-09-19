@@ -372,7 +372,7 @@ in the control path for no gain).
 The web guiders are pages of the gateway itself, not a mounted app:
 `viewer/guider.html` is served at `/guider/<name>/` under the guider's
 operational name (`pfs-sv`, the PFS slit viewer), and only the live
-channels — `ws`, `status`, `every`, `roi` — are reverse-proxied to
+channels — `ws`, `status` — are reverse-proxied to
 gcamweb under its own `gcamPG` name (`/guider/gcam13/…`). gcamweb
 serves no pages since zwo `5fcc1fa`; the rename between the two names
 happens in `gateway.py` and nowhere else. The viewer packages come from

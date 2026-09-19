@@ -1,6 +1,8 @@
 # Guider ROI by selection, and full-frame coordinates
 
-Status: plan, 2026-09-18, revised the same day to put the knobs per client
+Status: implemented 2026-09-18 (chz1 `4c2cff5`, zwo `feature/gcamweb-per-client`,
+lco-instrument-web `main`); the panner context and the imexam offset are
+deferred (see the end). Revised the same day to put the knobs per client
 in chz1. Two changes to the guider viewer (`viewer/guider.html` +
 `viewer/app.js`), one addition to chz1 (astro-ph), one deletion in gcamweb
 (zwo `src/web`).
@@ -114,11 +116,11 @@ publishes it whole; every client cuts and strides its own. ~40 lines out.
   button** on the strip (`configure({ roi: null })`), replacing the
   `centre ½ / ¼` select, beside a label with the rectangle in force
   (`ROI 250×250 at 375,375` or `full frame`).
-- **The panner shows where the ROI sits**: the camera frame's extent
-  (`src_w × src_h`) as the outer box, the served rectangle inside it, and
-  the guide box from the cards — all known without pixels. *A drag on the
-  panner to pick a region outside the served pixels reuses the same code
-  and is a follow-on if `full → select` proves clumsy.*
+- **The panner showing where the ROI sits** (camera extent, served
+  rectangle, guide box) is deferred: the panner canvas is drawn by the
+  viewer package to the *served* frame's scale, so an outer box needs the
+  package's `pannerView` to map the camera frame — an astro-ph change,
+  filed with the imexam one. The strip label carries the position meanwhile.
 - Rate text: `250×250 at 375,375 of 1000×1000, bin 2`.
 - **The ROI and `every` may go in the URL again.** Decision 3 forbade
   `?roi=` only because the setting was shared; per client, a saved

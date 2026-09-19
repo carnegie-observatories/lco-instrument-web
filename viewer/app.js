@@ -136,9 +136,12 @@ let frame = null;   // { name, w, h, stats, header }
 let pixels = null;  // Uint16Array, w*h
 let img = null;     // { w, h }
 let meta = null;    // what the panel shows: the header's `guider` (gcamweb) or `fits` (imageweb) object
-let bin = 1;        // the header's bin factor: image px = (served px - crop offset) / bin
-let crop = { x0: 0, y0: 0, n: 1 }; // gcamweb's centre crop, from the header; imageweb never crops
-let srcDims = null; // { w, h } of the served frame before binning (imageweb: the full frame)
+// Two pixel frames: *camera* (the full unbinned frame -- the FITS cards, the readout) and
+// *served* (this client's region, binned -- the decoder, the renderer, imexam).
+// camera = roi.x0 + served * bin.
+let bin = 1;        // the header's bin factor
+let roi = { x0: 0, y0: 0 }; // this client's region in camera px, as chz1 applied it; imageweb never cuts
+let srcDims = null; // { w, h } of the camera frame
 
 function adoptFrame(header, geom, src) {
   const w = geom.w, h = geom.h;
@@ -148,9 +151,13 @@ function adoptFrame(header, geom, src) {
   frame = { name: header.name, w, h, stats: header.stats, header };
   meta = (KIND === "guider" ? header.guider : header.fits) ?? null;
   bin = header.bin ?? 1;
-  crop = header.crop ?? { x0: 0, y0: 0, n: 1 };
-  srcDims = { w: header.src_w ?? crop.w ?? w * bin, h: header.src_h ?? crop.h ?? h * bin };
+  roi = header.roi ?? { x0: 0, y0: 0 };
+  srcDims = { w: header.src_w ?? w * bin, h: header.src_h ?? h * bin };
   img = { w, h };
+  if (KIND === "guider") {
+    $("roi-label").textContent = header.roi ? `${roi.w}×${roi.h} at ${roi.x0},${roi.y0}` : "full frame";
+    $("roi-full").hidden = !header.roi;
+  }
 
   if (newGeometry) {
     // Pixels are already pixels (chz1 un-shuffled and dequantized them on the CPU path), so the
@@ -259,6 +266,7 @@ canvas.addEventListener("pointerdown", (e) => {
 
 canvas.addEventListener("pointerdown", (e) => {
   if (e.button !== 0 || e.ctrlKey || !view) return;
+  if (e.shiftKey && KIND === "guider") return selectRoi(e);
   let prev = devicePos(e);
   let travelled = 0;
   canvas.style.cursor = "grabbing";
@@ -396,7 +404,7 @@ function updateBar() {
   const active = cursorMode ? pos !== null : cursor.inside;
   if (!active) { writeBar({ idle: true, x: null, y: null, value: null }); return; }
   const { col, row } = cursorMode ? pos : toImage(view, sizeOf(), cursor.dx, cursor.dy);
-  const ds9 = toDs9(col, row);
+  const ds9 = toDs9(roi.x0 + col * bin, roi.y0 + row * bin); // camera pixels, whatever is served
   const idx = toDisplayedIndex(view, img, col, row);
   writeBar({
     idle: false,
@@ -508,24 +516,49 @@ function drawOverlay() {
     appendShapes(overlay, Ov.gridShapes(g, { className: "ov-grid-image" }));
   }
   if (KIND === "guider") drawGuideBox();
+  if (roiBand) {
+    const [x1, y1] = P(roiBand.a.col, roiBand.a.row), [x2, y2] = P(roiBand.b.col, roiBand.b.row);
+    add("rect", { x: Math.min(x1, x2), y: Math.min(y1, y2), width: Math.abs(x2 - x1), height: Math.abs(y2 - y1),
+                  class: "roi-select" });
+  }
   for (const ch of imexam.open()) drawModeMarkers(ch);
   if (channels.point.mode) drawLeaderIfPlaced();
 }
 
 /// The guide box, from the served cards only: centre GDBOXX/GDBOXY and side GDBOXSZ, in gcam's
-/// (unbinned) pixels, offset by gcamweb's crop and divided by the frame's bin factor — display
+/// (unbinned) pixels, offset by this client's region and divided by the bin factor — display
 /// geometry, not a derivation. The measured centroid is *not* drawn: gcam serves only its offset
 /// from the box (GDDX/GDDY), and adding them here would be client-side arithmetic — see the plan.
 function drawGuideBox() {
   const c = meta?.cards;
   if (!c || typeof c.GDBOXX !== "number" || typeof c.GDBOXY !== "number" || !c.GDBOXSZ) return;
   const half = c.GDBOXSZ / 2 / bin;
-  const cx = (c.GDBOXX - crop.x0) / bin, cy = (c.GDBOXY - crop.y0) / bin;
+  const cx = (c.GDBOXX - roi.x0) / bin, cy = (c.GDBOXY - roi.y0) / bin;
   const pts = [P(cx - half, cy - half), P(cx + half, cy - half), P(cx + half, cy + half), P(cx - half, cy + half)];
   add("polygon", {
     points: pts.map((p) => p.map((v) => v.toFixed(1)).join(",")).join(" "),
     class: `gdbox${Number(c.GDGUIDE) !== 0 ? "" : " off"}`,
   });
+}
+
+/// Shift-drag: a rubber band in served pixels, sent on release as this client's region in
+/// camera pixels. Escape lets go without changing anything.
+let roiBand = null; // { a, b } corners while dragging
+function selectRoi(e) {
+  e.preventDefault();
+  const at = (ev) => { const d = devicePos(ev); return toImage(view, sizeOf(), d.dx, d.dy); };
+  roiBand = { a: at(e), b: at(e) };
+  const move = (ev) => { roiBand.b = at(ev); probeDirty = true; };
+  const done = (ev) => {
+    removeEventListener("pointermove", move); removeEventListener("pointerup", done); removeEventListener("keydown", esc);
+    const { a, b } = roiBand;
+    roiBand = null; probeDirty = true;
+    const w = Math.abs(b.col - a.col), h = Math.abs(b.row - a.row);
+    if (ev.type === "pointerup" && Math.max(w, h) * view.zoom > DRAG_DEADZONE)
+      setRoi([roi.x0 + Math.min(a.col, b.col) * bin, roi.y0 + Math.min(a.row, b.row) * bin, w * bin, h * bin].map(Math.round));
+  };
+  const esc = (ev) => { if (ev.key === "Escape") done(ev); };
+  addEventListener("pointermove", move); addEventListener("pointerup", done); addEventListener("keydown", esc);
 }
 
 function drawModeMarkers(ch) {
@@ -752,6 +785,7 @@ mountHelp(helpEl, {
     ["this page", [
       ["k", KIND === "guider" ? "the guider panel" : "the header panel"],
       ["shift + G", "the pixel grid over the frame"],
+      ...(KIND === "guider" ? [["shift + drag", "receive only the dragged part of the frame (\"full\" on the strip undoes it)"]] : []),
     ]],
   ],
 });
@@ -817,23 +851,21 @@ const qp = new URLSearchParams(location.search);
 if (qp.has("workers")) $("workers").value = qp.get("workers");
 if (qp.has("tier")) $("tier").value = qp.get("tier");
 
-// gcamweb's per-guider settings: the frame stride and the centre crop. Unlike the tier, these
-// are SHARED by every viewer of this guider — they act at the source (`every` gates the pull,
-// `roi` crops before publish), so one operator's choice is everyone's. The strip says so. No
-// URL parameter sets them: with shared semantics a bookmark that POSTs on load is a remote
-// control for everyone else's stream. The selects mirror /status; gcamweb answers the setters
-// only from zwo PR #35 on — until then the probe 404s and the selects stay disabled.
-const SHARED = ["every", "roi"];
+// This viewer's own region and stride. chz1 cuts and strides per client, so they travel with
+// the opening `config` like the tier does, and a saved link carries them.
+const roiParam = (v) => { const r = v?.split(",").map(Number); return r?.length === 4 && r.every(Number.isFinite) ? r : null; };
+let roiWanted = roiParam(qp.get("roi")); // camera px [x0, y0, w, h], or null for the whole frame
+if (KIND === "guider" && qp.has("every")) $("every").value = qp.get("every");
+const own = () => (KIND === "guider" ? { roi: roiWanted, every: Number($("every").value) } : {});
+function syncUrl() {
+  roiWanted ? qp.set("roi", roiWanted.join(",")) : qp.delete("roi");
+  Number($("every").value) > 1 ? qp.set("every", $("every").value) : qp.delete("every");
+  history.replaceState(null, "", `${location.pathname}${qp.size ? `?${qp}` : ""}`);
+}
+function setRoi(r) { roiWanted = r; stream.configure({ roi: r }); syncUrl(); }
 if (KIND === "guider") {
-  const set = async (name, n) => {
-    const r = await fetch(url(`${name}?n=${n}`), { method: "POST" });
-    $(name).value = String((await r.json())[name]);
-  };
-  const probe = await fetch(url("every")).catch(() => null);
-  for (const name of SHARED) {
-    if (probe?.ok) $(name).addEventListener("change", () => set(name, $(name).value));
-    else { $(name).disabled = true; $(name).title = "needs a gcamweb with runtime setters (zwo PR #35)"; }
-  }
+  $("every").addEventListener("change", () => { stream.configure(own()); syncUrl(); });
+  $("roi-full").addEventListener("click", () => setRoi(null));
 }
 
 const wasm = await loadWasm(url("../../pkg/chz1/ts/src/pkg/decoder.wasm"));
@@ -880,7 +912,7 @@ function connect() {
   if (socket) { socket.onclose = socket.onerror = socket.onmessage = null; socket.close(); }
   const want = Number($("workers").value);
   stream.workers = crossOriginIsolated ? want : 0;
-  stream.preview = TIERS[$("tier").value];
+  stream.preview = { ...TIERS[$("tier").value], ...own() };
   socket = stream.connect(wsUrl("ws").href);
   let chain = Promise.resolve(); // decodes strictly one at a time
   socket.onmessage = (e) => {
@@ -916,8 +948,8 @@ function reportRate(header, geom, bytes) {
     for (let i = 1; i < n; i++) sum += arrivals[i][1];
     rate = `${((n - 1) / dt).toFixed(1)} fps · ${(sum / dt / 1e6).toFixed(2)} MB/s · `;
   }
-  const c = header.crop;
-  const of = c && c.n > 1 ? ` (centre 1/${c.n} of ${c.src_w}×${c.src_h}${header.bin > 1 ? `, bin ${header.bin}` : ""})`
+  const r = header.roi;
+  const of = r ? ` (${r.w}×${r.h} at ${r.x0},${r.y0} of ${header.src_w}×${header.src_h}${header.bin > 1 ? `, bin ${header.bin}` : ""})`
     : header.bin > 1 ? ` (bin ${header.bin})` : "";
   const text =
     `${rate}${geom.w}×${geom.h}${of} · ${(bytes / 1e6).toFixed(2)} MB/frame` +
@@ -973,10 +1005,6 @@ function connectStatus() {
   statusSocket.onmessage = (e) => {
     status = JSON.parse(e.data);
     const ageS = lastFrameAt === null ? null : (performance.now() - lastFrameAt) / 1e3;
-    // The shared selects show what gcamweb is doing, unless the operator is on one right now.
-    if (KIND === "guider") for (const k of SHARED) {
-      if (status[k] != null && document.activeElement !== $(k)) $(k).value = String(status[k]);
-    }
     updatePanel({ meta, status, ageS });
   };
   statusSocket.onclose = () => setTimeout(connectStatus, 3000);

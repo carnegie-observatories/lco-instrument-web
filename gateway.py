@@ -169,8 +169,8 @@ def make_proxy(target: str):
     The route's own path is *not* forwarded: /guider/pfs-sv/ws lands on
     gcamweb's /guider/gcam13/ws, so the rename between the operational
     name and gcamweb's happens here and nowhere else. HTTP and WebSocket
-    alike (every, roi and status are the former; ws and status the
-    latter — gcamweb's status channel is a WebSocket).
+    alike (both guider channels, ws and status, are WebSockets; the
+    guiders.json fetch is HTTP).
     """
     async def handler(request: web.Request) -> web.StreamResponse:
         t = f"{target}?{request.query_string}" if request.query_string else target
@@ -316,8 +316,6 @@ def mount_guiders(app: web.Application, config: dict, bridge: tuple[str, int]) -
                 "gcam": s.get("gcam") if s else None,
                 "last_seq": s.get("last_seq") if s else None,
                 "age_s": s.get("age_s") if s else None,
-                "every": s.get("every") if s else None,
-                "roi": s.get("roi") if s else None,
                 "clients": s.get("clients") if s else None,
             })
         return out
@@ -349,7 +347,7 @@ def mount_guiders(app: web.Application, config: dict, bridge: tuple[str, int]) -
         base, target = f"/guider/{g['name']}", f"{upstream}/{g['gcam_name']}"
         app.router.add_get(base, lambda r, to=f"{base}/": web.HTTPFound(to))  # relative URLs need the slash
         app.router.add_get(f"{base}/", guider_page)
-        for channel in ("ws", "status", "every", "roi"):
+        for channel in ("ws", "status"):
             app.router.add_route("*", f"{base}/{channel}", make_proxy(f"{target}/{channel}"))
         app.router.add_static(f"{base}/", REPO / "viewer")
 

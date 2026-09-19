@@ -31,17 +31,12 @@
       <option value="4" selected>4</option>
     </select>
   </label>
-  <!-- Shared by every viewer of this guider (they act at gcamweb's source), hence the label.
-       Disabled until gcamweb answers the setters (zwo PR #35); app.js probes. -->
-  <label title="only the central part of the frame is sent — for everyone watching this guider">image
-    <select id="roi">
-      <option value="1">full</option>
-      <option value="2">centre ½</option>
-      <option value="4">centre ¼</option>
-      <option value="8">centre ⅛</option>
-    </select>
+  <!-- This viewer's own region and stride (chz1 cuts and strides per client). -->
+  <label title="the part of the frame this viewer receives — shift-drag on the image to choose">image
+    <span id="roi-label">full frame</span>
+    <button id="roi-full" type="button" title="receive the whole frame again" hidden>full</button>
   </label>
-  <label title="frame stride — for everyone watching this guider">frames
+  <label title="how many of the guider's frames this viewer receives">frames
     <select id="every">
       <option value="1">all</option>
       <option value="2">every 2nd</option>
@@ -49,7 +44,6 @@
       <option value="8">every 8th</option>
     </select>
   </label>
-  <span class="dim" title="image and frames are gcamweb settings shared by all viewers of this guider">shared</span>
   <span id="strip-rate" class="dim"></span>
   <span class="grow"></span>
   <button id="panel-toggle" type="button" title="the guider panel (k)">guider</button>
