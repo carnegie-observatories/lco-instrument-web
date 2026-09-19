@@ -3,8 +3,8 @@
 Status: implemented 2026-09-18 (chz1 `4c2cff5`, zwo `feature/gcamweb-per-client`,
 lco-instrument-web `main`). The viewer places the served region inside a
 whole-frame image ("virtual crop", below), which gave the panner context
-and imexam's coordinates for nothing; only the imexam bin factor is left
-for astro-ph. Revised the same day to put the knobs per client
+and imexam's coordinates for nothing; the inspector's bin factor is on
+astro-ph PR #1. Deployed to SBS 2026-09-18. Revised the same day to put the knobs per client
 in chz1. Two changes to the guider viewer (`viewer/guider.html` +
 `viewer/app.js`), one addition to chz1 (astro-ph), one deletion in gcamweb
 (zwo `src/web`).
@@ -153,11 +153,10 @@ publishes it whole; every client cuts and strides its own. ~40 lines out.
   behaviour change for the quick-look as well; it is the right one (the
   FITS cards and `fits_path` are the operator's reference, and both are in
   unbinned pixels), and it is one code path.
-- **imexam's numbers are in image pixels**, which with the virtual crop
-  are camera pixels divided by `bin` — exact at `lossless`, off by the bin
-  factor otherwise. Making the inspector popover
-  (`@astro-ph-labs/viewer/panels/inspector.ts`) scale its `indexToDs9` is
-  a small astro-ph change, for later; the offset problem is gone.
+- **imexam's hover line** is the one other place coordinates are printed;
+  the inspector (`@astro-ph-labs/viewer/panels/inspector.ts`) takes a
+  `pixelScale` (astro-ph, on PR #1) and the page passes `bin`, so it prints
+  camera pixels too.
 - The guide box drops its offset and keeps its `/ bin`.
 
 ## Staging
@@ -181,8 +180,8 @@ publishes it whole; every client cuts and strides its own. ~40 lines out.
    the address bar carries it, a second browser on the same guider is
    unaffected; `full` restores everything; Escape mid-drag leaves the ROI
    alone; reload of the saved link comes up cropped.
-5. **imexam coordinates** (astro-ph, optional). Upstream PR; the viewer
-   adopts it by passing the same conversion.
+5. **imexam coordinates**: `pixelScale` on the inspector (astro-ph PR #1),
+   `bin` passed by the page. Done.
 
 ## Not in this plan
 

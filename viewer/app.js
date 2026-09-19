@@ -464,7 +464,7 @@ const panels = {
 
 function updateInspector(ch) {
   panels[ch.id].update?.({
-    mode: ch.mode, result: ch.analysis, arcsecPerPx: null, frozen: surfaceView.frozen, hover: surfaceHover,
+    mode: ch.mode, result: ch.analysis, arcsecPerPx: null, pixelScale: bin, frozen: surfaceView.frozen, hover: surfaceHover,
     ...stripMapping(ch),
   });
   placeInspector(ch);
