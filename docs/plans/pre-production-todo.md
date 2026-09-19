@@ -17,8 +17,8 @@ rsync cannot go. Everything else is polish that the same run should carry.
 
 - [ ] **Merge `chz1-stream` (PR #1).** `chz1.stream` is the server both
       imageweb and gcamweb embed and it exists only on that branch; the
-      heartbeat fix is on it too. Description complete (both commits,
-      RFC, night-test evidence); awaiting review. Blocker.
+      heartbeat fix, the per-client region/stride and the inspector's
+      pixel scale are on it too (5 commits); awaiting review. Blocker.
 - [ ] **Publish chz1 as a Python package, or make it git-installable.**
       imageweb and gcamweb both carry `chz1 = { path = "../../…/astro-ph/packages/chz1" }`
       — a relative path into a checkout that must sit beside the consumer.
@@ -64,6 +64,11 @@ rsync cannot go. Everything else is polish that the same run should carry.
 - [ ] Repoint gcamweb's `chz1` source from the path to the tag chosen
       above (its pyproject says so itself: "Pin to a git ref when it
       publishes").
+- [ ] **Merge PR #37** (gcamweb publishes whole frames; region and stride
+      per client in chz1). Until it merges, the SBS deploy needs
+      `-e gateway_gcamweb_src=~/workspace/zwo-pc/src/web` (the worktree on
+      that branch); after it, update the `~/workspace/zwo` checkout and
+      drop the override.
 
 ## lco-instrument-web (carnegie-observatories/lco-instrument-web, public)
 
