@@ -713,7 +713,10 @@ function stepCursor(dcol, drow, big) {
   if (ddx || ddy) setView(panBy(view, size, img, ddx, ddy));
   probeDirty = true;
 }
-function toggleCursor() { cursorMode = !cursorMode; if (cursorMode && !pos) seatCursor(); probeDirty = true; refreshControls(); }
+function toggleCursor() {
+  if (!view) return;   // nothing to seat the cursor on yet
+  cursorMode = !cursorMode; if (cursorMode && !pos) seatCursor(); probeDirty = true; refreshControls();
+}
 function updateCrosshair() {
   if (!cursorMode || !pos || !view) { crosshair.hidden = true; return; }
   place(crosshair, canvas, toDevice(view, sizeOf(), pos.col, pos.row), Cur.crosshairSize(view, dpr()), screenAngle(view));
