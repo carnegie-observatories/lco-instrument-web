@@ -106,7 +106,8 @@ per-instrument invocations and the lint (drift-check) mode.
 3. `instruments/<app>/manifest.json` — one entry per window.
 4. `instruments/<app>/<window>/bindings.yml` — outlet bindings.
 5. Run xib2ir; commit `generated/<app>/<window>.layout.json`.
-6. Add a card to `index.html`.
+6. List it under `instruments:` in `deployments/<name>.yml` — the
+   landing page builds its cards from that file.
 
 ## Deployment
 

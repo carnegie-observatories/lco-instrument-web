@@ -4,12 +4,12 @@
 # stack end to end so a deployment can be rehearsed before it reaches a
 # telescope. See docs/plans/deployment-config-plan.md.
 #
-# Scope today: PFS and its slit-viewer guider, and nothing else. That
-# matches lco-ansible's inventory_sbs.yaml, which installs PFS alone on
-# sbs-inst1 and declares exactly one guider. The committed cloudflared
-# ingress and the old landing page also mention ADC and DCU; those are
-# leftovers from a developer-laptop setup where all three ran locally,
-# and they are deliberately absent here.
+# Scope today: PFS with its slit-viewer guider, and ADC. That matches
+# lco-ansible's inventory_sbs.yaml, which installs those two apps on
+# sbs-inst1 and declares exactly one guider. DCU is still absent: the
+# old landing page and the committed cloudflared ingress once listed it
+# from a developer-laptop setup where all three ran locally, and it is
+# deliberately not here until the inventory installs it.
 
 name: sbs
 title: SBS test deployment
@@ -33,6 +33,17 @@ instruments:
     # No fits_root: the gateway is the instrument Mac, so imageweb reads
     # the exposure_complete path directly. A split host adds the mapping
     # here and nothing else changes.
+
+  - app: adc
+    title: Atmospheric Dispersion Corrector
+    host: sbs-inst1
+    address: 127.0.0.1
+    # port omitted → 52403, from instruments/ports.yml (PROJECT_ID 24)
+    # No hardware at SBS: ADC simulates whichever of its three links
+    # (TCS, Acromag A, Acromag D) is set offline in its Preferences
+    # window, so set all three offline once on the Mac. A release build
+    # defaults them to online and quits when the TCS cannot be reached.
+    # No quicklook: ADC produces no FITS.
 
 guiders:
   - name: pfs-sv       # the lco-ansible gcam_guiders name (gcam-pfs-sv.app); the URL

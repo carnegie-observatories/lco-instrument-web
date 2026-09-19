@@ -148,6 +148,19 @@ rsync cannot go. Everything else is polish that the same run should carry.
       measure the far side of; with the heartbeat on the proxy the browser
       side is covered, but a `heartbeat`/ping on the Cocoa `WSServer`
       itself would protect the LAN path too. Optional.
+- [ ] ADC joined `deployments/sbs.yml` and `inventory_sbs.yaml` on
+      2026-09-19. Its WS plumbing (`Common/WSServer.m`, `Logger.m`,
+      `Service/InstrumentRouter.m`) is line-for-line PFS's, except that
+      ADC PR #6 (the WSServer stop-race / disconnect double-fire patch,
+      already on PFS and DCU) is still open: it merges cleanly onto
+      `main` and the merged file is byte-identical to PFS's. Merge it.
+- [ ] **Cut an ADC release.** The newest release is `v1.4`
+      (2026-05-05), from before the WS server landed (PR #5,
+      2026-05-11), so the `instruments` role's updater installs an ADC
+      with nothing listening on 52403. Release from `main` once #6 is
+      in, then on the Mac set ADC's TCS and both Acromag links offline
+      in its Preferences: a release build defaults them to online and
+      quits when the TCS is unreachable, and there is no TCS at SBS.
 
 ## Cloudflare
 
