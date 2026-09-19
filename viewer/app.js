@@ -3,7 +3,7 @@
 //
 //   quicklook.html  <body data-kind="quicklook">  science frames from imageweb, the header panel
 //   guider.html     <body data-kind="guider">     gcam frames from gcamweb, the guider panel and
-//                                                 the guide box, the shared every/roi controls
+//                                                 the guide box, this viewer's region and stride
 //
 // The two were one file once (zwo/src/web/gcamweb/static/app.js), copied here for quick look
 // with the guider layer swapped for a header panel; gcamweb then dropped its pages. This is the
@@ -136,27 +136,29 @@ let frame = null;   // { name, w, h, stats, header }
 let pixels = null;  // Uint16Array, w*h
 let img = null;     // { w, h }
 let meta = null;    // what the panel shows: the header's `guider` (gcamweb) or `fits` (imageweb) object
-// Two pixel frames: *camera* (the full unbinned frame -- the FITS cards, the readout) and
-// *served* (this client's region, binned -- the decoder, the renderer, imexam).
-// camera = roi.x0 + served * bin.
+// The image is always the whole camera frame at this client's bin. The served pixels -- this
+// client's region, if it asked for one -- land at their place in it and `view.crop` marks them,
+// so the panner, the readout, the guide box and imexam all work in one frame: camera px = image
+// px * bin. Nothing outside the crop is drawn (the shader nulls it), so stale pixels never show.
 let bin = 1;        // the header's bin factor
-let roi = { x0: 0, y0: 0 }; // this client's region in camera px, as chz1 applied it; imageweb never cuts
-let srcDims = null; // { w, h } of the camera frame
+let srcDims = null; // { w, h } of the camera frame, unbinned
+let servedKey = ""; // the crop in force, to notice a change of region
 
 function adoptFrame(header, geom, src) {
-  const w = geom.w, h = geom.h;
-  if (!pixels || pixels.length !== w * h) pixels = new Uint16Array(w * h);
-  pixels.set(src);
+  bin = header.bin ?? 1;
+  srcDims = { w: header.src_w ?? geom.w * bin, h: header.src_h ?? geom.h * bin };
+  const w = Math.ceil(srcDims.w / bin), h = Math.ceil(srcDims.h / bin);
   const newGeometry = !img || img.w !== w || img.h !== h;
+  if (newGeometry) { pixels = new Uint16Array(w * h); img = { w, h }; }
+  const r = header.roi;
+  const served = r ? { x: Math.round(r.x0 / bin), y: Math.round(r.y0 / bin), w: geom.w, h: geom.h } : null;
+  const ox = served?.x ?? 0, oy = served?.y ?? 0;
+  for (let row = 0; row < geom.h; row++) pixels.set(src.subarray(row * geom.w, (row + 1) * geom.w), (oy + row) * w + ox);
   frame = { name: header.name, w, h, stats: header.stats, header };
   meta = (KIND === "guider" ? header.guider : header.fits) ?? null;
-  bin = header.bin ?? 1;
-  roi = header.roi ?? { x0: 0, y0: 0 };
-  srcDims = { w: header.src_w ?? w * bin, h: header.src_h ?? h * bin };
-  img = { w, h };
   if (KIND === "guider") {
-    $("roi-label").textContent = header.roi ? `${roi.w}×${roi.h} at ${roi.x0},${roi.y0}` : "full frame";
-    $("roi-full").hidden = !header.roi;
+    $("roi-label").textContent = r ? `${r.w}×${r.h} at ${r.x0},${r.y0}` : "full frame";
+    $("roi-full").hidden = !r;
   }
 
   if (newGeometry) {
@@ -170,6 +172,7 @@ function adoptFrame(header, geom, src) {
     lastHist = null;
     paneDirty = true;
   }
+  if (cropKey(served) !== servedKey) { servedKey = cropKey(served); setView(setCrop(view, served)); }
   applyLimits();
   const slot = renderer.uploadPixels(new Uint8Array(pixels.buffer), 0);
   renderer.draw(slot, false);
@@ -404,7 +407,7 @@ function updateBar() {
   const active = cursorMode ? pos !== null : cursor.inside;
   if (!active) { writeBar({ idle: true, x: null, y: null, value: null }); return; }
   const { col, row } = cursorMode ? pos : toImage(view, sizeOf(), cursor.dx, cursor.dy);
-  const ds9 = toDs9(roi.x0 + col * bin, roi.y0 + row * bin); // camera pixels, whatever is served
+  const ds9 = toDs9(col * bin, row * bin); // camera pixels, whatever is served
   const idx = toDisplayedIndex(view, img, col, row);
   writeBar({
     idle: false,
@@ -526,14 +529,14 @@ function drawOverlay() {
 }
 
 /// The guide box, from the served cards only: centre GDBOXX/GDBOXY and side GDBOXSZ, in gcam's
-/// (unbinned) pixels, offset by this client's region and divided by the bin factor — display
+/// (unbinned) pixels, divided by the bin factor — display
 /// geometry, not a derivation. The measured centroid is *not* drawn: gcam serves only its offset
 /// from the box (GDDX/GDDY), and adding them here would be client-side arithmetic — see the plan.
 function drawGuideBox() {
   const c = meta?.cards;
   if (!c || typeof c.GDBOXX !== "number" || typeof c.GDBOXY !== "number" || !c.GDBOXSZ) return;
   const half = c.GDBOXSZ / 2 / bin;
-  const cx = (c.GDBOXX - roi.x0) / bin, cy = (c.GDBOXY - roi.y0) / bin;
+  const cx = c.GDBOXX / bin, cy = c.GDBOXY / bin;
   const pts = [P(cx - half, cy - half), P(cx + half, cy - half), P(cx + half, cy + half), P(cx - half, cy + half)];
   add("polygon", {
     points: pts.map((p) => p.map((v) => v.toFixed(1)).join(",")).join(" "),
@@ -541,8 +544,8 @@ function drawGuideBox() {
   });
 }
 
-/// Shift-drag: a rubber band in served pixels, sent on release as this client's region in
-/// camera pixels. Escape lets go without changing anything.
+/// Shift-drag anywhere on the camera frame: a rubber band, sent on release as this client's
+/// region in camera pixels. Escape lets go without changing anything.
 let roiBand = null; // { a, b } corners while dragging
 function selectRoi(e) {
   e.preventDefault();
@@ -555,7 +558,7 @@ function selectRoi(e) {
     roiBand = null; probeDirty = true;
     const w = Math.abs(b.col - a.col), h = Math.abs(b.row - a.row);
     if (ev.type === "pointerup" && Math.max(w, h) * view.zoom > DRAG_DEADZONE)
-      setRoi([roi.x0 + Math.min(a.col, b.col) * bin, roi.y0 + Math.min(a.row, b.row) * bin, w * bin, h * bin].map(Math.round));
+      setRoi([Math.min(a.col, b.col) * bin, Math.min(a.row, b.row) * bin, w * bin, h * bin].map(Math.round));
   };
   const esc = (ev) => { if (ev.key === "Escape") done(ev); };
   addEventListener("pointermove", move); addEventListener("pointerup", done); addEventListener("keydown", esc);
@@ -949,7 +952,7 @@ function reportRate(header, geom, bytes) {
     rate = `${((n - 1) / dt).toFixed(1)} fps · ${(sum / dt / 1e6).toFixed(2)} MB/s · `;
   }
   const r = header.roi;
-  const of = r ? ` (${r.w}×${r.h} at ${r.x0},${r.y0} of ${header.src_w}×${header.src_h}${header.bin > 1 ? `, bin ${header.bin}` : ""})`
+  const of = r ? ` (${r.w}×${r.h} at ${r.x0},${r.y0} of ${srcDims.w}×${srcDims.h}${header.bin > 1 ? `, bin ${header.bin}` : ""})`
     : header.bin > 1 ? ` (bin ${header.bin})` : "";
   const text =
     `${rate}${geom.w}×${geom.h}${of} · ${(bytes / 1e6).toFixed(2)} MB/frame` +

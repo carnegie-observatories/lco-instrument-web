@@ -1,8 +1,10 @@
 # Guider ROI by selection, and full-frame coordinates
 
 Status: implemented 2026-09-18 (chz1 `4c2cff5`, zwo `feature/gcamweb-per-client`,
-lco-instrument-web `main`); the panner context and the imexam offset are
-deferred (see the end). Revised the same day to put the knobs per client
+lco-instrument-web `main`). The viewer places the served region inside a
+whole-frame image ("virtual crop", below), which gave the panner context
+and imexam's coordinates for nothing; only the imexam bin factor is left
+for astro-ph. Revised the same day to put the knobs per client
 in chz1. Two changes to the guider viewer (`viewer/guider.html` +
 `viewer/app.js`), one addition to chz1 (astro-ph), one deletion in gcamweb
 (zwo `src/web`).
@@ -32,17 +34,24 @@ Three pixel frames exist and the code must name them:
 | frame | origin | who uses it |
 |---|---|---|
 | **camera** — gcam's full, unbinned frame (`NAXIS1 × NAXIS2`) | `GDBOXX/Y`, `GDDX/Y`, every card in the panel, the ROI setting, the readout after this plan | operator |
-| **served** — what this client receives: the ROI cut out of the camera frame, then binned, by chz1's per-client pipeline (`w × h` in the header) | the decoder, the renderer, `view`, `toImage`, `imexam`, `pixels[]` | viewer internals |
-| **viewer crop** — `view.crop`, a display-only sub-rectangle of the served frame (`cropToView`, the panner's shadow) | the viewer package | nothing here changes it |
+| **served** — what this client receives: the ROI cut out of the camera frame, then binned, by chz1's per-client pipeline (`w × h` in the header) | the decoder | wire |
+| **image** — the viewer's frame: the *whole camera frame at this bin*, into which the served pixels are copied at their place; `view.crop` marks them | the renderer, `view`, `toImage`, `imexam`, `pixels[]`, the panner | viewer internals |
 
-Conversion, served → camera, with `roi = {x0, y0}` and `bin` from the
-frame header:
+**Virtual crop.** Rather than teach every consumer an offset, the viewer
+keeps one image the size of the camera frame (`ceil(src_w/bin) ×
+ceil(src_h/bin)`), writes each served frame into it at `(x0/bin, y0/bin)`,
+and sets the viewer package's own `view.crop` to that rectangle. The
+package already does the rest: the shader draws nothing outside the crop
+(so stale pixels never show), the panner shades everything outside it
+(the "where am I" context), the histogram and limits scope to it, and
+`toDisplayedIndex` nulls the readout outside it. The only conversion left
+anywhere is the bin factor:
 
-    X = x0 + col * bin        Y = y0 + row * bin        (continuous positions)
+    X = col * bin        Y = row * bin        (continuous positions)
 
-and DS9 display adds the usual `+0.5`. Today's header carries the rectangle
-as `crop` (from gcamweb); after this plan it is `roi` (from chz1). The
-readout reads whichever is present, so change 2 can ship first.
+and DS9 display adds the usual `+0.5`. Cost: one `Uint16Array` of the
+camera frame (2 MB for 1000², 4.6 MB for 1512²) and a full-frame texture
+upload per served frame, fine at guider rates.
 
 ## Where the knobs live: per client, in chz1
 
@@ -112,15 +121,14 @@ publishes it whole; every client cuts and strides its own. ~40 lines out.
   corners to camera pixels (conversion above) and
   `stream.configure({ roi: [x0, y0, w, h] })`; the next frame's header
   updates the strip. Escape mid-drag cancels.
-- A drag can only refine what was served, so the way out is the **`full`
-  button** on the strip (`configure({ roi: null })`), replacing the
+- The image is the whole camera frame, so a drag anywhere on it — over
+  served pixels or over the blank outside — picks the next region; the
+  **`full` button** on the strip (`configure({ roi: null })`) replaces the
   `centre ½ / ¼` select, beside a label with the rectangle in force
   (`ROI 250×250 at 375,375` or `full frame`).
-- **The panner showing where the ROI sits** (camera extent, served
-  rectangle, guide box) is deferred: the panner canvas is drawn by the
-  viewer package to the *served* frame's scale, so an outer box needs the
-  package's `pannerView` to map the camera frame — an astro-ph change,
-  filed with the imexam one. The strip label carries the position meanwhile.
+- **The panner shows where the ROI sits** by construction: its shadow
+  (`#panner-crop`) dims everything outside `view.crop`, and the guide box
+  is drawn on the frame it belongs to.
 - Rate text: `250×250 at 375,375 of 1000×1000, bin 2`.
 - **The ROI and `every` may go in the URL again.** Decision 3 forbade
   `?roi=` only because the setting was shared; per client, a saved
@@ -133,9 +141,8 @@ publishes it whole; every client cuts and strides its own. ~40 lines out.
 
 ## Change 2 — the readout counts camera pixels
 
-- `updateBar()` (`viewer/app.js` ~L395): after `toImage(...)` gives
-  served `col, row`, convert with `X = roi.x0 + col * bin`,
-  `Y = roi.y0 + row * bin`, then `toDs9`. The pixel *value* stays what it
+- `updateBar()` (`viewer/app.js`): after `toImage(...)` gives image
+  `col, row`, convert with `X = col * bin`, `Y = row * bin`, then `toDs9`. The pixel *value* stays what it
   is (the served, binned sample). The seated cursor (`cursorMode`, `pos`)
   goes through the same line.
 - The bar gets a short frame label next to `x y` — `cam` — with a title
@@ -146,16 +153,12 @@ publishes it whole; every client cuts and strides its own. ~40 lines out.
   behaviour change for the quick-look as well; it is the right one (the
   FITS cards and `fits_path` are the operator's reference, and both are in
   unbinned pixels), and it is one code path.
-- **imexam's numbers stay in served pixels for now.** The inspector
-  popover (`@astro-ph-labs/viewer/panels/inspector.ts`) formats its own
-  hover/centroid coordinates via `indexToDs9`, in package code. Making it
-  offset-aware is a small astro-ph change (an optional `toDs9` on the
-  inspector's state); it goes as an upstream PR after this lands, and until
-  then the popover's coordinates are labelled `served` so the two readouts
-  cannot be mistaken for each other. The cut/aperture *drawings* are in
-  served coordinates by construction and are right.
-- Nothing changes in the guide box code: it already lives in camera pixels
-  and converts the other way.
+- **imexam's numbers are in image pixels**, which with the virtual crop
+  are camera pixels divided by `bin` — exact at `lossless`, off by the bin
+  factor otherwise. Making the inspector popover
+  (`@astro-ph-labs/viewer/panels/inspector.ts`) scale its `indexToDs9` is
+  a small astro-ph change, for later; the offset problem is gone.
+- The guide box drops its offset and keeps its `/ bin`.
 
 ## Staging
 
