@@ -176,6 +176,7 @@ function adoptFrame(header, geom, src) {
   applyLimits();
   const slot = renderer.uploadPixels(new Uint8Array(pixels.buffer), 0);
   renderer.draw(slot, false);
+  imexam.remeasure({ frozen: surfaceView.frozen });   // r/c/d follow the star; x/y follow the cursor in flush()
   viewDirty = true;
   probeDirty = true;
   refreshControls();
