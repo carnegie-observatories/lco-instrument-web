@@ -11,6 +11,45 @@ already in the lco-ansible inventory (`inventory_lco.yaml:78`). It is blocked
 only on one missing number, described in § Slit viewer. The other two are gated
 on the app-side port, which is gated in turn on a deployment-target bump.
 
+## Picking this up cold
+
+State on 2026-09-27, and the three things that will otherwise bite whoever
+starts:
+
+- **Do not update the astro-ph checkout.** Everything the quick look does rests
+  on `chz1.stream`, a Python module that exists only on the unmerged
+  `chz1-stream` branch of `~/workspace/astro-ph-labs/astro-ph`
+  ([PR #1](https://github.com/astro-ph-labs/astro-ph/pull/1), still a draft).
+  Upstream `main` has since moved 119 commits: it **deleted the Python `chz1`
+  package** (`packages/chz1/pyproject.toml` and `python/__init__.py` are gone,
+  the encoder is Rust in `crates/chz1`) and **changed the CHZ1 wire format
+  incompatibly** (commit `6e6b190`, the filter is now a median). Both
+  `imageweb/pyproject.toml` and gcamweb pin that package by path, and the
+  deployed SBS stack is only self-consistent because it is on the old branch.
+  Rebasing or pulling astro-ph is a design decision, not a chore — see
+  `pre-production-todo.md` — and the quick-look steps here assume the current
+  branch.
+- **gcamweb comes from a worktree.** zwo
+  [PR #37](https://github.com/carnegie-observatories/zwo/pull/37) (whole frames,
+  per-client region and stride) is open, so any deploy needs
+  `-e gateway_gcamweb_src=~/workspace/zwo-pc/src/web` until it merges.
+- **MIKE's checkout is not on `main`.** It sits on `fix/lamp-timeout-MIKE-56`
+  with an uncommitted `src/MIKE/main.h` (`LAMP_TIMEOUT` 1800 → 60, someone's
+  test tweak). Branch from `main` (`3a85e5e`) and do not commit that line.
+  The unmerged `fix/offtime-sanity-check` branch should land first: it refuses
+  to start when the TCS clock offset is implausible, and a web page that
+  published MIKE's clock offset would otherwise repeat the June 2026 wrong-
+  timestamp incident.
+
+Three facts still need a person, and only the first two block anything:
+which macOS `clay-inst1` runs (gates every app-side step), how Clay's
+deployment file tracks which slit viewer is mounted (§ Slit viewer), and which
+Mac would host the Clay gateway (§ Deployment).
+
+Order of work: the slit viewer can ship on its own today; the deployment target
+gates the controls SPA and the quick look; everything else follows the steps
+below in order.
+
 ## Context
 
 MIKE is a Cocoa/ObjC app of the PFS family: same author, same MRC conventions
