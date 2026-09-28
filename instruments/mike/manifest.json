@@ -1,0 +1,21 @@
+{
+  "app": "mike",
+  "windows": [
+    {
+      "id": "window",
+      "title": "MIKE",
+      "layout": "window.layout.json",
+      "default": true
+    },
+    {
+      "id": "quicklook",
+      "title": "Quick Look Blue",
+      "embed": "/image/mike/blue/"
+    },
+    {
+      "id": "quicklook_red",
+      "title": "Quick Look Red",
+      "embed": "/image/mike/red/"
+    }
+  ]
+}
