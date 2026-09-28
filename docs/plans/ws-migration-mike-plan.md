@@ -57,7 +57,7 @@ four change the shape of the work:
 |---|---|---|
 | Detector | 1 CCD via Archon | 2 independent CCDs (blue, red), `MAX_NCHIPS 1` each (`main.h:75`) |
 | FITS per exposure | 1 | 1 **per arm**, each written to up to `N_FOLDERS 2` datapaths (`main.h:73`, `src/Common/FITS.m:128`) |
-| Readout time | seconds | 95 s fast / 160 s slow, full frame, per arm (`~/workspace/mike/docs/mike.txt:37-40`) |
+| Readout time | seconds | per arm, measured: 87 s fast / 158 s slow at 1×1, 28 / 48 s at 2×2 (`src/MIKE/CameraController.m:831-835`), and 2×2 is what observers run |
 | Legacy TCP server | none | yes, port 50801, pref-gated (`AppDelegate.m:234,246`) — parity constraint |
 | Reply path | n/a | one shared `tcpResponse` property (`GUI_Controller.h:88`) |
 | Deployment target | 10.15 | **10.13** — blocks `WSServer` |
@@ -515,38 +515,44 @@ no image. The camera is already provisioned:
 - `lco-ansible roles/gcam/defaults/main.yml` — a full `gcam_ini_settings.mike`
   block (optics, `angle: -119`, `gnum: 3`, `mode: 3`).
 
-So there is nothing to build. There is one thing to settle, and it blocks the
-URL:
+So there is nothing to build. The name, however, is not MIKE's to own.
 
-**`gcam_ini_settings.mike` has no `port`.** `pfs` has `port: 1` and `gnum: 3`,
-which is where its `gcam_name: gcam13` comes from (`deployments/sbs.yml:50`).
-gcamweb's addressing is `gcam<rport><gnum>` with `gnum` constrained to 1–3
-(`~/workspace/zwo/src/web/gcamweb/server.py:34`), and it is `gcam_name` — not
-`gnum` — that selects the camera, because the image port is derived from the
-name's own digits (`server.py:44`, `52300 + gnum`). Without a rotator-port
-digit for MIKE no `gcam_name` can be formed at all, and inventing one risks the
-worst failure mode in this whole stack: a `gcam_name` that is consistent with
-the schema, the validator and CI, and serves the wrong camera. The digit is a
-physical fact — which rotator port the camera hangs off — so it comes from the
-ZWO camera inventory sheet or from a person, not from this plan.
+**`gcam_name` is `gcam13` — the same name PFS's slit viewer uses.** The digit
+pair is `gcam<rotator port><gnum>`. MIKE sits at Clay's Nasmyth East platform,
+which is TCS rotator port 1, and the deployed launch command says so directly:
+`mikesv` is an alias for `zwogcam -f mike.ini -t2 -p1 -h 200.28.147.147`
+(recorded in MIKE-46, 2024-02-25), where `-p` is the rotator port
+(`~/workspace/zwo/src/gcam/zwogcam.c:383`). `mike.ini` carries `gnum 3` and has
+its port line commented out and question-marked (`#port 1  ?`,
+`etc/ini/clay_gcam/mike.ini:2`) precisely because the port arrives on the command
+line. Port 1 plus guider 3 gives `gcam13`, and `etc/ini/clay_gcam/pfs.ini` says
+port 1, gnum 3 as well.
 
-It must also differ from PFS's `1`. gcamweb keys its guiders by name
-(`gateway.py:296-303` joins the deployment against gcamweb's own
-`guiders.json`), so two cameras both called `gcam13` are indistinguishable and
-`/guider/mike-sv/` would serve PFS's camera.
+That is not a mistake to fix, it is what the platform has. Nasmyth East offers
+exactly three guider slots, because `gnum` is capped at 1–3
+(`~/workspace/zwo/src/web/gcamweb/server.py:34`) and the image port is
+`52300+gnum` and nothing else. Two are the telescope's own guiders
+(`etc/ini/clay_gcam/gcam11.ini` port 1 gnum 1, `gcam12.ini` port 1 gnum 2 — the
+NASE Shack-Hartmann and principal guider), leaving slot 3 for whichever
+instrument is mounted. `gcam13` therefore means "the NASE slit viewer", not
+"PFS's camera".
 
-**And `gnum: 3` collides with PFS's `gnum: 3`.** gcam's ports come from `gnum`
-alone — `52200+gnum` for commands, `52300+gnum` for images
-(`roles/gcam/defaults/main.yml`, `gcam_tcpip_base`/`gcam_image_base`) — so
-`gcam13` and, say, `gcam23` both listen on 52303 and cannot run at once on
-`clay-inst1`. The inventory comment already says as much ("gnum 3 like pfs, so
-run one at a time"). On Clay this is acceptable and not fixable: guiders 1 and 2
-on the rotator port are the telescope's own (`clay-gcam11`, `clay-gcam12` in
-`inventory_lco.yaml`), leaving 3 as the only slit-viewer slot, and MIKE and PFS
-are never mounted together. The consequences to write down rather than
-discover: only one of the two `/guider/…/` pages is live at a time, and
-`/healthz` will report the other as down with the reason — which is correct
-behaviour, not a bug, and should be said on the landing page.
+**The consequence for the deployment file, which must be written down rather
+than discovered.** The gateway joins the deployment's `gcam_name` against
+gcamweb's own `guiders.json` (`gateway.py:296-303`), so if a `clay.yml` listed
+both `pfs-sv` and `mike-sv` with `gcam_name: gcam13`, both URLs would proxy to
+the one `gcam13` stream and the page label would lie about which instrument the
+operator is looking at. Since MIKE and PFS are never mounted together, the
+correct shape is that Clay's deployment file and `gateway_gcamweb_guiders` name
+**only the slit viewer of the instrument currently mounted**, changed at
+instrument change alongside the rest of the swap. The alternative — both entries
+present, one down — is worse than it sounds: `/healthz` would report a guider
+down that is not missing but mislabelled.
+
+Worth settling with whoever runs instrument changes: whether the swap procedure
+can carry a one-line ansible variable change, or whether the deployment should
+name the slot (`nase-sv`) rather than the instrument. Naming the slot would make
+one entry correct all year at the cost of a URL that no longer says MIKE.
 
 Everything else the guider page does — the guide box from `GDBOXX/Y`/`GDDX/Y`,
 readout in camera pixels, per-client region and stride, `?roi=…&every=N` in the
@@ -608,6 +614,21 @@ group modelled on `inventory_sbs.yaml:56-68` — `gateway_deployment: clay`,
 Note that the gateway role still rsyncs two working trees from the control
 laptop (`docs/plans/pre-production-todo.md`); assume those become pinned
 artifacts and do not add a third rsync.
+
+### The "both" column is a fan-out, not a third camera
+
+The window has three columns of exposure widgets: blue, red, and a common set
+(`edit_exptimeB/R/2`, `but_startB/R/2`, `GUI_Controller.h`). The common column is
+not a synchronized trigger and must not be bound as one. Typing an exposure time
+there writes the value into both per-arm fields, and the common Start calls the
+blue start and then the red start back to back, launching two independent loops;
+v3.1 deliberately stopped it synchronizing exposure time and loop count, and the
+ability to start the arms separately is a feature observers use and noticed
+losing when a 2023 regression removed it.
+
+So bind the common controls as a fan-out: one command per arm, or one command
+carrying `arm: both` that the service expands. Nothing in the UI should imply the
+two arms fire together, because they do not.
 
 ## Web-repo work (lco-instrument-web)
 
@@ -689,9 +710,10 @@ Hardware-free through step 6, on one Mac.
 
 - **Which macOS `clay-inst1` runs**, and whether anything else expects MIKE at
   10.13 — gates every app-side step. A person, not the source.
-- **MIKE's rotator-port digit** for `gcam_ini_settings.mike`, which must differ
-  from PFS's `1`. From the ZWO camera inventory sheet or a person; blocks the
-  guider URL and nothing else.
+- **How Clay's deployment file tracks which slit viewer is mounted** — the
+  rotator digit is settled (port 1, so `gcam13`), but that name is shared with
+  PFS's slit viewer, so one entry has to change at instrument change or the slot
+  has to be named instead of the instrument. For whoever runs the swaps.
 - **Who lands `fits_paths` first**, MIKE or FourStar. Same change either way;
   coordinate so it happens once.
 - **The Clay tunnel** — created and its UUID plus credentials path committed
