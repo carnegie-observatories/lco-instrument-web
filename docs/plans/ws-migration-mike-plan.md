@@ -1,8 +1,47 @@
 # Migrate MIKE (MIKE window) to the WebSocket external interface
 
-Status: plan, 2026-09-27. Written against `~/workspace/mike` `main` (3a85e5e);
-the checkout is currently on `fix/lamp-timeout-MIKE-56`, and every line number
-below was verified to be identical on both.
+Status: implemented 2026-09-27 on SBS (carnegie-observatories/mike#17, this
+repo's `feature/mike`); Clay not started. Written against `~/workspace/mike`
+`main` (3a85e5e); line numbers below are that commit's.
+
+## As implemented
+
+Where the build differs from the plan below, and why:
+
+- **Deployment target 10.15.** The instrument Macs, simulator and production,
+  run macOS 26.6.2 or later, which settles the first open question.
+- **No SIM build configuration.** SBS runs the CI (Debug) build with the
+  Configuration window's offline settings instead, as ADC does: the simulator
+  port offset applies whenever a CCD host is `localhost` (the case in which the
+  app starts `mikeserver`), and `dbe_sim_gui` 0 runs it without X11. The
+  committed `mikeserver` was x86_64 only and is now universal; sbs-inst1 has no
+  Rosetta.
+- **Autostart.** Preferences → General gains Autostart (`dbe_autostart`), as
+  ADC and PFS have, so the server comes up without the Configuration window.
+- **Enabling rules are the window's.** Topics carry each control's enabled
+  state as the Cocoa window sets it, and every command re-checks it; bindings
+  read those flags rather than re-deriving the rules.
+- **Questions and errors.** The window's questions (abort; object ≥ 60 s with
+  the diffuser not out) come back as a `confirm` error that the page asks the
+  operator and resends with `confirm: true`. ccdserver refusals come back as
+  `hardware` errors, logged rather than shown as dialogs, and the router spaces
+  writes 150 ms apart and caps its queue at 10 — a client looping on a failing
+  command once filled a screen with dialogs.
+- **Quick look.** `/image/mike/blue/` and `/red/` as planned; the viewer now
+  loads its packages from `/pkg/` at the root, since the page sits three levels
+  deep. The two tabs come from the manifest.
+- **Commands.** `set_run`, `set_subraster_mode` (`subraster` only when the
+  Subrasters sheet has some), `set_autofocus`; `both` where the window has a
+  common column, plus binning and speed as the legacy server allows.
+- **Deployment.** SBS (`deployments/sbs.yml`) instead of Clay; lco-ansible's
+  instruments role gained per-app `defaults`/`shared_defaults` for the
+  simulator settings.
+- **mike-sv on SBS** runs on its own simulated camera: gcamzwo dials a fixed
+  port, so lco-ansible's `zwo_sim_more` puts a second emulator on a loopback
+  alias, 127.0.0.2. It is camera 2 there (`gcam12`), since pfs-sv holds 3 on
+  the same Mac; at Clay both are camera 3 of the NASE slot (§ Slit viewer).
+
+Details per control: `mike/docs/ws-migration-step0-mike-window.md`.
 
 Three pieces, and they ship separately: the controls SPA, the quick look, and
 the slit viewer. **The slit viewer is ready now and depends on nothing in this

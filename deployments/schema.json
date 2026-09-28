@@ -78,6 +78,16 @@
             "default": false,
             "description": "FITS producer: mount /image/<app>/ and add a Quick Look sub-tab."
           },
+          "arms": {
+            "type": "array",
+            "minItems": 2,
+            "uniqueItems": true,
+            "items": {
+              "type": "string",
+              "pattern": "^[a-z][a-z0-9]*$"
+            },
+            "description": "One quick-look stream per arm, /image/<app>/<arm>/, for an instrument that writes a file per arm (MIKE: blue, red); its exposure_complete names the arm. Needs quicklook."
+          },
           "fits_root": {
             "type": "object",
             "required": [

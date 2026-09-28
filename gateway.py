@@ -270,7 +270,7 @@ def health_handler(config: dict, guider_upstream: tuple[str, int] | None):
 
 def mount_packages(app: web.Application, astro_ph: Path) -> bool:
     """/pkg/{chz1,core,viewer}/ from the astro-ph checkout: one mount for
-    every viewer page (quick look and the guiders both address ../../pkg/).
+    every viewer page (quick look and the guiders both address /pkg/).
     Missing checkout -> no packages, and both kinds of page say so."""
     if not all((astro_ph / "packages" / p).is_dir() for p in ("chz1", "core", "viewer")):
         log.error("viewer packages unavailable: no astro-ph checkout at %s", astro_ph)
@@ -372,7 +372,7 @@ def mount_imageweb(app: web.Application, config: dict, astro_ph: Path) -> list[s
 
     subs = {}
     for inst in quicklook:
-        sub = iw.instrument_app(inst["app"], inst["host"], inst["port"], args)
+        sub = iw.instrument_app(inst["app"], inst["host"], inst["port"], args, tuple(inst["arms"]))
         app.router.add_get(f"/image/{inst['app']}", iw.redirect(f"/image/{inst['app']}/"))
         app.add_subapp(f"/image/{inst['app']}/", sub)
         subs[inst["app"]] = sub
@@ -381,8 +381,8 @@ def mount_imageweb(app: web.Application, config: dict, astro_ph: Path) -> list[s
     # mounting instrument_app() directly skips them, and the index is what
     # imageweb's README documents and the landing page links to.
     def statuses():
-        return [sub["full_status"]() | {"host": sub["control"].host, "port": sub["control"].port}
-                for sub in subs.values()]
+        return [stream["full_status"]() | {"host": sub["control"].host, "port": sub["control"].port}
+                for sub in subs.values() for stream in sub["streams"].values()]
 
     async def index(request):
         rows = "".join(

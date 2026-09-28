@@ -26,10 +26,10 @@ apps:
   adc:       { project_id: 24, ws: 52403, ws_server: true }
   dcu:       { project_id: 17, ws: 51703, ws_server: true }
   pfs:       { project_id: 16, ws: 51603, ws_server: true }
+  mike:      { project_id:  8, ws: 50803, ws_server: true }
 
   # Not yet migrated — ports are predictions from main.h.
   ldss3:     { project_id:  6, ws: 50603, ws_server: false }
-  mike:      { project_id:  8, ws: 50803, ws_server: false }
   fourstar:  { project_id: 11, ws: 51103, ws_server: false }
   mage:      { project_id: 15, ws: 51503, ws_server: false }
   ifum:      { project_id: 18, ws: 51803, ws_server: false }

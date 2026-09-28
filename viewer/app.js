@@ -54,8 +54,8 @@ const { mountPanel } = await import(KIND === "guider" ? "./panels/guider.js" : "
 mountViewerChrome(document.body);
 
 const $ = (id) => document.getElementById(id);
-// Every URL is relative to this page's own directory (<prefix>/<name>/): the server decides the
-// prefix, the page never sees it — it only knows it is two levels deep, which puts /pkg/ at ../../. `here` drops the query string; `wsUrl` keeps the page's scheme,
+// Every URL is relative to this page's own directory (<prefix>/<name>/), except the packages, which
+// the server mounts at /pkg/ on its root. `here` drops the query string; `wsUrl` keeps the page's scheme,
 // so a page served over https (a tunnel, a proxy) opens wss and is not blocked as mixed content.
 const here = new URL(".", location.href);
 const url = (path) => new URL(path, here);
@@ -64,9 +64,10 @@ const wsUrl = (path) => {
   u.protocol = location.protocol === "https:" ? "wss:" : "ws:";
   return u;
 };
-// The name is this page's directory: /image/pfs/ -> "pfs", /guider/pfs-sv/ -> "pfs-sv" (the
-// camera's function, not gcamweb's gcamPG number — the gateway keeps that on the proxy side).
-const NAME = here.pathname.split("/").filter(Boolean).pop() ?? "";
+// The name is this page's path under its prefix: /image/pfs/ -> "pfs", /image/mike/blue/ ->
+// "mike/blue", /guider/pfs-sv/ -> "pfs-sv" (the camera's function, not gcamweb's gcamPG number —
+// the gateway keeps that on the proxy side).
+const NAME = here.pathname.split("/").filter(Boolean).slice(1).join("/");
 const canvas = $("view");
 const overlay = $("overlay");
 const controlsEl = $("controls");
@@ -875,10 +876,10 @@ if (KIND === "guider") {
   $("roi-full").addEventListener("click", () => setRoi(null));
 }
 
-const wasm = await loadWasm(url("../../pkg/chz1/ts/src/pkg/decoder.wasm"));
+const wasm = await loadWasm(url("/pkg/chz1/ts/src/pkg/decoder.wasm"));
 const stream = new Chz1Stream({
   wasm,
-  spawnDecoder: () => new Worker(url("../../pkg/chz1/ts/src/decode-worker.js"), { type: "module" }),
+  spawnDecoder: () => new Worker(url("/pkg/chz1/ts/src/decode-worker.js"), { type: "module" }),
 });
 stream.unshuffle = "cpu"; // the pixels arrive reconstructed; the renderer takes them as pixels
 

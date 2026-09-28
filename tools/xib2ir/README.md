@@ -43,6 +43,17 @@ python3 -m xib2ir extract /Users/william/workspace/pfs/src/PFS/CameraController.
     -o ../../generated/pfs/camera.layout.json
 ```
 
+MIKE's window. The id is not unique in the MIKE repository —
+`Base.lproj/MainMenu.xib` gives it to the Configuration window too — so it
+always goes with `MikeGUI.xib`:
+
+```sh
+python3 -m xib2ir extract /Users/william/workspace/mike/src/MIKE/MikeGUI.xib \
+    --window QvC-M9-y7g --app mike \
+    --bindings ../../instruments/mike/window/bindings.yml \
+    -o ../../generated/mike/window.layout.json
+```
+
 Additional windows per app land as new entries in the manifest plus a
 sibling `generated/<app>/<window>.layout.json` from another `extract`
 invocation. The SPA picks them up automatically — no JS changes.

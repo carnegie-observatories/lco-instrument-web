@@ -595,8 +595,15 @@ export const mountRenderer = (hostEl, layout) => {
     }
 
     if (b.write) {
+      // An instrument that would ask its own operator first (MIKE: abort)
+      // answers "confirm" with the question; OK sends again with confirm.
+      const send = (args) => cmd(b.write.cmd, args).catch((err) => {
+        if (err?.code === "confirm" && !args.confirm && window.confirm(err.message)) {
+          send({ ...args, confirm: true });
+        }
+      });
       const handler = (event) => {
-        cmd(b.write.cmd, buildArgs(b.write, node, el)).catch(() => {});
+        send(buildArgs(b.write, node, el));
         // Optimistic spinner: an outlet whose write spec names a sibling
         // outlet via `optimistic_spinner` gets that sibling's `is-moving`
         // class set immediately on cmd send. Cocoa's WSServer publishes
@@ -623,6 +630,8 @@ export const mountRenderer = (hostEl, layout) => {
       else if (el.kind === "textfield" && el.subkind === "input") {
         node.addEventListener("change", handler);            // commit on blur / Enter
       }
+    } else if (el.kind === "textfield" && el.subkind === "input") {
+      node.readOnly = true;              // shown, not written from here
     }
 
     if (b.read) {

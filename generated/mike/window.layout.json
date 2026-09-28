@@ -1,0 +1,3198 @@
+{
+  "_generator": "xib2ir@0.1.0",
+  "app": "mike",
+  "window_id": "QvC-M9-y7g",
+  "window": {
+    "title": "MIKE",
+    "width": 712,
+    "height": 731
+  },
+  "elements": [
+    {
+      "id": "fXQ-o4-cOq",
+      "parent_id": null,
+      "kind": "textfield",
+      "subkind": "input",
+      "outlet": "edit_object",
+      "frame": {
+        "x": 96,
+        "y": 90,
+        "w": 236,
+        "h": 22
+      },
+      "binding": {
+        "write": {
+          "cmd": "set_object_name",
+          "args": {
+            "name": "$value"
+          }
+        },
+        "read": {
+          "topic": "exposure",
+          "path": "object"
+        }
+      }
+    },
+    {
+      "id": "910-rg-U4x",
+      "parent_id": null,
+      "kind": "popup",
+      "subkind": "popup",
+      "outlet": "popup_exptype",
+      "frame": {
+        "x": 94,
+        "y": 119,
+        "w": 78,
+        "h": 26
+      },
+      "title_default": "Object",
+      "options": [
+        {
+          "value": "object",
+          "label": "Object"
+        },
+        {
+          "value": "comp",
+          "label": "Comp"
+        },
+        {
+          "value": "bias",
+          "label": "Bias"
+        },
+        {
+          "value": "flat",
+          "label": "Flat"
+        },
+        {
+          "value": "dark",
+          "label": "Dark"
+        }
+      ],
+      "binding": {
+        "write": {
+          "cmd": "set_exposure_type",
+          "args": {
+            "type": "$state"
+          }
+        },
+        "read": {
+          "topic": "exposure",
+          "path": "type"
+        },
+        "enabled_if": {
+          "topic": "exposure",
+          "path": "type_enabled",
+          "equals": true
+        }
+      }
+    },
+    {
+      "id": "Id5-w1-CZx",
+      "parent_id": null,
+      "kind": "label",
+      "frame": {
+        "x": 20,
+        "y": 123,
+        "w": 70,
+        "h": 17
+      },
+      "title_default": "ImageType",
+      "binding": null
+    },
+    {
+      "id": "BIE-NE-ztI",
+      "parent_id": null,
+      "kind": "label",
+      "frame": {
+        "x": 61,
+        "y": 152,
+        "w": 29,
+        "h": 17
+      },
+      "title_default": "R.A.",
+      "binding": null
+    },
+    {
+      "id": "qvu-YC-8j9",
+      "parent_id": null,
+      "kind": "label",
+      "frame": {
+        "x": 58,
+        "y": 183,
+        "w": 32,
+        "h": 17
+      },
+      "title_default": "Dec.",
+      "binding": null
+    },
+    {
+      "id": "LDK-Xp-Sas",
+      "parent_id": null,
+      "kind": "textfield",
+      "subkind": "readout",
+      "outlet": "edit_delta",
+      "frame": {
+        "x": 96,
+        "y": 183,
+        "w": 82,
+        "h": 21
+      },
+      "title_default": "-00:00:00.0",
+      "binding": {
+        "read": {
+          "topic": "telescope",
+          "path": "dec"
+        }
+      }
+    },
+    {
+      "id": "9T2-gk-5T8",
+      "parent_id": null,
+      "kind": "label",
+      "frame": {
+        "x": 37,
+        "y": 212,
+        "w": 53,
+        "h": 17
+      },
+      "title_default": "Airmass",
+      "binding": null
+    },
+    {
+      "id": "SMc-7G-YqN",
+      "parent_id": null,
+      "kind": "label",
+      "frame": {
+        "x": 41,
+        "y": 249,
+        "w": 49,
+        "h": 17
+      },
+      "title_default": "SlitSize",
+      "binding": null
+    },
+    {
+      "id": "DEb-sO-0s7",
+      "parent_id": null,
+      "kind": "textfield",
+      "subkind": "readout",
+      "outlet": "edit_am",
+      "frame": {
+        "x": 96,
+        "y": 212,
+        "w": 82,
+        "h": 21
+      },
+      "title_default": "0.000",
+      "binding": {
+        "read": {
+          "topic": "telescope",
+          "path": "airmass"
+        }
+      }
+    },
+    {
+      "id": "lCn-Yf-g25",
+      "parent_id": null,
+      "kind": "textfield",
+      "subkind": "readout",
+      "outlet": "edit_alpha",
+      "frame": {
+        "x": 96,
+        "y": 150,
+        "w": 82,
+        "h": 22
+      },
+      "title_default": "00:00:00.0",
+      "binding": {
+        "read": {
+          "topic": "telescope",
+          "path": "ra"
+        }
+      }
+    },
+    {
+      "id": "l8P-UK-WYl",
+      "parent_id": null,
+      "kind": "label",
+      "frame": {
+        "x": 383,
+        "y": 92,
+        "w": 57,
+        "h": 17
+      },
+      "title_default": "RunTime",
+      "binding": null
+    },
+    {
+      "id": "zgJ-P7-0GO",
+      "parent_id": null,
+      "kind": "textfield",
+      "subkind": "readout",
+      "outlet": "edit_runtime2",
+      "frame": {
+        "x": 446,
+        "y": 90,
+        "w": 82,
+        "h": 22
+      },
+      "binding": {
+        "read": {
+          "topic": "exposure",
+          "path": "common.runtime"
+        }
+      }
+    },
+    {
+      "id": "N4X-on-tVp",
+      "parent_id": null,
+      "kind": "label",
+      "frame": {
+        "x": 370,
+        "y": 149,
+        "w": 70,
+        "h": 17
+      },
+      "title_default": "Para.Angle",
+      "binding": null
+    },
+    {
+      "id": "7a1-f3-Kdk",
+      "parent_id": null,
+      "kind": "textfield",
+      "subkind": "readout",
+      "outlet": "edit_para",
+      "frame": {
+        "x": 446,
+        "y": 147,
+        "w": 82,
+        "h": 22
+      },
+      "binding": {
+        "read": {
+          "topic": "telescope",
+          "path": "parallactic"
+        }
+      }
+    },
+    {
+      "id": "w8R-bl-KoG",
+      "parent_id": null,
+      "kind": "label",
+      "frame": {
+        "x": 378,
+        "y": 182,
+        "w": 62,
+        "h": 17
+      },
+      "title_default": "Slit Angle",
+      "binding": null
+    },
+    {
+      "id": "RZa-2R-QYz",
+      "parent_id": null,
+      "kind": "textfield",
+      "subkind": "readout",
+      "outlet": "edit_slta",
+      "frame": {
+        "x": 446,
+        "y": 180,
+        "w": 82,
+        "h": 22
+      },
+      "binding": {
+        "read": {
+          "topic": "telescope",
+          "path": "slit_angle"
+        }
+      }
+    },
+    {
+      "id": "Y32-yc-GGQ",
+      "parent_id": null,
+      "kind": "label",
+      "frame": {
+        "x": 377,
+        "y": 213,
+        "w": 63,
+        "h": 17
+      },
+      "title_default": "Rot.Angle",
+      "binding": null
+    },
+    {
+      "id": "L3S-T5-Ar1",
+      "parent_id": null,
+      "kind": "textfield",
+      "subkind": "readout",
+      "outlet": "edit_rota",
+      "frame": {
+        "x": 446,
+        "y": 211,
+        "w": 82,
+        "h": 22
+      },
+      "title_default": "30.00",
+      "binding": {
+        "read": {
+          "topic": "telescope",
+          "path": "rotator"
+        }
+      }
+    },
+    {
+      "id": "v5d-RX-ubs",
+      "parent_id": null,
+      "kind": "textfield",
+      "subkind": "readout",
+      "outlet": "edit_tmike",
+      "frame": {
+        "x": 446,
+        "y": 246,
+        "w": 82,
+        "h": 22
+      },
+      "binding": {
+        "read": {
+          "topic": "temps",
+          "path": "mike"
+        }
+      }
+    },
+    {
+      "id": "Aux-gT-6zW",
+      "parent_id": null,
+      "kind": "textfield",
+      "subkind": "readout",
+      "outlet": "edit_tblue",
+      "frame": {
+        "x": 446,
+        "y": 276,
+        "w": 82,
+        "h": 22
+      },
+      "binding": {
+        "read": {
+          "topic": "temps",
+          "path": "blue"
+        }
+      }
+    },
+    {
+      "id": "kcb-0v-Ktx",
+      "parent_id": null,
+      "kind": "textfield",
+      "subkind": "readout",
+      "outlet": "edit_tred",
+      "frame": {
+        "x": 446,
+        "y": 306,
+        "w": 82,
+        "h": 22
+      },
+      "binding": {
+        "read": {
+          "topic": "temps",
+          "path": "red"
+        }
+      }
+    },
+    {
+      "id": "KdF-44-oPK",
+      "parent_id": null,
+      "kind": "label",
+      "frame": {
+        "x": 31,
+        "y": 693,
+        "w": 59,
+        "h": 17
+      },
+      "title_default": "Message",
+      "binding": null
+    },
+    {
+      "id": "sD6-U4-GbI",
+      "parent_id": null,
+      "kind": "textfield",
+      "subkind": "readout",
+      "outlet": "edit_messageB",
+      "frame": {
+        "x": 96,
+        "y": 691,
+        "w": 250,
+        "h": 22
+      },
+      "binding": {
+        "read": {
+          "topic": "exposure",
+          "path": "arms[0].window.message"
+        }
+      }
+    },
+    {
+      "id": "4Eb-Wz-M0N",
+      "parent_id": null,
+      "kind": "label",
+      "frame": {
+        "x": 377,
+        "y": 693,
+        "w": 59,
+        "h": 17
+      },
+      "title_default": "Message",
+      "binding": null
+    },
+    {
+      "id": "vAx-Ab-ubK",
+      "parent_id": null,
+      "kind": "textfield",
+      "subkind": "readout",
+      "outlet": "edit_messageR",
+      "frame": {
+        "x": 442,
+        "y": 691,
+        "w": 250,
+        "h": 22
+      },
+      "binding": {
+        "read": {
+          "topic": "exposure",
+          "path": "arms[1].window.message"
+        }
+      }
+    },
+    {
+      "id": "yC2-IB-vKa",
+      "parent_id": null,
+      "kind": "label",
+      "frame": {
+        "x": 250,
+        "y": 149,
+        "w": 38,
+        "h": 17
+      },
+      "title_default": "Azim.",
+      "binding": null
+    },
+    {
+      "id": "fPu-1g-zu9",
+      "parent_id": null,
+      "kind": "textfield",
+      "subkind": "readout",
+      "outlet": "edit_az",
+      "frame": {
+        "x": 294,
+        "y": 148,
+        "w": 52,
+        "h": 21
+      },
+      "title_default": "000.00",
+      "binding": {
+        "read": {
+          "topic": "telescope",
+          "path": "azimuth"
+        }
+      }
+    },
+    {
+      "id": "Ziy-hb-Rgg",
+      "parent_id": null,
+      "kind": "label",
+      "frame": {
+        "x": 256,
+        "y": 182,
+        "w": 32,
+        "h": 17
+      },
+      "title_default": "Elev.",
+      "binding": null
+    },
+    {
+      "id": "qhT-UX-bzg",
+      "parent_id": null,
+      "kind": "label",
+      "frame": {
+        "x": 197,
+        "y": 249,
+        "w": 38,
+        "h": 17
+      },
+      "title_default": "Lamp",
+      "binding": null
+    },
+    {
+      "id": "kcV-he-9k6",
+      "parent_id": null,
+      "kind": "textfield",
+      "subkind": "readout",
+      "outlet": "edit_el",
+      "frame": {
+        "x": 294,
+        "y": 180,
+        "w": 52,
+        "h": 22
+      },
+      "title_default": "00.0",
+      "binding": {
+        "read": {
+          "topic": "telescope",
+          "path": "elevation"
+        }
+      }
+    },
+    {
+      "id": "5rz-YP-Woc",
+      "parent_id": null,
+      "kind": "textfield",
+      "subkind": "readout",
+      "outlet": "edit_imageB",
+      "frame": {
+        "x": 112,
+        "y": 58,
+        "w": 57,
+        "h": 22
+      },
+      "title_default": "0",
+      "binding": {
+        "read": {
+          "topic": "exposure",
+          "path": "arms[0].id"
+        }
+      }
+    },
+    {
+      "id": "jfH-hy-8k6",
+      "parent_id": null,
+      "kind": "label",
+      "frame": {
+        "x": 45,
+        "y": 93,
+        "w": 45,
+        "h": 17
+      },
+      "title_default": "Object",
+      "binding": null
+    },
+    {
+      "id": "HsH-GD-sZJ",
+      "parent_id": null,
+      "kind": "textfield",
+      "subkind": "input",
+      "outlet": "edit_filterB",
+      "frame": {
+        "x": 96,
+        "y": 646,
+        "w": 250,
+        "h": 22
+      },
+      "binding": {
+        "read": {
+          "topic": "exposure",
+          "path": "arms[0].window.filter"
+        }
+      }
+    },
+    {
+      "id": "N6R-Sg-JTX",
+      "parent_id": null,
+      "kind": "label",
+      "frame": {
+        "x": 55,
+        "y": 649,
+        "w": 35,
+        "h": 17
+      },
+      "title_default": "Filter",
+      "binding": null
+    },
+    {
+      "id": "UzW-KQ-wzn",
+      "parent_id": null,
+      "kind": "textfield",
+      "subkind": "input",
+      "outlet": "edit_config",
+      "frame": {
+        "x": 96,
+        "y": 276,
+        "w": 250,
+        "h": 22
+      },
+      "binding": {
+        "read": {
+          "topic": "exposure",
+          "path": "config"
+        }
+      }
+    },
+    {
+      "id": "H2d-oE-d3S",
+      "parent_id": null,
+      "kind": "label",
+      "frame": {
+        "x": 42,
+        "y": 279,
+        "w": 48,
+        "h": 17
+      },
+      "title_default": "Config.",
+      "binding": null
+    },
+    {
+      "id": "tiO-fR-aty",
+      "parent_id": null,
+      "kind": "textfield",
+      "subkind": "input",
+      "outlet": "edit_instcom",
+      "frame": {
+        "x": 96,
+        "y": 306,
+        "w": 250,
+        "h": 22
+      },
+      "binding": {
+        "write": {
+          "cmd": "set_comment",
+          "args": {
+            "comment": "$value"
+          }
+        },
+        "read": {
+          "topic": "exposure",
+          "path": "comment"
+        }
+      }
+    },
+    {
+      "id": "b2J-tk-o7y",
+      "parent_id": null,
+      "kind": "label",
+      "frame": {
+        "x": 27,
+        "y": 309,
+        "w": 63,
+        "h": 17
+      },
+      "title_default": "Comment",
+      "binding": null
+    },
+    {
+      "id": "XDp-TO-JqX",
+      "parent_id": null,
+      "kind": "textfield",
+      "subkind": "input",
+      "outlet": "edit_camcomB",
+      "frame": {
+        "x": 96,
+        "y": 499,
+        "w": 250,
+        "h": 22
+      },
+      "binding": {
+        "read": {
+          "topic": "exposure",
+          "path": "arms[0].window.camcom"
+        }
+      }
+    },
+    {
+      "id": "2f2-eb-nxm",
+      "parent_id": null,
+      "kind": "label",
+      "frame": {
+        "x": 27,
+        "y": 502,
+        "w": 63,
+        "h": 17
+      },
+      "title_default": "Comment",
+      "binding": null
+    },
+    {
+      "id": "dJU-Am-bOb",
+      "parent_id": null,
+      "kind": "textfield",
+      "subkind": "input",
+      "outlet": "edit_focusB",
+      "frame": {
+        "x": 98,
+        "y": 585,
+        "w": 90,
+        "h": 22
+      },
+      "custom_class": "TextField",
+      "title_default": "0.0",
+      "binding": {
+        "write": {
+          "cmd": "set_focus",
+          "args": {
+            "arm": "blue",
+            "value": "$value"
+          }
+        },
+        "read": {
+          "topic": "mechanics",
+          "path": "focus[0].value",
+          "format": "%.1f"
+        },
+        "enabled_if": {
+          "topic": "mechanics",
+          "path": "focus[0].enabled.focus",
+          "equals": true
+        }
+      }
+    },
+    {
+      "id": "rXr-ar-9J4",
+      "parent_id": null,
+      "kind": "label",
+      "frame": {
+        "x": 24,
+        "y": 588,
+        "w": 68,
+        "h": 17
+      },
+      "title_default": "CamFocus",
+      "binding": null
+    },
+    {
+      "id": "y5R-hw-NF5",
+      "parent_id": null,
+      "kind": "label",
+      "frame": {
+        "x": 43,
+        "y": 618,
+        "w": 49,
+        "h": 17
+      },
+      "title_default": "Grating",
+      "binding": null
+    },
+    {
+      "id": "1sg-LX-yx5",
+      "parent_id": null,
+      "kind": "label",
+      "frame": {
+        "x": 37,
+        "y": 531,
+        "w": 55,
+        "h": 17
+      },
+      "title_default": "Readout",
+      "binding": null
+    },
+    {
+      "id": "2ti-ds-IjV",
+      "parent_id": null,
+      "kind": "label",
+      "frame": {
+        "x": 40,
+        "y": 60,
+        "w": 50,
+        "h": 17
+      },
+      "title_default": "Image#",
+      "binding": null
+    },
+    {
+      "id": "t4M-z4-GZM",
+      "parent_id": null,
+      "kind": "label",
+      "frame": {
+        "x": 40,
+        "y": 347,
+        "w": 50,
+        "h": 17
+      },
+      "title_default": "Image#",
+      "binding": null
+    },
+    {
+      "id": "ctw-MJ-u7V",
+      "parent_id": null,
+      "kind": "popup",
+      "subkind": "popup",
+      "outlet": "popup_lamp",
+      "frame": {
+        "x": 239,
+        "y": 245,
+        "w": 79,
+        "h": 26
+      },
+      "title_default": "off",
+      "options": [
+        {
+          "value": "off",
+          "label": "off"
+        },
+        {
+          "value": "quartz",
+          "label": "Quartz"
+        },
+        {
+          "value": "thar",
+          "label": "ThAr"
+        }
+      ],
+      "binding": {
+        "write": {
+          "cmd": "set_lamp",
+          "args": {
+            "lamp": "$state"
+          }
+        },
+        "read": {
+          "topic": "mechanics",
+          "path": "lamp.position"
+        },
+        "enabled_if": {
+          "topic": "mechanics",
+          "path": "lamp.enabled",
+          "equals": true
+        }
+      }
+    },
+    {
+      "id": "ohc-Zd-aBS",
+      "parent_id": null,
+      "kind": "separator",
+      "frame": {
+        "x": 357,
+        "y": 347,
+        "w": 5,
+        "h": 366
+      },
+      "binding": null
+    },
+    {
+      "id": "j59-AZ-Wr0",
+      "parent_id": null,
+      "kind": "separator",
+      "frame": {
+        "x": 12,
+        "y": 334,
+        "w": 688,
+        "h": 5
+      },
+      "binding": null
+    },
+    {
+      "id": "a0d-fW-OHj",
+      "parent_id": null,
+      "kind": "label",
+      "frame": {
+        "x": 31,
+        "y": 377,
+        "w": 59,
+        "h": 17
+      },
+      "title_default": "Exp.Time",
+      "binding": null
+    },
+    {
+      "id": "eEW-Kt-w5U",
+      "parent_id": null,
+      "kind": "textfield",
+      "subkind": "input",
+      "outlet": "edit_exptimeB",
+      "frame": {
+        "x": 96,
+        "y": 375,
+        "w": 82,
+        "h": 22
+      },
+      "custom_class": "TextField",
+      "binding": {
+        "write": {
+          "cmd": "set_exptime",
+          "args": {
+            "arm": "blue",
+            "seconds": "$value"
+          }
+        },
+        "read": {
+          "topic": "exposure",
+          "path": "arms[0].exptime",
+          "format": "%.1f"
+        },
+        "enabled_if": {
+          "topic": "exposure",
+          "path": "arms[0].enabled.exptime",
+          "equals": true
+        }
+      }
+    },
+    {
+      "id": "mJ6-Uh-gzu",
+      "parent_id": null,
+      "kind": "label",
+      "frame": {
+        "x": 381,
+        "y": 60,
+        "w": 59,
+        "h": 17
+      },
+      "title_default": "Exp.Time",
+      "binding": null
+    },
+    {
+      "id": "pNU-JH-t9k",
+      "parent_id": null,
+      "kind": "textfield",
+      "subkind": "input",
+      "outlet": "edit_exptime2",
+      "frame": {
+        "x": 446,
+        "y": 58,
+        "w": 82,
+        "h": 22
+      },
+      "custom_class": "TextField",
+      "title_default": "1",
+      "binding": {
+        "write": {
+          "cmd": "set_exptime",
+          "args": {
+            "arm": "both",
+            "seconds": "$value"
+          }
+        },
+        "read": {
+          "topic": "exposure",
+          "path": "common.exptime"
+        },
+        "enabled_if": {
+          "topic": "exposure",
+          "path": "common.enabled.exptime",
+          "equals": true
+        }
+      }
+    },
+    {
+      "id": "LdO-cc-IG8",
+      "parent_id": null,
+      "kind": "label",
+      "frame": {
+        "x": 234,
+        "y": 439,
+        "w": 41,
+        "h": 17
+      },
+      "title_default": "Loops",
+      "binding": null
+    },
+    {
+      "id": "4uM-dh-OJ0",
+      "parent_id": null,
+      "kind": "textfield",
+      "subkind": "input",
+      "outlet": "edit_loopsB",
+      "frame": {
+        "x": 281,
+        "y": 437,
+        "w": 65,
+        "h": 22
+      },
+      "custom_class": "TextField",
+      "binding": {
+        "write": {
+          "cmd": "set_loops",
+          "args": {
+            "arm": "blue",
+            "n": "$value"
+          }
+        },
+        "read": {
+          "topic": "exposure",
+          "path": "arms[0].nloops"
+        },
+        "enabled_if": {
+          "topic": "exposure",
+          "path": "arms[0].enabled.loops",
+          "equals": true
+        }
+      }
+    },
+    {
+      "id": "3Jr-bu-Jx8",
+      "parent_id": null,
+      "kind": "label",
+      "frame": {
+        "x": 235,
+        "y": 469,
+        "w": 40,
+        "h": 17
+      },
+      "title_default": "Doing",
+      "binding": null
+    },
+    {
+      "id": "rwj-WK-LQ6",
+      "parent_id": null,
+      "kind": "label",
+      "frame": {
+        "x": 33,
+        "y": 407,
+        "w": 57,
+        "h": 17
+      },
+      "title_default": "RunTime",
+      "binding": null
+    },
+    {
+      "id": "Ans-v3-qax",
+      "parent_id": null,
+      "kind": "textfield",
+      "subkind": "readout",
+      "outlet": "edit_runtimeB",
+      "frame": {
+        "x": 96,
+        "y": 406,
+        "w": 82,
+        "h": 22
+      },
+      "binding": {
+        "read": {
+          "topic": "exposure",
+          "path": "arms[0].window.runtime"
+        }
+      }
+    },
+    {
+      "id": "rbd-VI-ZMG",
+      "parent_id": null,
+      "kind": "label",
+      "frame": {
+        "x": 33,
+        "y": 437,
+        "w": 57,
+        "h": 17
+      },
+      "title_default": "UT-Start",
+      "binding": null
+    },
+    {
+      "id": "YEV-En-ai4",
+      "parent_id": null,
+      "kind": "label",
+      "frame": {
+        "x": 43,
+        "y": 470,
+        "w": 49,
+        "h": 17
+      },
+      "title_default": "Shutter",
+      "binding": null
+    },
+    {
+      "id": "IX7-R6-ZNp",
+      "parent_id": null,
+      "kind": "textfield",
+      "subkind": "readout",
+      "outlet": "edit_startB",
+      "frame": {
+        "x": 96,
+        "y": 436,
+        "w": 82,
+        "h": 22
+      },
+      "title_default": "00:00:00",
+      "binding": {
+        "read": {
+          "topic": "exposure",
+          "path": "arms[0].window.start"
+        }
+      }
+    },
+    {
+      "id": "j47-dp-xuK",
+      "parent_id": null,
+      "kind": "indicator",
+      "subkind": "swatch",
+      "outlet": "cw_lamp",
+      "frame": {
+        "x": 323,
+        "y": 246,
+        "w": 23,
+        "h": 23
+      },
+      "binding": {
+        "read": {
+          "topic": "mechanics",
+          "path": "lamp.mirror",
+          "class_map": {
+            "true": "is-on",
+            "false": "is-off"
+          }
+        }
+      }
+    },
+    {
+      "id": "PEo-Oy-ZvT",
+      "parent_id": null,
+      "kind": "imageview",
+      "outlet": "view_shutterB",
+      "frame": {
+        "x": 95,
+        "y": 463,
+        "w": 100,
+        "h": 31
+      },
+      "binding": {
+        "read": {
+          "topic": "shutter",
+          "path": "arms[0].state",
+          "class_map": {
+            "open": "is-open",
+            "closed": "is-closed"
+          },
+          "label_map": {
+            "open": "OPEN",
+            "closed": "CLOSED"
+          }
+        }
+      }
+    },
+    {
+      "id": "raz-Ma-lv1",
+      "parent_id": null,
+      "kind": "popup",
+      "subkind": "popup",
+      "outlet": "popup_rmodeB",
+      "frame": {
+        "x": 94,
+        "y": 527,
+        "w": 97,
+        "h": 26
+      },
+      "title_default": "Full",
+      "options": [
+        {
+          "value": "full",
+          "label": "Full"
+        },
+        {
+          "value": "subraster",
+          "label": "Subraster"
+        }
+      ],
+      "binding": {
+        "write": {
+          "cmd": "set_subraster_mode",
+          "args": {
+            "arm": "blue",
+            "mode": "$state"
+          }
+        },
+        "read": {
+          "topic": "readout",
+          "path": "arms[0].readmode"
+        },
+        "enabled_if": {
+          "topic": "readout",
+          "path": "arms[0].enabled.readmode",
+          "equals": true
+        }
+      }
+    },
+    {
+      "id": "KFm-SO-p5J",
+      "parent_id": null,
+      "kind": "label",
+      "frame": {
+        "x": 54,
+        "y": 560,
+        "w": 38,
+        "h": 17
+      },
+      "title_default": "X-Bin",
+      "binding": null
+    },
+    {
+      "id": "tN4-M8-uFA",
+      "parent_id": null,
+      "kind": "popup",
+      "subkind": "popup",
+      "outlet": "popup_binxB",
+      "frame": {
+        "x": 94,
+        "y": 556,
+        "w": 46,
+        "h": 26
+      },
+      "title_default": "1",
+      "options": [
+        {
+          "value": "1",
+          "label": "1"
+        },
+        {
+          "value": "2",
+          "label": "2"
+        },
+        {
+          "value": "3",
+          "label": "3"
+        },
+        {
+          "value": "4",
+          "label": "4"
+        },
+        {
+          "value": "5",
+          "label": "5"
+        },
+        {
+          "value": "6",
+          "label": "6"
+        },
+        {
+          "value": "7",
+          "label": "7"
+        },
+        {
+          "value": "8",
+          "label": "8"
+        }
+      ],
+      "binding": {
+        "write": {
+          "cmd": "set_binning",
+          "args": {
+            "arm": "blue",
+            "bx": "$state",
+            "by": {
+              "topic": "readout",
+              "path": "arms[0].biny"
+            }
+          }
+        },
+        "read": {
+          "topic": "readout",
+          "path": "arms[0].binx"
+        },
+        "enabled_if": {
+          "topic": "readout",
+          "path": "arms[0].enabled.binx",
+          "equals": true
+        }
+      }
+    },
+    {
+      "id": "vE7-VB-C70",
+      "parent_id": null,
+      "kind": "label",
+      "frame": {
+        "x": 242,
+        "y": 562,
+        "w": 37,
+        "h": 17
+      },
+      "title_default": "Y-Bin",
+      "binding": null
+    },
+    {
+      "id": "ciD-9E-1pD",
+      "parent_id": null,
+      "kind": "popup",
+      "subkind": "popup",
+      "outlet": "popup_binyB",
+      "frame": {
+        "x": 283,
+        "y": 558,
+        "w": 46,
+        "h": 26
+      },
+      "title_default": "1",
+      "options": [
+        {
+          "value": "1",
+          "label": "1"
+        },
+        {
+          "value": "2",
+          "label": "2"
+        },
+        {
+          "value": "3",
+          "label": "3"
+        },
+        {
+          "value": "4",
+          "label": "4"
+        },
+        {
+          "value": "5",
+          "label": "5"
+        },
+        {
+          "value": "6",
+          "label": "6"
+        },
+        {
+          "value": "7",
+          "label": "7"
+        },
+        {
+          "value": "8",
+          "label": "8"
+        }
+      ],
+      "binding": {
+        "write": {
+          "cmd": "set_binning",
+          "args": {
+            "arm": "blue",
+            "bx": {
+              "topic": "readout",
+              "path": "arms[0].binx"
+            },
+            "by": "$state"
+          }
+        },
+        "read": {
+          "topic": "readout",
+          "path": "arms[0].biny"
+        },
+        "enabled_if": {
+          "topic": "readout",
+          "path": "arms[0].enabled.biny",
+          "equals": true
+        }
+      }
+    },
+    {
+      "id": "hDL-2P-z2Y",
+      "parent_id": null,
+      "kind": "label",
+      "frame": {
+        "x": 236,
+        "y": 533,
+        "w": 43,
+        "h": 17
+      },
+      "title_default": "Speed",
+      "binding": null
+    },
+    {
+      "id": "jdn-LO-Zd0",
+      "parent_id": null,
+      "kind": "popup",
+      "subkind": "popup",
+      "outlet": "popup_speedB",
+      "frame": {
+        "x": 283,
+        "y": 529,
+        "w": 66,
+        "h": 26
+      },
+      "title_default": "Slow",
+      "options": [
+        {
+          "value": "slow",
+          "label": "Slow"
+        },
+        {
+          "value": "fast",
+          "label": "Fast"
+        }
+      ],
+      "binding": {
+        "write": {
+          "cmd": "set_readout_speed",
+          "args": {
+            "arm": "blue",
+            "speed": "$state"
+          }
+        },
+        "read": {
+          "topic": "readout",
+          "path": "arms[0].speed"
+        },
+        "enabled_if": {
+          "topic": "readout",
+          "path": "arms[0].enabled.speed",
+          "equals": true
+        }
+      }
+    },
+    {
+      "id": "lYz-TJ-u8n",
+      "parent_id": null,
+      "kind": "textfield",
+      "subkind": "input",
+      "outlet": "edit_gratAzB",
+      "frame": {
+        "x": 130,
+        "y": 616,
+        "w": 58,
+        "h": 22
+      },
+      "title_default": "0.000",
+      "binding": {
+        "read": {
+          "topic": "exposure",
+          "path": "arms[0].window.grat_az"
+        }
+      }
+    },
+    {
+      "id": "Ph2-EJ-efW",
+      "parent_id": null,
+      "kind": "label",
+      "frame": {
+        "x": 98,
+        "y": 618,
+        "w": 24,
+        "h": 17
+      },
+      "title_default": "Az.",
+      "binding": null
+    },
+    {
+      "id": "wQe-9g-DRl",
+      "parent_id": null,
+      "kind": "textfield",
+      "subkind": "input",
+      "outlet": "edit_gratElB",
+      "frame": {
+        "x": 285,
+        "y": 615,
+        "w": 61,
+        "h": 22
+      },
+      "title_default": "0.000",
+      "binding": {
+        "read": {
+          "topic": "exposure",
+          "path": "arms[0].window.grat_el"
+        }
+      }
+    },
+    {
+      "id": "s50-Ap-SdC",
+      "parent_id": null,
+      "kind": "label",
+      "frame": {
+        "x": 260,
+        "y": 617,
+        "w": 19,
+        "h": 17
+      },
+      "title_default": "El.",
+      "binding": null
+    },
+    {
+      "id": "bUF-an-GpE",
+      "parent_id": null,
+      "kind": "separator",
+      "frame": {
+        "x": 22,
+        "y": 680,
+        "w": 678,
+        "h": 5
+      },
+      "binding": null
+    },
+    {
+      "id": "HBv-Q5-cf5",
+      "parent_id": null,
+      "kind": "button",
+      "subkind": "push",
+      "outlet": "but_startB",
+      "frame": {
+        "x": 275,
+        "y": 343,
+        "w": 77,
+        "h": 32
+      },
+      "title_default": "Start",
+      "binding": {
+        "write": {
+          "cmd": "start_exposure",
+          "args": {
+            "arm": "blue"
+          }
+        },
+        "enabled_if": {
+          "topic": "exposure",
+          "path": "arms[0].enabled.start",
+          "equals": true
+        }
+      }
+    },
+    {
+      "id": "QFQ-fh-cvw",
+      "parent_id": null,
+      "kind": "button",
+      "subkind": "push",
+      "outlet": "but_pauseB",
+      "frame": {
+        "x": 275,
+        "y": 371,
+        "w": 77,
+        "h": 32
+      },
+      "title_default": "Pause",
+      "binding": {
+        "write": {
+          "cmd": "pause_exposure",
+          "args": {
+            "arm": "blue"
+          }
+        },
+        "read": {
+          "topic": "exposure",
+          "path": "arms[0].window.pause_title"
+        },
+        "enabled_if": {
+          "topic": "exposure",
+          "path": "arms[0].enabled.pause",
+          "equals": true
+        }
+      }
+    },
+    {
+      "id": "IdE-An-klR",
+      "parent_id": null,
+      "kind": "button",
+      "subkind": "push",
+      "outlet": "but_abortB",
+      "frame": {
+        "x": 275,
+        "y": 403,
+        "w": 77,
+        "h": 32
+      },
+      "title_default": "Abort",
+      "binding": {
+        "write": {
+          "cmd": "stop_exposure",
+          "args": {
+            "arm": "blue"
+          }
+        },
+        "enabled_if": {
+          "topic": "exposure",
+          "path": "arms[0].enabled.abort",
+          "equals": true
+        }
+      }
+    },
+    {
+      "id": "YAw-og-Qqc",
+      "parent_id": null,
+      "kind": "label",
+      "frame": {
+        "x": 365,
+        "y": 278,
+        "w": 75,
+        "h": 17
+      },
+      "title_default": "T.CCD-Blue",
+      "binding": null
+    },
+    {
+      "id": "miG-Z1-4Oy",
+      "parent_id": null,
+      "kind": "label",
+      "frame": {
+        "x": 368,
+        "y": 249,
+        "w": 72,
+        "h": 17
+      },
+      "title_default": "Temp.MIKE",
+      "binding": null
+    },
+    {
+      "id": "zuL-pH-2zj",
+      "parent_id": null,
+      "kind": "label",
+      "frame": {
+        "x": 368,
+        "y": 308,
+        "w": 72,
+        "h": 17
+      },
+      "title_default": "T.CCD-Red",
+      "binding": null
+    },
+    {
+      "id": "LOB-Qs-Ogl",
+      "parent_id": null,
+      "kind": "textfield",
+      "subkind": "readout",
+      "outlet": "edit_tdome",
+      "frame": {
+        "x": 627,
+        "y": 246,
+        "w": 65,
+        "h": 22
+      },
+      "binding": {
+        "read": {
+          "topic": "temps",
+          "path": "dome"
+        }
+      }
+    },
+    {
+      "id": "4Da-Lh-44c",
+      "parent_id": null,
+      "kind": "textfield",
+      "subkind": "readout",
+      "outlet": "edit_tcell",
+      "frame": {
+        "x": 627,
+        "y": 276,
+        "w": 65,
+        "h": 22
+      },
+      "binding": {
+        "read": {
+          "topic": "temps",
+          "path": "cell"
+        }
+      }
+    },
+    {
+      "id": "jcq-gk-pyI",
+      "parent_id": null,
+      "kind": "textfield",
+      "subkind": "readout",
+      "outlet": "edit_touts",
+      "frame": {
+        "x": 627,
+        "y": 306,
+        "w": 65,
+        "h": 22
+      },
+      "binding": {
+        "read": {
+          "topic": "temps",
+          "path": "outside"
+        }
+      }
+    },
+    {
+      "id": "0De-da-Mxx",
+      "parent_id": null,
+      "kind": "label",
+      "frame": {
+        "x": 557,
+        "y": 278,
+        "w": 64,
+        "h": 17
+      },
+      "title_default": "Temp.Cell",
+      "binding": null
+    },
+    {
+      "id": "ee5-Kz-c0t",
+      "parent_id": null,
+      "kind": "label",
+      "frame": {
+        "x": 544,
+        "y": 249,
+        "w": 77,
+        "h": 17
+      },
+      "title_default": "Temp.Dome",
+      "binding": null
+    },
+    {
+      "id": "Qlf-ud-7bu",
+      "parent_id": null,
+      "kind": "label",
+      "frame": {
+        "x": 552,
+        "y": 308,
+        "w": 69,
+        "h": 17
+      },
+      "title_default": "Temp.Outs",
+      "binding": null
+    },
+    {
+      "id": "rC2-eY-wJH",
+      "parent_id": null,
+      "kind": "label",
+      "frame": {
+        "x": 580,
+        "y": 151,
+        "w": 41,
+        "h": 17
+      },
+      "title_default": "Loops",
+      "binding": null
+    },
+    {
+      "id": "9BC-BL-wxY",
+      "parent_id": null,
+      "kind": "textfield",
+      "subkind": "input",
+      "outlet": "edit_loops2",
+      "frame": {
+        "x": 627,
+        "y": 149,
+        "w": 65,
+        "h": 22
+      },
+      "custom_class": "TextField",
+      "title_default": "1",
+      "binding": {
+        "write": {
+          "cmd": "set_loops",
+          "args": {
+            "arm": "both",
+            "n": "$value"
+          }
+        },
+        "read": {
+          "topic": "exposure",
+          "path": "common.loops"
+        },
+        "enabled_if": {
+          "topic": "exposure",
+          "path": "common.enabled.loops",
+          "equals": true
+        }
+      }
+    },
+    {
+      "id": "vSv-A7-m4N",
+      "parent_id": null,
+      "kind": "label",
+      "frame": {
+        "x": 581,
+        "y": 181,
+        "w": 40,
+        "h": 17
+      },
+      "title_default": "Doing",
+      "binding": null
+    },
+    {
+      "id": "Vot-2j-iRW",
+      "parent_id": null,
+      "kind": "textfield",
+      "subkind": "readout",
+      "outlet": "edit_doing2",
+      "frame": {
+        "x": 627,
+        "y": 179,
+        "w": 65,
+        "h": 22
+      },
+      "custom_class": "TextField",
+      "binding": {
+        "read": {
+          "topic": "exposure",
+          "path": "common.doing"
+        }
+      }
+    },
+    {
+      "id": "YbX-oM-R2a",
+      "parent_id": null,
+      "kind": "button",
+      "subkind": "push",
+      "outlet": "but_start2",
+      "frame": {
+        "x": 621,
+        "y": 54,
+        "w": 77,
+        "h": 32
+      },
+      "title_default": "Start",
+      "binding": {
+        "write": {
+          "cmd": "start_exposure",
+          "args": {
+            "arm": "both"
+          }
+        },
+        "enabled_if": {
+          "topic": "exposure",
+          "path": "common.enabled.start",
+          "equals": true
+        }
+      }
+    },
+    {
+      "id": "86X-d7-Tpa",
+      "parent_id": null,
+      "kind": "button",
+      "subkind": "push",
+      "outlet": "but_pause2",
+      "frame": {
+        "x": 621,
+        "y": 86,
+        "w": 77,
+        "h": 32
+      },
+      "title_default": "Pause",
+      "binding": {
+        "write": {
+          "cmd": "pause_exposure",
+          "args": {
+            "arm": "both"
+          }
+        },
+        "read": {
+          "topic": "exposure",
+          "path": "common.pause_title"
+        },
+        "enabled_if": {
+          "topic": "exposure",
+          "path": "common.enabled.pause",
+          "equals": true
+        }
+      }
+    },
+    {
+      "id": "xoD-IK-qKZ",
+      "parent_id": null,
+      "kind": "button",
+      "subkind": "push",
+      "outlet": "but_abort2",
+      "frame": {
+        "x": 621,
+        "y": 116,
+        "w": 77,
+        "h": 32
+      },
+      "title_default": "Abort",
+      "binding": {
+        "write": {
+          "cmd": "stop_exposure",
+          "args": {
+            "arm": "both"
+          }
+        },
+        "enabled_if": {
+          "topic": "exposure",
+          "path": "common.enabled.abort",
+          "equals": true
+        }
+      }
+    },
+    {
+      "id": "liW-cO-ieM",
+      "parent_id": null,
+      "kind": "textfield",
+      "subkind": "readout",
+      "outlet": "edit_doingB",
+      "frame": {
+        "x": 281,
+        "y": 468,
+        "w": 65,
+        "h": 22
+      },
+      "custom_class": "TextField",
+      "binding": {
+        "read": {
+          "topic": "exposure",
+          "path": "arms[0].window.doing"
+        }
+      }
+    },
+    {
+      "id": "jwD-ZJ-M3u",
+      "parent_id": null,
+      "kind": "textfield",
+      "subkind": "input",
+      "outlet": "edit_filterR",
+      "frame": {
+        "x": 442,
+        "y": 646,
+        "w": 250,
+        "h": 22
+      },
+      "binding": {
+        "read": {
+          "topic": "exposure",
+          "path": "arms[1].window.filter"
+        }
+      }
+    },
+    {
+      "id": "t4J-KT-hQC",
+      "parent_id": null,
+      "kind": "label",
+      "frame": {
+        "x": 401,
+        "y": 649,
+        "w": 35,
+        "h": 17
+      },
+      "title_default": "Filter",
+      "binding": null
+    },
+    {
+      "id": "2hG-yF-sbj",
+      "parent_id": null,
+      "kind": "textfield",
+      "subkind": "input",
+      "outlet": "edit_camcomR",
+      "frame": {
+        "x": 442,
+        "y": 499,
+        "w": 250,
+        "h": 22
+      },
+      "binding": {
+        "read": {
+          "topic": "exposure",
+          "path": "arms[1].window.camcom"
+        }
+      }
+    },
+    {
+      "id": "DvL-Oy-WED",
+      "parent_id": null,
+      "kind": "label",
+      "frame": {
+        "x": 373,
+        "y": 502,
+        "w": 63,
+        "h": 17
+      },
+      "title_default": "Comment",
+      "binding": null
+    },
+    {
+      "id": "LsT-id-eZ3",
+      "parent_id": null,
+      "kind": "textfield",
+      "subkind": "input",
+      "outlet": "edit_focusR",
+      "frame": {
+        "x": 444,
+        "y": 585,
+        "w": 90,
+        "h": 22
+      },
+      "custom_class": "TextField",
+      "title_default": "0.0",
+      "binding": {
+        "write": {
+          "cmd": "set_focus",
+          "args": {
+            "arm": "red",
+            "value": "$value"
+          }
+        },
+        "read": {
+          "topic": "mechanics",
+          "path": "focus[1].value",
+          "format": "%.1f"
+        },
+        "enabled_if": {
+          "topic": "mechanics",
+          "path": "focus[1].enabled.focus",
+          "equals": true
+        }
+      }
+    },
+    {
+      "id": "m1e-cV-dfI",
+      "parent_id": null,
+      "kind": "label",
+      "frame": {
+        "x": 370,
+        "y": 588,
+        "w": 68,
+        "h": 17
+      },
+      "title_default": "CamFocus",
+      "binding": null
+    },
+    {
+      "id": "WZ9-wj-ZrB",
+      "parent_id": null,
+      "kind": "label",
+      "frame": {
+        "x": 389,
+        "y": 618,
+        "w": 49,
+        "h": 17
+      },
+      "title_default": "Grating",
+      "binding": null
+    },
+    {
+      "id": "5RW-YL-3Cb",
+      "parent_id": null,
+      "kind": "label",
+      "frame": {
+        "x": 383,
+        "y": 531,
+        "w": 55,
+        "h": 17
+      },
+      "title_default": "Readout",
+      "binding": null
+    },
+    {
+      "id": "jGE-WJ-MLo",
+      "parent_id": null,
+      "kind": "label",
+      "frame": {
+        "x": 390,
+        "y": 347,
+        "w": 50,
+        "h": 17
+      },
+      "title_default": "Image#",
+      "binding": null
+    },
+    {
+      "id": "ikq-OF-DvL",
+      "parent_id": null,
+      "kind": "label",
+      "frame": {
+        "x": 381,
+        "y": 377,
+        "w": 59,
+        "h": 17
+      },
+      "title_default": "Exp.Time",
+      "binding": null
+    },
+    {
+      "id": "i0s-2o-jjE",
+      "parent_id": null,
+      "kind": "textfield",
+      "subkind": "input",
+      "outlet": "edit_exptimeR",
+      "frame": {
+        "x": 446,
+        "y": 375,
+        "w": 82,
+        "h": 22
+      },
+      "custom_class": "TextField",
+      "binding": {
+        "write": {
+          "cmd": "set_exptime",
+          "args": {
+            "arm": "red",
+            "seconds": "$value"
+          }
+        },
+        "read": {
+          "topic": "exposure",
+          "path": "arms[1].exptime",
+          "format": "%.1f"
+        },
+        "enabled_if": {
+          "topic": "exposure",
+          "path": "arms[1].enabled.exptime",
+          "equals": true
+        }
+      }
+    },
+    {
+      "id": "Dyn-ZT-7Ge",
+      "parent_id": null,
+      "kind": "label",
+      "frame": {
+        "x": 580,
+        "y": 439,
+        "w": 41,
+        "h": 17
+      },
+      "title_default": "Loops",
+      "binding": null
+    },
+    {
+      "id": "0Ky-pg-asD",
+      "parent_id": null,
+      "kind": "textfield",
+      "subkind": "input",
+      "outlet": "edit_loopsR",
+      "frame": {
+        "x": 627,
+        "y": 437,
+        "w": 65,
+        "h": 22
+      },
+      "custom_class": "TextField",
+      "binding": {
+        "write": {
+          "cmd": "set_loops",
+          "args": {
+            "arm": "red",
+            "n": "$value"
+          }
+        },
+        "read": {
+          "topic": "exposure",
+          "path": "arms[1].nloops"
+        },
+        "enabled_if": {
+          "topic": "exposure",
+          "path": "arms[1].enabled.loops",
+          "equals": true
+        }
+      }
+    },
+    {
+      "id": "lm0-Q2-Wia",
+      "parent_id": null,
+      "kind": "label",
+      "frame": {
+        "x": 581,
+        "y": 469,
+        "w": 40,
+        "h": 17
+      },
+      "title_default": "Doing",
+      "binding": null
+    },
+    {
+      "id": "RH2-j8-eHT",
+      "parent_id": null,
+      "kind": "label",
+      "frame": {
+        "x": 383,
+        "y": 407,
+        "w": 57,
+        "h": 17
+      },
+      "title_default": "RunTime",
+      "binding": null
+    },
+    {
+      "id": "nL5-SO-NZg",
+      "parent_id": null,
+      "kind": "textfield",
+      "subkind": "readout",
+      "outlet": "edit_runtimeR",
+      "frame": {
+        "x": 446,
+        "y": 406,
+        "w": 82,
+        "h": 22
+      },
+      "binding": {
+        "read": {
+          "topic": "exposure",
+          "path": "arms[1].window.runtime"
+        }
+      }
+    },
+    {
+      "id": "NtW-fy-gQK",
+      "parent_id": null,
+      "kind": "label",
+      "frame": {
+        "x": 383,
+        "y": 437,
+        "w": 57,
+        "h": 17
+      },
+      "title_default": "UT-Start",
+      "binding": null
+    },
+    {
+      "id": "gOo-4v-UWW",
+      "parent_id": null,
+      "kind": "label",
+      "frame": {
+        "x": 393,
+        "y": 470,
+        "w": 49,
+        "h": 17
+      },
+      "title_default": "Shutter",
+      "binding": null
+    },
+    {
+      "id": "t1L-Qs-3M0",
+      "parent_id": null,
+      "kind": "textfield",
+      "subkind": "readout",
+      "outlet": "edit_startR",
+      "frame": {
+        "x": 446,
+        "y": 436,
+        "w": 82,
+        "h": 22
+      },
+      "title_default": "00:00:00",
+      "binding": {
+        "read": {
+          "topic": "exposure",
+          "path": "arms[1].window.start"
+        }
+      }
+    },
+    {
+      "id": "ojV-gb-UXy",
+      "parent_id": null,
+      "kind": "imageview",
+      "outlet": "view_shutterR",
+      "frame": {
+        "x": 445,
+        "y": 463,
+        "w": 100,
+        "h": 31
+      },
+      "binding": {
+        "read": {
+          "topic": "shutter",
+          "path": "arms[1].state",
+          "class_map": {
+            "open": "is-open",
+            "closed": "is-closed"
+          },
+          "label_map": {
+            "open": "OPEN",
+            "closed": "CLOSED"
+          }
+        }
+      }
+    },
+    {
+      "id": "WkY-nT-0Sr",
+      "parent_id": null,
+      "kind": "popup",
+      "subkind": "popup",
+      "outlet": "popup_rmodeR",
+      "frame": {
+        "x": 440,
+        "y": 527,
+        "w": 97,
+        "h": 26
+      },
+      "title_default": "Full",
+      "options": [
+        {
+          "value": "full",
+          "label": "Full"
+        },
+        {
+          "value": "subraster",
+          "label": "Subraster"
+        }
+      ],
+      "binding": {
+        "write": {
+          "cmd": "set_subraster_mode",
+          "args": {
+            "arm": "red",
+            "mode": "$state"
+          }
+        },
+        "read": {
+          "topic": "readout",
+          "path": "arms[1].readmode"
+        },
+        "enabled_if": {
+          "topic": "readout",
+          "path": "arms[1].enabled.readmode",
+          "equals": true
+        }
+      }
+    },
+    {
+      "id": "iwV-2g-MxW",
+      "parent_id": null,
+      "kind": "label",
+      "frame": {
+        "x": 400,
+        "y": 560,
+        "w": 38,
+        "h": 17
+      },
+      "title_default": "X-Bin",
+      "binding": null
+    },
+    {
+      "id": "h1k-3w-rKs",
+      "parent_id": null,
+      "kind": "popup",
+      "subkind": "popup",
+      "outlet": "popup_binxR",
+      "frame": {
+        "x": 440,
+        "y": 556,
+        "w": 46,
+        "h": 26
+      },
+      "title_default": "1",
+      "options": [
+        {
+          "value": "1",
+          "label": "1"
+        },
+        {
+          "value": "2",
+          "label": "2"
+        },
+        {
+          "value": "3",
+          "label": "3"
+        },
+        {
+          "value": "4",
+          "label": "4"
+        },
+        {
+          "value": "5",
+          "label": "5"
+        },
+        {
+          "value": "6",
+          "label": "6"
+        },
+        {
+          "value": "7",
+          "label": "7"
+        },
+        {
+          "value": "8",
+          "label": "8"
+        }
+      ],
+      "binding": {
+        "write": {
+          "cmd": "set_binning",
+          "args": {
+            "arm": "red",
+            "bx": "$state",
+            "by": {
+              "topic": "readout",
+              "path": "arms[1].biny"
+            }
+          }
+        },
+        "read": {
+          "topic": "readout",
+          "path": "arms[1].binx"
+        },
+        "enabled_if": {
+          "topic": "readout",
+          "path": "arms[1].enabled.binx",
+          "equals": true
+        }
+      }
+    },
+    {
+      "id": "gkF-Oc-mgE",
+      "parent_id": null,
+      "kind": "label",
+      "frame": {
+        "x": 588,
+        "y": 562,
+        "w": 37,
+        "h": 17
+      },
+      "title_default": "Y-Bin",
+      "binding": null
+    },
+    {
+      "id": "hYz-CR-FtW",
+      "parent_id": null,
+      "kind": "popup",
+      "subkind": "popup",
+      "outlet": "popup_binyR",
+      "frame": {
+        "x": 629,
+        "y": 558,
+        "w": 46,
+        "h": 26
+      },
+      "title_default": "1",
+      "options": [
+        {
+          "value": "1",
+          "label": "1"
+        },
+        {
+          "value": "2",
+          "label": "2"
+        },
+        {
+          "value": "3",
+          "label": "3"
+        },
+        {
+          "value": "4",
+          "label": "4"
+        },
+        {
+          "value": "5",
+          "label": "5"
+        },
+        {
+          "value": "6",
+          "label": "6"
+        },
+        {
+          "value": "7",
+          "label": "7"
+        },
+        {
+          "value": "8",
+          "label": "8"
+        }
+      ],
+      "binding": {
+        "write": {
+          "cmd": "set_binning",
+          "args": {
+            "arm": "red",
+            "bx": {
+              "topic": "readout",
+              "path": "arms[1].binx"
+            },
+            "by": "$state"
+          }
+        },
+        "read": {
+          "topic": "readout",
+          "path": "arms[1].biny"
+        },
+        "enabled_if": {
+          "topic": "readout",
+          "path": "arms[1].enabled.biny",
+          "equals": true
+        }
+      }
+    },
+    {
+      "id": "3Az-ha-T8e",
+      "parent_id": null,
+      "kind": "label",
+      "frame": {
+        "x": 582,
+        "y": 533,
+        "w": 43,
+        "h": 17
+      },
+      "title_default": "Speed",
+      "binding": null
+    },
+    {
+      "id": "7jr-Lh-egM",
+      "parent_id": null,
+      "kind": "popup",
+      "subkind": "popup",
+      "outlet": "popup_speedR",
+      "frame": {
+        "x": 629,
+        "y": 529,
+        "w": 66,
+        "h": 26
+      },
+      "title_default": "Slow",
+      "options": [
+        {
+          "value": "slow",
+          "label": "Slow"
+        },
+        {
+          "value": "fast",
+          "label": "Fast"
+        }
+      ],
+      "binding": {
+        "write": {
+          "cmd": "set_readout_speed",
+          "args": {
+            "arm": "red",
+            "speed": "$state"
+          }
+        },
+        "read": {
+          "topic": "readout",
+          "path": "arms[1].speed"
+        },
+        "enabled_if": {
+          "topic": "readout",
+          "path": "arms[1].enabled.speed",
+          "equals": true
+        }
+      }
+    },
+    {
+      "id": "Hdl-iB-Ah8",
+      "parent_id": null,
+      "kind": "textfield",
+      "subkind": "input",
+      "outlet": "edit_gratAzR",
+      "frame": {
+        "x": 476,
+        "y": 616,
+        "w": 58,
+        "h": 22
+      },
+      "title_default": "0.000",
+      "binding": {
+        "read": {
+          "topic": "exposure",
+          "path": "arms[1].window.grat_az"
+        }
+      }
+    },
+    {
+      "id": "z08-T0-dYB",
+      "parent_id": null,
+      "kind": "label",
+      "frame": {
+        "x": 444,
+        "y": 618,
+        "w": 24,
+        "h": 17
+      },
+      "title_default": "Az.",
+      "binding": null
+    },
+    {
+      "id": "bO8-Yj-ZcL",
+      "parent_id": null,
+      "kind": "textfield",
+      "subkind": "input",
+      "outlet": "edit_gratElR",
+      "frame": {
+        "x": 631,
+        "y": 615,
+        "w": 61,
+        "h": 22
+      },
+      "title_default": "0.000",
+      "binding": {
+        "read": {
+          "topic": "exposure",
+          "path": "arms[1].window.grat_el"
+        }
+      }
+    },
+    {
+      "id": "Sjo-gJ-9ql",
+      "parent_id": null,
+      "kind": "label",
+      "frame": {
+        "x": 606,
+        "y": 617,
+        "w": 19,
+        "h": 17
+      },
+      "title_default": "El.",
+      "binding": null
+    },
+    {
+      "id": "R8e-oY-6jB",
+      "parent_id": null,
+      "kind": "button",
+      "subkind": "push",
+      "outlet": "but_startR",
+      "frame": {
+        "x": 621,
+        "y": 343,
+        "w": 77,
+        "h": 32
+      },
+      "title_default": "Start",
+      "binding": {
+        "write": {
+          "cmd": "start_exposure",
+          "args": {
+            "arm": "red"
+          }
+        },
+        "enabled_if": {
+          "topic": "exposure",
+          "path": "arms[1].enabled.start",
+          "equals": true
+        }
+      }
+    },
+    {
+      "id": "BJQ-RU-aMu",
+      "parent_id": null,
+      "kind": "button",
+      "subkind": "push",
+      "outlet": "but_pauseR",
+      "frame": {
+        "x": 621,
+        "y": 371,
+        "w": 77,
+        "h": 32
+      },
+      "title_default": "Pause",
+      "binding": {
+        "write": {
+          "cmd": "pause_exposure",
+          "args": {
+            "arm": "red"
+          }
+        },
+        "read": {
+          "topic": "exposure",
+          "path": "arms[1].window.pause_title"
+        },
+        "enabled_if": {
+          "topic": "exposure",
+          "path": "arms[1].enabled.pause",
+          "equals": true
+        }
+      }
+    },
+    {
+      "id": "4Qt-AK-QqE",
+      "parent_id": null,
+      "kind": "button",
+      "subkind": "push",
+      "outlet": "but_abortR",
+      "frame": {
+        "x": 621,
+        "y": 403,
+        "w": 77,
+        "h": 32
+      },
+      "title_default": "Abort",
+      "binding": {
+        "write": {
+          "cmd": "stop_exposure",
+          "args": {
+            "arm": "red"
+          }
+        },
+        "enabled_if": {
+          "topic": "exposure",
+          "path": "arms[1].enabled.abort",
+          "equals": true
+        }
+      }
+    },
+    {
+      "id": "Qka-Yl-v94",
+      "parent_id": null,
+      "kind": "textfield",
+      "subkind": "readout",
+      "outlet": "edit_doingR",
+      "frame": {
+        "x": 627,
+        "y": 468,
+        "w": 65,
+        "h": 22
+      },
+      "custom_class": "TextField",
+      "binding": {
+        "read": {
+          "topic": "exposure",
+          "path": "arms[1].window.doing"
+        }
+      }
+    },
+    {
+      "id": "xNL-M1-Vxr",
+      "parent_id": null,
+      "kind": "textfield",
+      "subkind": "readout",
+      "outlet": "edit_fileR",
+      "frame": {
+        "x": 463,
+        "y": 347,
+        "w": 65,
+        "h": 22
+      },
+      "title_default": "0",
+      "binding": {
+        "read": {
+          "topic": "exposure",
+          "path": "arms[1].id"
+        }
+      }
+    },
+    {
+      "id": "ekZ-la-uBa",
+      "parent_id": null,
+      "kind": "popup",
+      "subkind": "popup",
+      "outlet": "popup_slit",
+      "frame": {
+        "x": 95,
+        "y": 245,
+        "w": 96,
+        "h": 26
+      },
+      "title_default": "n/a",
+      "options": [
+        {
+          "value": "n/a",
+          "label": "n/a"
+        }
+      ],
+      "binding": {
+        "write": {
+          "cmd": "set_slit",
+          "args": {
+            "name": "$state"
+          }
+        },
+        "read": {
+          "topic": "mechanics",
+          "path": "slit.name",
+          "options_path": "slit.options"
+        },
+        "enabled_if": {
+          "topic": "mechanics",
+          "path": "slit.enabled",
+          "equals": true
+        }
+      }
+    },
+    {
+      "id": "4vd-Dh-8XX",
+      "parent_id": null,
+      "kind": "progress",
+      "subkind": "spinner",
+      "outlet": "prog_slit",
+      "frame": {
+        "x": 20,
+        "y": 250,
+        "w": 16,
+        "h": 16
+      },
+      "binding": {
+        "read": {
+          "topic": "mechanics",
+          "path": "slit.moving",
+          "class_map": {
+            "true": "is-moving"
+          }
+        }
+      }
+    },
+    {
+      "id": "iYZ-yt-deo",
+      "parent_id": null,
+      "kind": "progress",
+      "subkind": "spinner",
+      "outlet": "prog_focusB",
+      "frame": {
+        "x": 196,
+        "y": 588,
+        "w": 16,
+        "h": 16
+      },
+      "binding": {
+        "read": {
+          "topic": "mechanics",
+          "path": "focus[0].moving",
+          "class_map": {
+            "true": "is-moving"
+          }
+        }
+      }
+    },
+    {
+      "id": "yCS-uj-8v1",
+      "parent_id": null,
+      "kind": "progress",
+      "subkind": "spinner",
+      "outlet": "prog_focusR",
+      "frame": {
+        "x": 542,
+        "y": 588,
+        "w": 16,
+        "h": 16
+      },
+      "binding": {
+        "read": {
+          "topic": "mechanics",
+          "path": "focus[1].moving",
+          "class_map": {
+            "true": "is-moving"
+          }
+        }
+      }
+    },
+    {
+      "id": "J9i-dP-50a",
+      "parent_id": null,
+      "kind": "label",
+      "frame": {
+        "x": 30,
+        "y": 15,
+        "w": 60,
+        "h": 17
+      },
+      "title_default": "DataPath",
+      "binding": null
+    },
+    {
+      "id": "DtF-VN-jVh",
+      "parent_id": null,
+      "kind": "textfield",
+      "subkind": "readout",
+      "outlet": "edit_disk",
+      "frame": {
+        "x": 96,
+        "y": 13,
+        "w": 300,
+        "h": 22
+      },
+      "binding": {
+        "read": {
+          "topic": "disk",
+          "path": "datapath"
+        }
+      }
+    },
+    {
+      "id": "QhF-UZ-WDq",
+      "parent_id": null,
+      "kind": "separator",
+      "frame": {
+        "x": 12,
+        "y": 38,
+        "w": 688,
+        "h": 5
+      },
+      "binding": null
+    },
+    {
+      "id": "3pm-PD-Ztz",
+      "parent_id": null,
+      "kind": "textfield",
+      "subkind": "readout",
+      "outlet": "edit_ut",
+      "frame": {
+        "x": 627,
+        "y": 13,
+        "w": 65,
+        "h": 22
+      },
+      "title_default": "00:00:00",
+      "binding": {
+        "read": {
+          "topic": "telescope",
+          "path": "ut"
+        }
+      }
+    },
+    {
+      "id": "BHk-Tz-wKX",
+      "parent_id": null,
+      "kind": "label",
+      "frame": {
+        "x": 599,
+        "y": 15,
+        "w": 22,
+        "h": 17
+      },
+      "title_default": "UT",
+      "binding": null
+    },
+    {
+      "id": "nuI-x6-xuR",
+      "parent_id": null,
+      "kind": "levelindicator",
+      "outlet": "level_disk",
+      "frame": {
+        "x": 430,
+        "y": 16,
+        "w": 146,
+        "h": 16
+      },
+      "bounds": {
+        "max": 100,
+        "warning": 80,
+        "critical": 95,
+        "style": "continuousCapacity"
+      },
+      "binding": {
+        "read": {
+          "topic": "disk",
+          "path": "level"
+        }
+      }
+    },
+    {
+      "id": "bwd-gA-vg2",
+      "parent_id": null,
+      "kind": "textfield",
+      "subkind": "readout",
+      "outlet": "edit_imageR",
+      "frame": {
+        "x": 206,
+        "y": 58,
+        "w": 57,
+        "h": 22
+      },
+      "title_default": "0",
+      "binding": {
+        "read": {
+          "topic": "exposure",
+          "path": "arms[1].id"
+        }
+      }
+    },
+    {
+      "id": "zyc-mA-xOn",
+      "parent_id": null,
+      "kind": "label",
+      "frame": {
+        "x": 97,
+        "y": 60,
+        "w": 13,
+        "h": 17
+      },
+      "title_default": "B",
+      "binding": null
+    },
+    {
+      "id": "Zy3-dr-n9O",
+      "parent_id": null,
+      "kind": "label",
+      "frame": {
+        "x": 187,
+        "y": 59,
+        "w": 13,
+        "h": 17
+      },
+      "title_default": "R",
+      "binding": null
+    },
+    {
+      "id": "xgk-JS-Hk5",
+      "parent_id": null,
+      "kind": "label",
+      "frame": {
+        "x": 96,
+        "y": 347,
+        "w": 13,
+        "h": 17
+      },
+      "title_default": "B",
+      "binding": null
+    },
+    {
+      "id": "c0D-xv-fA2",
+      "parent_id": null,
+      "kind": "label",
+      "frame": {
+        "x": 444,
+        "y": 347,
+        "w": 13,
+        "h": 17
+      },
+      "title_default": "R",
+      "binding": null
+    },
+    {
+      "id": "QUx-CN-mYK",
+      "parent_id": null,
+      "kind": "textfield",
+      "subkind": "readout",
+      "outlet": "edit_fileB",
+      "frame": {
+        "x": 114,
+        "y": 347,
+        "w": 65,
+        "h": 22
+      },
+      "title_default": "0",
+      "binding": {
+        "read": {
+          "topic": "exposure",
+          "path": "arms[0].id"
+        }
+      }
+    },
+    {
+      "id": "u7u-cK-Sow",
+      "parent_id": null,
+      "kind": "button",
+      "subkind": "push",
+      "frame": {
+        "x": 340,
+        "y": 91,
+        "w": 13,
+        "h": 21
+      },
+      "binding": null
+    },
+    {
+      "id": "hpH-Ry-ZBs",
+      "parent_id": null,
+      "kind": "button",
+      "subkind": "check",
+      "outlet": "but_focusB",
+      "frame": {
+        "x": 261,
+        "y": 587,
+        "w": 87,
+        "h": 18
+      },
+      "title_default": "AutoFocus",
+      "binding": {
+        "write": {
+          "cmd": "set_autofocus",
+          "args": {
+            "arm": "blue",
+            "on": "$state"
+          }
+        },
+        "read": {
+          "topic": "mechanics",
+          "path": "focus[0].autofocus"
+        },
+        "enabled_if": {
+          "topic": "mechanics",
+          "path": "focus[0].enabled.autofocus",
+          "equals": true
+        }
+      }
+    },
+    {
+      "id": "qh7-De-iUj",
+      "parent_id": null,
+      "kind": "button",
+      "subkind": "check",
+      "outlet": "but_focusR",
+      "frame": {
+        "x": 607,
+        "y": 587,
+        "w": 87,
+        "h": 18
+      },
+      "title_default": "AutoFocus",
+      "binding": {
+        "write": {
+          "cmd": "set_autofocus",
+          "args": {
+            "arm": "red",
+            "on": "$state"
+          }
+        },
+        "read": {
+          "topic": "mechanics",
+          "path": "focus[1].autofocus"
+        },
+        "enabled_if": {
+          "topic": "mechanics",
+          "path": "focus[1].enabled.autofocus",
+          "equals": true
+        }
+      }
+    },
+    {
+      "id": "aiS-j6-9ag",
+      "parent_id": null,
+      "kind": "label",
+      "frame": {
+        "x": 235,
+        "y": 212,
+        "w": 53,
+        "h": 17
+      },
+      "title_default": "Diffuser",
+      "binding": null
+    },
+    {
+      "id": "6qL-Zq-2PP",
+      "parent_id": null,
+      "kind": "textfield",
+      "subkind": "readout",
+      "outlet": "edit_diffuser",
+      "frame": {
+        "x": 294,
+        "y": 212,
+        "w": 52,
+        "h": 21
+      },
+      "binding": {
+        "read": {
+          "topic": "mechanics",
+          "path": "diffuser.shown"
+        }
+      }
+    }
+  ],
+  "warnings": [
+    {
+      "kind": "custom_class",
+      "id": "dJU-Am-bOb",
+      "outlet": "edit_focusB",
+      "custom_class": "TextField",
+      "base_class": "textField"
+    },
+    {
+      "kind": "custom_class",
+      "id": "eEW-Kt-w5U",
+      "outlet": "edit_exptimeB",
+      "custom_class": "TextField",
+      "base_class": "textField"
+    },
+    {
+      "kind": "custom_class",
+      "id": "pNU-JH-t9k",
+      "outlet": "edit_exptime2",
+      "custom_class": "TextField",
+      "base_class": "textField"
+    },
+    {
+      "kind": "custom_class",
+      "id": "4uM-dh-OJ0",
+      "outlet": "edit_loopsB",
+      "custom_class": "TextField",
+      "base_class": "textField"
+    },
+    {
+      "kind": "custom_class",
+      "id": "9BC-BL-wxY",
+      "outlet": "edit_loops2",
+      "custom_class": "TextField",
+      "base_class": "textField"
+    },
+    {
+      "kind": "custom_class",
+      "id": "Vot-2j-iRW",
+      "outlet": "edit_doing2",
+      "custom_class": "TextField",
+      "base_class": "textField"
+    },
+    {
+      "kind": "custom_class",
+      "id": "liW-cO-ieM",
+      "outlet": "edit_doingB",
+      "custom_class": "TextField",
+      "base_class": "textField"
+    },
+    {
+      "kind": "custom_class",
+      "id": "LsT-id-eZ3",
+      "outlet": "edit_focusR",
+      "custom_class": "TextField",
+      "base_class": "textField"
+    },
+    {
+      "kind": "custom_class",
+      "id": "i0s-2o-jjE",
+      "outlet": "edit_exptimeR",
+      "custom_class": "TextField",
+      "base_class": "textField"
+    },
+    {
+      "kind": "custom_class",
+      "id": "0Ky-pg-asD",
+      "outlet": "edit_loopsR",
+      "custom_class": "TextField",
+      "base_class": "textField"
+    },
+    {
+      "kind": "custom_class",
+      "id": "Qka-Yl-v94",
+      "outlet": "edit_doingR",
+      "custom_class": "TextField",
+      "base_class": "textField"
+    }
+  ]
+}

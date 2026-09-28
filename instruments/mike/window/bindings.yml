@@ -1,0 +1,319 @@
+# MIKE window bindings (MikeGUI.xib, window QvC-M9-y7g).
+#
+# Outlet -> topic path / command, per mike/docs/ws-migration-step0-mike-window.md.
+# Per-arm values are arms[0] (blue) and arms[1] (red); the common column
+# (…2) writes arm: both. enabled_if reads each control's enabled state as
+# the Cocoa window sets it (GUI_Controller.m windowDidLoad, updateLooping:,
+# updateExposing:, updateReading:, action_focus:), so the rules live there.
+# Grating, filter, camera comment and config have no write: typed by a
+# person, copied into every header, contradicted by nothing.
+
+ignore_outlets: []
+
+outlets:
+
+  # ---------------- top strip ----------------
+
+  edit_disk:
+    read: { topic: disk, path: datapath }
+
+  level_disk:
+    read: { topic: disk, path: level }
+
+  edit_ut:
+    read: { topic: telescope, path: ut }
+
+  # ---------------- common column ----------------
+
+  edit_imageB:
+    read: { topic: exposure, path: "arms[0].id" }
+
+  edit_imageR:
+    read: { topic: exposure, path: "arms[1].id" }
+
+  edit_exptime2:
+    read:  { topic: exposure, path: common.exptime }
+    write: { cmd: set_exptime, args: { arm: both, seconds: $value } }
+    enabled_if: { topic: exposure, path: common.enabled.exptime, equals: true }
+
+  edit_runtime2:
+    read: { topic: exposure, path: common.runtime }
+
+  edit_loops2:
+    read:  { topic: exposure, path: common.loops }
+    write: { cmd: set_loops, args: { arm: both, n: $value } }
+    enabled_if: { topic: exposure, path: common.enabled.loops, equals: true }
+
+  edit_doing2:
+    read: { topic: exposure, path: common.doing }
+
+  but_start2:
+    write: { cmd: start_exposure, args: { arm: both } }
+    enabled_if: { topic: exposure, path: common.enabled.start, equals: true }
+
+  but_pause2:
+    read:  { topic: exposure, path: common.pause_title }
+    write: { cmd: pause_exposure, args: { arm: both } }
+    enabled_if: { topic: exposure, path: common.enabled.pause, equals: true }
+
+  but_abort2:
+    write: { cmd: stop_exposure, args: { arm: both } }
+    enabled_if: { topic: exposure, path: common.enabled.abort, equals: true }
+
+  # ---------------- object, image type, metadata ----------------
+
+  edit_object:
+    read:  { topic: exposure, path: object }
+    write: { cmd: set_object_name, args: { name: $value } }
+
+  popup_exptype:
+    options: { Object: object, Comp: comp, Bias: bias, Flat: flat, Dark: dark }
+    read:  { topic: exposure, path: type }
+    write: { cmd: set_exposure_type, args: { type: $state } }
+    enabled_if: { topic: exposure, path: type_enabled, equals: true }
+
+  edit_config:
+    read: { topic: exposure, path: config }
+
+  edit_instcom:
+    read:  { topic: exposure, path: comment }
+    write: { cmd: set_comment, args: { comment: $value } }
+
+  # ---------------- telescope, read-only ----------------
+
+  edit_alpha:    { read: { topic: telescope, path: ra } }
+  edit_delta:    { read: { topic: telescope, path: dec } }
+  edit_am:       { read: { topic: telescope, path: airmass } }
+  edit_az:       { read: { topic: telescope, path: azimuth } }
+  edit_el:       { read: { topic: telescope, path: elevation } }
+  edit_para:     { read: { topic: telescope, path: parallactic } }
+  edit_slta:     { read: { topic: telescope, path: slit_angle } }
+  edit_rota:     { read: { topic: telescope, path: rotator } }
+  edit_diffuser: { read: { topic: mechanics, path: diffuser.shown } }
+
+  # ---------------- slit, lamp ----------------
+
+  popup_slit:
+    read:
+      topic: mechanics
+      path: slit.name
+      options_path: slit.options
+    write: { cmd: set_slit, args: { name: $state } }
+    enabled_if: { topic: mechanics, path: slit.enabled, equals: true }
+
+  prog_slit:
+    read: { topic: mechanics, path: slit.moving, class_map: { "true": is-moving } }
+
+  popup_lamp:
+    options: { "off": "off", Quartz: quartz, ThAr: thar }
+    read:  { topic: mechanics, path: lamp.position }
+    write: { cmd: set_lamp, args: { lamp: $state } }
+    enabled_if: { topic: mechanics, path: lamp.enabled, equals: true }
+
+  cw_lamp:
+    read: { topic: mechanics, path: lamp.mirror, class_map: { "true": is-on, "false": is-off } }
+
+  # ---------------- temperatures ----------------
+
+  edit_tmike: { read: { topic: temps, path: mike } }
+  edit_tblue: { read: { topic: temps, path: blue } }
+  edit_tred:  { read: { topic: temps, path: red } }
+  edit_tdome: { read: { topic: temps, path: dome } }
+  edit_tcell: { read: { topic: temps, path: cell } }
+  edit_touts: { read: { topic: temps, path: outside } }
+
+  # ---------------- blue arm ----------------
+
+  edit_fileB:
+    read: { topic: exposure, path: "arms[0].id" }
+
+  edit_exptimeB:
+    read:  { topic: exposure, path: "arms[0].exptime", format: "%.1f" }
+    write: { cmd: set_exptime, args: { arm: blue, seconds: $value } }
+    enabled_if: { topic: exposure, path: "arms[0].enabled.exptime", equals: true }
+
+  edit_runtimeB:
+    read: { topic: exposure, path: "arms[0].window.runtime" }
+
+  edit_startB:
+    read: { topic: exposure, path: "arms[0].window.start" }
+
+  view_shutterB:
+    read:
+      topic: shutter
+      path: "arms[0].state"
+      class_map: { open: is-open, closed: is-closed }
+      label_map: { open: OPEN, closed: CLOSED }
+
+  edit_loopsB:
+    read:  { topic: exposure, path: "arms[0].nloops" }
+    write: { cmd: set_loops, args: { arm: blue, n: $value } }
+    enabled_if: { topic: exposure, path: "arms[0].enabled.loops", equals: true }
+
+  edit_doingB:
+    read: { topic: exposure, path: "arms[0].window.doing" }
+
+  but_startB:
+    write: { cmd: start_exposure, args: { arm: blue } }
+    enabled_if: { topic: exposure, path: "arms[0].enabled.start", equals: true }
+
+  but_pauseB:
+    read:  { topic: exposure, path: "arms[0].window.pause_title" }
+    write: { cmd: pause_exposure, args: { arm: blue } }
+    enabled_if: { topic: exposure, path: "arms[0].enabled.pause", equals: true }
+
+  but_abortB:
+    write: { cmd: stop_exposure, args: { arm: blue } }
+    enabled_if: { topic: exposure, path: "arms[0].enabled.abort", equals: true }
+
+  edit_camcomB:
+    read: { topic: exposure, path: "arms[0].window.camcom" }
+
+  popup_rmodeB:
+    options: { Full: full, Subraster: subraster }
+    read:  { topic: readout, path: "arms[0].readmode" }
+    write: { cmd: set_subraster_mode, args: { arm: blue, mode: $state } }
+    enabled_if: { topic: readout, path: "arms[0].enabled.readmode", equals: true }
+
+  popup_speedB:
+    options: { Slow: slow, Fast: fast }
+    read:  { topic: readout, path: "arms[0].speed" }
+    write: { cmd: set_readout_speed, args: { arm: blue, speed: $state } }
+    enabled_if: { topic: readout, path: "arms[0].enabled.speed", equals: true }
+
+  popup_binxB:
+    read:  { topic: readout, path: "arms[0].binx" }
+    write:
+      cmd: set_binning
+      args: { arm: blue, bx: $state, by: { topic: readout, path: "arms[0].biny" } }
+    enabled_if: { topic: readout, path: "arms[0].enabled.binx", equals: true }
+
+  popup_binyB:
+    read:  { topic: readout, path: "arms[0].biny" }
+    write:
+      cmd: set_binning
+      args: { arm: blue, bx: { topic: readout, path: "arms[0].binx" }, by: $state }
+    enabled_if: { topic: readout, path: "arms[0].enabled.biny", equals: true }
+
+  edit_focusB:
+    read:  { topic: mechanics, path: "focus[0].value", format: "%.1f" }
+    write: { cmd: set_focus, args: { arm: blue, value: $value } }
+    enabled_if: { topic: mechanics, path: "focus[0].enabled.focus", equals: true }
+
+  prog_focusB:
+    read: { topic: mechanics, path: "focus[0].moving", class_map: { "true": is-moving } }
+
+  but_focusB:
+    read:  { topic: mechanics, path: "focus[0].autofocus" }
+    write: { cmd: set_autofocus, args: { arm: blue, "on": $state } }
+    enabled_if: { topic: mechanics, path: "focus[0].enabled.autofocus", equals: true }
+
+  edit_gratAzB:
+    read: { topic: exposure, path: "arms[0].window.grat_az" }
+
+  edit_gratElB:
+    read: { topic: exposure, path: "arms[0].window.grat_el" }
+
+  edit_filterB:
+    read: { topic: exposure, path: "arms[0].window.filter" }
+
+  edit_messageB:
+    read: { topic: exposure, path: "arms[0].window.message" }
+
+  # ---------------- red arm ----------------
+
+  edit_fileR:
+    read: { topic: exposure, path: "arms[1].id" }
+
+  edit_exptimeR:
+    read:  { topic: exposure, path: "arms[1].exptime", format: "%.1f" }
+    write: { cmd: set_exptime, args: { arm: red, seconds: $value } }
+    enabled_if: { topic: exposure, path: "arms[1].enabled.exptime", equals: true }
+
+  edit_runtimeR:
+    read: { topic: exposure, path: "arms[1].window.runtime" }
+
+  edit_startR:
+    read: { topic: exposure, path: "arms[1].window.start" }
+
+  view_shutterR:
+    read:
+      topic: shutter
+      path: "arms[1].state"
+      class_map: { open: is-open, closed: is-closed }
+      label_map: { open: OPEN, closed: CLOSED }
+
+  edit_loopsR:
+    read:  { topic: exposure, path: "arms[1].nloops" }
+    write: { cmd: set_loops, args: { arm: red, n: $value } }
+    enabled_if: { topic: exposure, path: "arms[1].enabled.loops", equals: true }
+
+  edit_doingR:
+    read: { topic: exposure, path: "arms[1].window.doing" }
+
+  but_startR:
+    write: { cmd: start_exposure, args: { arm: red } }
+    enabled_if: { topic: exposure, path: "arms[1].enabled.start", equals: true }
+
+  but_pauseR:
+    read:  { topic: exposure, path: "arms[1].window.pause_title" }
+    write: { cmd: pause_exposure, args: { arm: red } }
+    enabled_if: { topic: exposure, path: "arms[1].enabled.pause", equals: true }
+
+  but_abortR:
+    write: { cmd: stop_exposure, args: { arm: red } }
+    enabled_if: { topic: exposure, path: "arms[1].enabled.abort", equals: true }
+
+  edit_camcomR:
+    read: { topic: exposure, path: "arms[1].window.camcom" }
+
+  popup_rmodeR:
+    options: { Full: full, Subraster: subraster }
+    read:  { topic: readout, path: "arms[1].readmode" }
+    write: { cmd: set_subraster_mode, args: { arm: red, mode: $state } }
+    enabled_if: { topic: readout, path: "arms[1].enabled.readmode", equals: true }
+
+  popup_speedR:
+    options: { Slow: slow, Fast: fast }
+    read:  { topic: readout, path: "arms[1].speed" }
+    write: { cmd: set_readout_speed, args: { arm: red, speed: $state } }
+    enabled_if: { topic: readout, path: "arms[1].enabled.speed", equals: true }
+
+  popup_binxR:
+    read:  { topic: readout, path: "arms[1].binx" }
+    write:
+      cmd: set_binning
+      args: { arm: red, bx: $state, by: { topic: readout, path: "arms[1].biny" } }
+    enabled_if: { topic: readout, path: "arms[1].enabled.binx", equals: true }
+
+  popup_binyR:
+    read:  { topic: readout, path: "arms[1].biny" }
+    write:
+      cmd: set_binning
+      args: { arm: red, bx: { topic: readout, path: "arms[1].binx" }, by: $state }
+    enabled_if: { topic: readout, path: "arms[1].enabled.biny", equals: true }
+
+  edit_focusR:
+    read:  { topic: mechanics, path: "focus[1].value", format: "%.1f" }
+    write: { cmd: set_focus, args: { arm: red, value: $value } }
+    enabled_if: { topic: mechanics, path: "focus[1].enabled.focus", equals: true }
+
+  prog_focusR:
+    read: { topic: mechanics, path: "focus[1].moving", class_map: { "true": is-moving } }
+
+  but_focusR:
+    read:  { topic: mechanics, path: "focus[1].autofocus" }
+    write: { cmd: set_autofocus, args: { arm: red, "on": $state } }
+    enabled_if: { topic: mechanics, path: "focus[1].enabled.autofocus", equals: true }
+
+  edit_gratAzR:
+    read: { topic: exposure, path: "arms[1].window.grat_az" }
+
+  edit_gratElR:
+    read: { topic: exposure, path: "arms[1].window.grat_el" }
+
+  edit_filterR:
+    read: { topic: exposure, path: "arms[1].window.filter" }
+
+  edit_messageR:
+    read: { topic: exposure, path: "arms[1].window.message" }

@@ -4,9 +4,9 @@
 # stack end to end so a deployment can be rehearsed before it reaches a
 # telescope. See docs/plans/deployment-config-plan.md.
 #
-# Scope today: PFS with its slit-viewer guider, and ADC. That matches
-# lco-ansible's inventory_sbs.yaml, which installs those two apps on
-# sbs-inst1 and declares exactly one guider. DCU is still absent: the
+# Scope today: PFS and MIKE with their slit-viewer guiders, and ADC.
+# That matches lco-ansible's inventory_sbs.yaml, which installs those
+# three apps on sbs-inst1 and declares the two guiders. DCU is still absent: the
 # old landing page and the committed cloudflared ingress once listed it
 # from a developer-laptop setup where all three ran locally, and it is
 # deliberately not here until the inventory installs it.
@@ -45,6 +45,17 @@ instruments:
     # defaults them to online and quits when the TCS cannot be reached.
     # No quicklook: ADC produces no FITS.
 
+  - app: mike
+    title: MIKE echelle spectrograph
+    host: sbs-inst1
+    address: 127.0.0.1
+    # port omitted → 50803, from instruments/ports.yml (PROJECT_ID 8)
+    quicklook: true
+    arms: [blue, red]  # a file per arm: /image/mike/blue/ and /red/
+    # No hardware at SBS: CCD, PLC, TCS and ADC offline and the CCD hosts
+    # "localhost", so MIKE runs its bundled simulator (mikeserver) for
+    # both arms; lco-ansible's inventory sets those preferences.
+
 guiders:
   - name: pfs-sv       # the lco-ansible gcam_guiders name (gcam-pfs-sv.app); the URL
     gcam_name: gcam13  # gcamweb's name: rotator port 1, camera 3 -- proxy target only
@@ -54,6 +65,15 @@ guiders:
     host: sbs-inst1
     address: 127.0.0.1
     tcs_mode: 0        # no TCS at SBS
+
+  - name: mike-sv
+    gcam_name: gcam12  # camera 2 at SBS: pfs-sv holds 3 on this Mac
+    title: MIKE slit viewer
+    ini: mike
+    gnum: 2            # → commands 52202, image server 52302
+    host: sbs-inst1
+    address: 127.0.0.1
+    tcs_mode: 0        # no TCS at SBS; its simulated camera is on 127.0.0.2
 
 # Moved verbatim from deploy/access-policies.yml. That file keeps the
 # other telescopes until they get deployment files of their own.
