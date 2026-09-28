@@ -561,7 +561,11 @@ Ansible side, two names for one camera: `gcam_guiders[].name` is `mike-sv`
 This is the part with no precedent to copy from, because `deployments/` holds
 exactly one file (`sbs.yml`) and `inventory_lco.yaml` has **no gateway host at
 all** (`grep gateway inventory_lco.yaml` is empty; the only gateway host vars
-in the repo are `inventory_sbs.yaml:56-68`).
+in the repo are `inventory_sbs.yaml:56-68`). The name is at least already
+expected: the gateway role defaults `gateway_deployment` to whichever of
+`sbs`/`clay`/`baade`/`swope` a host's groups intersect
+(`roles/gateway/defaults/main.yml:20`), so a `clay` group picks up
+`deployments/clay.yml` with no extra variable.
 
 New `deployments/clay.yml`: `name: clay`, `domain: clay.chimera.observer`, a
 `gateway:` host, one `instruments:` entry (`app: mike`, `host: clay-inst1`,
@@ -699,7 +703,13 @@ Hardware-free through step 6, on one Mac.
 - **`dbe_camera` changing under a live page** — the arm array's `present` flags
   handle the single-arm case, but switching configuration requires a restart in
   the app today; confirm in the audit that it cannot change mid-session.
-- **The 141-control window may want a widget the renderer lacks.** PFS's two
+- **The window is about twice PFS's, and that is the schedule risk.** ~148
+  controls in the MIKE window against ~61 in PFS's camera window, and PFS's
+  camera bindings wire 36 outlets. If the bindings work overruns, the fallback is
+  to split the read-only blocks — telescope readouts and temperatures — into a
+  second manifest window: no protocol change, and the data-taking controls stay
+  in the default tab.
+- **The window may want a widget the renderer lacks.** PFS's two
   windows exercised nearly all of the vocabulary, but MIKE's level indicator
   and its per-arm progress clusters should be checked against `renderer.js`
   during the audit. A new IR `kind` plus CSS is a small PR — but it is a PR,
