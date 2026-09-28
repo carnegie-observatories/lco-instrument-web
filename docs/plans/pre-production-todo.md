@@ -15,11 +15,30 @@ rsync cannot go. Everything else is polish that the same run should carry.
 
 ## astro-ph (astro-ph-labs/astro-ph, private) — the root of both rsyncs
 
-- [ ] **Merge `chz1-stream` (PR #1).** `chz1.stream` is the server both
-      imageweb and gcamweb embed and it exists only on that branch; the
-      heartbeat fix, the per-client region/stride and the inspector's
-      pixel scale are on it too (5 commits); awaiting review. Blocker.
+- [ ] **Merge `chz1-stream` (PR #1) — now a design question, not a review.**
+      `chz1.stream` is the server both imageweb and gcamweb embed and it
+      exists only on that branch (7 commits: the module, the socket
+      heartbeat, the uv cache key, per-client region/stride, the inspector's
+      pixel scale, shift+hjkl, and point measurements that follow the star).
+      The PR is still a **draft** and now **conflicts**: upstream `main` has
+      moved 119 commits and, in `6e6b190` (2026-09-22), deleted the Python
+      `chz1` package outright (the encoder is Rust in `crates/chz1`;
+      `packages/chz1/pyproject.toml` and `python/__init__.py` are gone) and
+      changed the CHZ1 wire format incompatibly (the filter is now a median,
+      "no negotiation and no guard for the old frames"). The TS commits also
+      need new homes: `core` was dissolved, so `cursor.ts`/`imexam.ts` belong
+      in `packages/viewer/src/` and `inspector.ts` in
+      `packages/shell/src/panels/`. A rebase is not mechanical. Pick one:
+      re-add a Python package carrying `stream.py`; move the module to
+      something the LCO side owns and depend on the Rust encoder; or rewrite
+      it against the Rust API and contribute it upstream. Until then **do not
+      pull or rebase the astro-ph checkout** — the deployed SBS stack is
+      self-consistent only because encoder and decoder are both on the old
+      branch. Blocker, and the biggest one.
 - [ ] **Publish chz1 as a Python package, or make it git-installable.**
+      *Superseded in part by the deletion above: there is no Python `chz1`
+      package upstream any more, so this item now depends on how the previous
+      one is resolved.*
       imageweb and gcamweb both carry `chz1 = { path = "../../…/astro-ph/packages/chz1" }`
       — a relative path into a checkout that must sit beside the consumer.
       Two ways out; pick one:
