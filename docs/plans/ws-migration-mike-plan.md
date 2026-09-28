@@ -36,6 +36,10 @@ Where the build differs from the plan below, and why:
 - **Deployment.** SBS (`deployments/sbs.yml`) instead of Clay; lco-ansible's
   instruments role gained per-app `defaults`/`shared_defaults` for the
   simulator settings.
+- **mike-sv on SBS** runs on its own simulated camera: gcamzwo dials a fixed
+  port, so lco-ansible's `zwo_sim_more` puts a second emulator on a loopback
+  alias, 127.0.0.2. It is camera 2 there (`gcam12`), since pfs-sv holds 3 on
+  the same Mac; at Clay both are camera 3 of the NASE slot (§ Slit viewer).
 
 Details per control: `mike/docs/ws-migration-step0-mike-window.md`.
 
