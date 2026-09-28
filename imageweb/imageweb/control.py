@@ -43,13 +43,19 @@ class ControlClient:
 
     # -- status ---------------------------------------------------------------
 
-    def status(self) -> dict:
+    def status(self, arm: str | None = None) -> dict:
+        """With ``arm``, a topic's entry for that arm of its ``arms`` list."""
+        def topic(name):
+            data = self.topics.get(name)
+            if arm is None or data is None:
+                return data
+            return next((a for a in data.get("arms", []) if a.get("arm") == arm), None)
         return {
             "control": self.state,
             "app": self.app,
             "version": self.version,
-            "exposure": self.topics.get("exposure"),
-            "readout": self.topics.get("readout"),
+            "exposure": topic("exposure"),
+            "readout": topic("readout"),
         }
 
     def _set_state(self, state: str) -> None:

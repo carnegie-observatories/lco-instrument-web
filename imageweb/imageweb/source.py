@@ -1,7 +1,8 @@
 """The instrument frame source: event-triggered, lazily decoded, latest frame kept.
 
 ``announce(data)`` (called by the control client on ``exposure_complete``)
-records the event's ``fits_path`` — local and absolute by contract
+records the event's first ``fits_paths`` entry (or the older ``fits_path``) —
+local and absolute by contract
 (docs/plans/image-viewer-plan.md § Decided). The FITS is opened and decoded
 only while viewers are connected; with zero clients the handler just records
 the path, so a bridge nobody is looking at does no work. The source keeps
@@ -78,11 +79,14 @@ class InstrumentSource:
 
     def announce(self, data: dict) -> None:
         """An ``exposure_complete`` arrived. Record it; decode only if watched."""
-        path = data.get("fits_path")
+        paths = data.get("fits_paths") or [data.get("fits_path")]
+        path = paths[0]
         if not path:
-            log.warning("%s: exposure_complete without fits_path: %s", self.name, data)
+            log.warning("%s: exposure_complete without fits_paths: %s", self.name, data)
             return
-        self._pending = dict(data)
+        if len(paths) > 1:  # a mosaic: no assembly yet, show its first file
+            log.warning("%s: %d files announced, showing %s", self.name, len(paths), path)
+        self._pending = dict(data, fits_path=path)
         if self._clients:
             self._kick()
         else:

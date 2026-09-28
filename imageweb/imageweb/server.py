@@ -52,6 +52,8 @@ KNOWN_PORTS = {
     "ldss3": 50603, "mike": 50803, "swope": 51203, "mage": 51503,
     "pfs": 51603, "ifum": 51803, "m2fs": 51803, "henrietta": 52803,
 }
+# Instruments whose exposures are one file per arm, each arm its own stream.
+KNOWN_ARMS = {"mike": ("blue", "red")}
 INSTRUMENT_SPEC = re.compile(r"^(?P<name>[a-z0-9_]+)(?:@(?P<host>[^:]+)(?::(?P<port>\d+))?)?$")
 
 
@@ -101,19 +103,61 @@ def parse_args(argv=None) -> argparse.Namespace:
     return args
 
 
-def instrument_app(name: str, host: str, port: int, args: argparse.Namespace) -> web.Application:
+def instrument_app(name: str, host: str, port: int, args: argparse.Namespace,
+                   arms: tuple[str, ...] = ()) -> web.Application:
     """One instrument: its own control client, source and default settings; the
-    encode pool is shared per instrument, pipelines are per client connection."""
-    app = web.Application()
+    encode pool is shared per instrument, pipelines are per client connection.
+
+    With ``arms`` (MIKE's blue and red), a source per arm under ``<arm>/``, fed
+    by the event's ``arm``, all behind the one control client."""
     settings = Settings(bands=args.bands, level=args.level, encoders=args.encoders,
                         inflight=args.inflight, bin=args.bin, q=args.q, dither=args.dither)
-    source = InstrumentSource(name)
-    control = ControlClient(name, host, port, source.announce)
+    if not arms:
+        source = InstrumentSource(name)
+        control = ControlClient(name, host, port, source.announce)
+        app = stream_app(source, control, None, settings, args)
+        app["streams"] = {name: app}
+    else:
+        sources = {arm: InstrumentSource(f"{name}/{arm}") for arm in arms}
+
+        def announce(data: dict) -> None:
+            source = sources.get(data.get("arm"))
+            if source is None:
+                log.warning("%s: exposure_complete for no arm of %s: %s", name, list(arms), data)
+            else:
+                source.announce(data)
+
+        control = ControlClient(name, host, port, announce)
+        app = web.Application()
+        app["streams"] = {}
+        for arm, source in sources.items():
+            sub = stream_app(source, control, arm, settings, args)
+            app.router.add_get(f"/{arm}", redirect(f"{arm}/"))  # relative URLs need the slash
+            app.add_subapp(f"/{arm}/", sub)
+            app["streams"][source.name] = sub
+        app.router.add_get("/", redirect(f"{arms[0]}/"))
+    app["control"] = control
+
+    async def start_control(app):
+        control.start()
+
+    async def stop_control(app):
+        await control.stop()
+
+    app.on_startup.append(start_control)
+    app.on_cleanup.append(stop_control)
+    return app
+
+
+def stream_app(source: InstrumentSource, control: ControlClient, arm: str | None,
+               settings: Settings, args: argparse.Namespace) -> web.Application:
+    """One stream: its source, frame and status channels, and the page."""
+    app = web.Application()
     app["settings"], app["source"], app["control"] = settings, source, control
     status_clients: set[web.WebSocketResponse] = set()
 
     def full_status() -> dict:
-        return source.status() | control.status()
+        return source.status() | control.status(arm)
 
     app["full_status"] = full_status
 
@@ -139,13 +183,11 @@ def instrument_app(name: str, host: str, port: int, args: argparse.Namespace) ->
                     status_clients.discard(ws)
 
     async def on_start(app):
-        control.start()
-        app["pool"] = ThreadPoolExecutor(args.encoders, thread_name_prefix=f"enc-{name}")
+        app["pool"] = ThreadPoolExecutor(args.encoders, thread_name_prefix=f"enc-{source.name}")
         app["status_task"] = asyncio.create_task(status_broadcast())
 
     async def on_stop(app):
         app["status_task"].cancel()
-        await control.stop()
         app["pool"].shutdown(wait=False)
 
     app.router.add_get("/ws", ws_handler)
@@ -182,9 +224,10 @@ def mount_packages(app: web.Application, astro_ph: Path) -> None:
 def build_app(args: argparse.Namespace) -> web.Application:
     prefix = args.prefix
     root = web.Application(middlewares=[isolation_headers])
-    subs = {name: instrument_app(name, host, port, args) for name, host, port in args.instruments}
-    statuses = lambda: [sub["full_status"]() | {"host": sub["control"].host, "port": sub["control"].port}
-                        for sub in subs.values()]
+    subs = {name: instrument_app(name, host, port, args, KNOWN_ARMS.get(name, ()))
+            for name, host, port in args.instruments}
+    statuses = lambda: [stream["full_status"]() | {"host": sub["control"].host, "port": sub["control"].port}
+                        for sub in subs.values() for stream in sub["streams"].values()]
 
     async def landing(request):
         rows = "".join(
@@ -211,7 +254,7 @@ li{{margin:.3rem 0}} ul{{padding-left:1.2rem}}</style>
     # package's own layout: chz1 ships plain JS under ts/src; core and viewer
     # ship built JS under dist (npm run build in the checkout) plus core's
     # overlay.css under src. Mounted at the root, where the gateway mounts
-    # them too, so the page's ../../pkg/ resolves the same way under either.
+    # them too, so the page's /pkg/ resolves the same way under either.
     mount_packages(root, args.astro_ph)
     for name, sub in subs.items():
         root.router.add_get(f"{prefix}/{name}", redirect(f"{prefix}/{name}/"))  # relative URLs need the slash
