@@ -116,14 +116,18 @@
           }
 
           for (const inst of (cfg.instruments || []).filter((i) => i.quicklook)) {
-            grid.appendChild(card({
-              href: webAppUrl(inst.quicklook_path, devPorts.image),
-              name: `${inst.app.toUpperCase()} quick look`,
-              sub: inst.quicklook_path,
-              desc: "Science-frame viewer — streams each readout to the browser. "
-                  + "Also embedded as the Quick Look tab in the SPA.",
-              external: true,
-            }));
+            // One viewer per arm for an instrument with arms (MIKE).
+            (inst.quicklook_paths || [inst.quicklook_path]).forEach((path, i) => {
+              const arm = (inst.arms || [])[i];
+              grid.appendChild(card({
+                href: webAppUrl(path, devPorts.image),
+                name: `${inst.app.toUpperCase()}${arm ? ` ${arm}` : ""} quick look`,
+                sub: path,
+                desc: "Science-frame viewer — streams each readout to the browser. "
+                    + "Also embedded as the Quick Look tab in the SPA.",
+                external: true,
+              }));
+            });
           }
 
           for (const g of cfg.guiders || []) {

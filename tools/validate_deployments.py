@@ -182,6 +182,8 @@ def check_references(dep: dict, ports: dict, rep: Report) -> None:
             )
         if not (REPO / "instruments" / app).is_dir():
             rep.error(where, f"instrument {app!r} has no UI directory at instruments/{app}/")
+        if inst.get("arms") and not inst.get("quicklook"):
+            rep.error(where, f"instrument {app!r} lists arms without quicklook")
 
     seen_guiders: set[str] = set()
     for guider in dep.get("guiders") or []:

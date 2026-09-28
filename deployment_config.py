@@ -68,9 +68,13 @@ def resolve(path: Path | str, ports: dict | None = None) -> dict:
             "port": port,
             "ws_path": f"/{app}/ws",
             "quicklook": bool(inst.get("quicklook")),
+            "arms": list(inst.get("arms") or []),
         }
         if entry_out["quicklook"]:
             entry_out["quicklook_path"] = f"/image/{app}/"
+            # One stream per arm (MIKE), each its own viewer.
+            entry_out["quicklook_paths"] = [f"/image/{app}/{arm}/" for arm in entry_out["arms"]] \
+                or [entry_out["quicklook_path"]]
         instruments.append(entry_out)
 
     guiders = []
