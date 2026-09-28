@@ -665,11 +665,12 @@ def report(path: str, as_json: bool) -> None:
                                "topics": dict(Counter(r["topic"] for r in states).most_common())}
             exp = [r["data"] for r in states if r.get("topic") == "exposure" and isinstance(r.get("data"), dict)]
             if exp:
-                ids = [e.get("id") for e in exp if e.get("id") is not None]
+                units = [u for e in exp for u in (e.get("arms") or [e])]  # MIKE: one per arm, ids per arm
+                ids = [(u["arm"], u["id"]) if "arm" in u else u["id"] for u in units if u.get("id") is not None]
                 starts = sum(1 for a, b in zip(exp, exp[1:]) if not a.get("running") and b.get("running"))
                 p["exposures"] = {"snapshots": len(exp), "unique_ids": len(set(ids)), "first_id": ids[0] if ids else None,
                                   "last_id": ids[-1] if ids else None, "running_edges": starts,
-                                  "exptime": dict(Counter(str(e.get("exptime")) for e in exp).most_common(3))}
+                                  "exptime": dict(Counter(str(u.get("exptime")) for u in units).most_common(3))}
         if by["hello"]:
             p["hello"] = {"n": len(by["hello"]), "app": by["hello"][-1].get("app"), "version": by["hello"][-1].get("version")}
         if by["event"]:

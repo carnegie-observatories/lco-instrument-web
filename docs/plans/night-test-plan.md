@@ -87,6 +87,17 @@ command interface holds here too.
 
        uv run tools/nighttest.py report runs/nighttest-20260917.jsonl
 
+4. To have the page also act as the observer (MIKE), run the driver next to
+   the recorder. It works the SPA's window tab in the same Chrome: afternoon
+   calibrations, science targets, one stop/start of MIKE and gcam, morning
+   calibrations. It checks the instrument's data disk over ssh before every
+   block, and passes `--recorder-pid` so the recording ends with the night.
+   First run: `docs/reports/night-test-2026-09-28.md`.
+
+       uv run tools/nightdrive.py run --ssh <instrument Mac> --recorder-pid <pid> \
+         --out runs/nightdrive-$(date +%Y%m%d).jsonl
+       uv run tools/nightdrive.py report runs/nightdrive-20260928-all.jsonl
+
 ## Reading the numbers
 
 - **Guider drops.** gcam numbers every frame (`src_seq`); gcamweb forwards
