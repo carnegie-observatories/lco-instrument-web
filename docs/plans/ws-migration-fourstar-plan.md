@@ -330,7 +330,7 @@ All hardware-free, on one Mac:
 - **Loop-buffer memory** — the app retains up to 2 GiB of raw loop
   buffers; the WS layer only ever reads `getPars` snapshots, never
   pixels, so no interaction — but don't be tempted to stream pixels
-  over the control WS (binary frames are reserved, and imageweb reads
+  over the control WS (it stays text-only, in v3 too; imageweb reads
   the FITS from disk).
 - **Which telescope/tunnel** — Baade vs the clay-inst1 shakedown Mac
   (item 5 above); affects only the cloudflared config placement.

@@ -161,7 +161,7 @@ FITS files do not flow over the control WebSocket. A multi-MB pixel array on the
 
 The control WS announces images via the `exposure_complete` event carrying the local absolute `fits_path`; the gateway — a read-only localhost client of this same WS — picks the file up from disk and streams it to viewers. The control protocol stays JSON-only.
 
-(Live readout streaming — partial-image updates during a long readout — is a separate v3+ slice that this plan does not address.)
+(Live readout streaming, meaning partial images during a long readout, will not come to the control WS either, in v3 or later. Frames go through the image proxy.)
 
 ### Command set
 
